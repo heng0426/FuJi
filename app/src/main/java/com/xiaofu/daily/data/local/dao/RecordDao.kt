@@ -67,6 +67,13 @@ interface RecordDao {
     )
     fun observeDayWaterMl(type: RecordType, startMs: Long, endMs: Long): Flow<Int>
 
+    /** 今日喝水次数（概览卡副标题） */
+    @Query(
+        "SELECT COUNT(*) FROM records WHERE type = :type " +
+            "AND occurred_at >= :startMs AND occurred_at < :endMs",
+    )
+    fun observeDayWaterCount(type: RecordType, startMs: Long, endMs: Long): Flow<Int>
+
     /** 今日进食汇总，按餐类分组 */
     @Query(
         "SELECT meal_kind AS meal_kind, " +

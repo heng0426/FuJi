@@ -29,6 +29,7 @@ import kotlin.math.roundToInt
 /** 当日概览：喝水合计、主粮/加餐份数与克数、最近体重 */
 data class DaySummary(
     val waterMl: Int = 0,
+    val waterCount: Int = 0,
     val mainServings: Double = 0.0,
     val mainGrams: Int = 0,
     val snackServings: Double = 0.0,
@@ -88,14 +89,16 @@ class RecordRepository(
         val end = today.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
 
         val water = recordDao.observeDayWaterMl(RecordType.WATER, start, end)
+        val waterCount = recordDao.observeDayWaterCount(RecordType.WATER, start, end)
         val food = recordDao.observeDayFoodSummary(RecordType.FOOD, start, end)
         val weight = recordDao.observeLatestOfType(RecordType.WEIGHT)
 
-        return combine(water, food, weight) { waterMl, foodRows, latestWeight ->
+        return combine(water, waterCount, food, weight) { waterMl, count, foodRows, latestWeight ->
             val main = foodRows.firstOrNull { it.mealKind == MealKind.MAIN }
             val snack = foodRows.firstOrNull { it.mealKind == MealKind.SNACK }
             DaySummary(
                 waterMl = waterMl,
+                waterCount = count,
                 mainServings = main?.servings ?: 0.0,
                 mainGrams = main?.grams ?: 0,
                 snackServings = snack?.servings ?: 0.0,

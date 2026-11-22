@@ -57,6 +57,8 @@ import com.xiaofu.daily.data.local.model.MealKind
 import com.xiaofu.daily.data.local.model.RecordType
 import com.xiaofu.daily.ui.components.CardSurface
 import com.xiaofu.daily.ui.components.CircleTypeIcon
+import com.xiaofu.daily.ui.components.DayGroupHeader
+import com.xiaofu.daily.ui.components.RecordRow
 import com.xiaofu.daily.ui.components.RoundIconButton
 import com.xiaofu.daily.ui.components.TypeIcon
 import com.xiaofu.daily.ui.editor.EditorTarget
@@ -162,9 +164,9 @@ fun TodayScreen(
         }
 
         groups.entries.forEachIndexed { index, (date, dayRecords) ->
-            item(key = "head_$date") { DayHeader(date, dayRecords.size) }
+            item(key = "head_$date") { DayGroupHeader(date, dayRecords.size) }
             items(items = dayRecords, key = { it.id }) { record ->
-                TimelineRow(
+                RecordRow(
                     record = record,
                     showDivider = dayRecords.indexOf(record) > 0,
                     onClick = { detail = record },
@@ -529,74 +531,8 @@ private fun QuickTile(
     }
 }
 
-@Composable
-private fun DayHeader(date: LocalDate, count: Int) {
-    Text(
-        "${Fmt.dayLabel(date)} · $count 条",
-        style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(top = 2.dp),
-    )
-}
 
-@Composable
-private fun TimelineRow(record: RecordEntity, showDivider: Boolean, onClick: () -> Unit) {
-    val display = recordDisplay(record)
-    Column(Modifier.fillMaxWidth().clickable(onClick = onClick)) {
-        if (showDivider) DashedDivider()
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            TypeIcon(display.iconRes, display.fg, display.bg)
-            Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                Text(
-                    text = buildAnnotatedString {
-                        append(display.title)
-                        if (display.value.isNotBlank()) {
-                            append(" ")
-                            withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) { append(display.value) }
-                        }
-                    },
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                display.subtitle?.let {
-                    Text(
-                        it,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(top = 2.dp),
-                    )
-                }
-            }
-            Text(
-                Fmt.time(record.occurredAt),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 8.dp),
-            )
-        }
-    }
-}
 
-@Composable
-private fun DashedDivider() {
-    val color = MaterialTheme.colorScheme.outline
-    Canvas(Modifier.fillMaxWidth().height(1.dp)) {
-        drawLine(
-            color = color,
-            start = Offset(0f, 0f),
-            end = Offset(size.width, 0f),
-            strokeWidth = 1.dp.toPx(),
-            pathEffect = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 4.dp.toPx())),
-        )
-    }
-}
 
 @Composable
 private fun EmptyTimeline() {

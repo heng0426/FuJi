@@ -50,6 +50,18 @@ data class DueInfo(
         get() = if (daysLeft >= 0) "${label}还有 $daysLeft 天到期" else "${label}已超期 ${-daysLeft} 天"
 }
 
+/** 记录页的到期卡：内驱 / 外驱 / 疫苗 */
+data class DueCard(
+    val title: String,
+    val dueDay: Long,
+    val daysLeft: Long,
+    val type: RecordType,
+    val note: String?,
+) {
+    val daysText: String
+        get() = if (daysLeft >= 0) "还有 $daysLeft 天" else "已超期 ${-daysLeft} 天"
+}
+
 /** 删除快照：用于 Snackbar 撤销（照片文件保留，仅回写数据库行） */
 data class RecordSnapshot(
     val record: RecordEntity,
@@ -81,6 +93,34 @@ class RecordRepository(
 
     fun observeTimeline(limit: Int): Flow<List<RecordEntity>> =
         recordDao.observeTimelinePage(Long.MAX_VALUE, Long.MAX_VALUE, limit)
+
+    fun observeRange(startMs: Long, endMs: Long): Flow<List<RecordEntity>> =
+        recordDao.observeByRange(startMs, endMs)
+
+    fun observeByType(type: RecordType, limit: Int = 300): Flow<List<RecordEntity>> =
+        recordDao.observeByType(type, limit)
+
+    /** 记录页顶部到期卡：内驱、外驱、疫苗各自最近一条的到期日 */
+    fun observeDueCards(): Flow<List<DueCard>> {
+        val today = LocalDate.now(ZoneId.systemDefault()).toEpochDay()
+        return combine(
+            recordDao.observeLatestDeworm(RecordType.DEWORM, DewormKind.INTERNAL),
+            recordDao.observeLatestDeworm(RecordType.DEWORM, DewormKind.EXTERNAL),
+            recordDao.observeNearestVaccineDue(RecordType.VACCINE),
+        ) { internal, external, vaccine ->
+            buildList {
+                internal?.nextDueDate?.let {
+                    add(DueCard("内驱", it, it - today, RecordType.DEWORM, internal.medicine))
+                }
+                external?.nextDueDate?.let {
+                    add(DueCard("外驱", it, it - today, RecordType.DEWORM, external.medicine))
+                }
+                vaccine?.nextDueDate?.let {
+                    add(DueCard("疫苗", it, it - today, RecordType.VACCINE, vaccine.vaccineName))
+                }
+            }.sortedBy { it.dueDay }
+        }
+    }
 
     fun observeDaySummary(): Flow<DaySummary> {
         val zone = ZoneId.systemDefault()

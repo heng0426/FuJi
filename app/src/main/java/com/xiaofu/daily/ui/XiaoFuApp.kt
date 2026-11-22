@@ -55,6 +55,10 @@ import com.xiaofu.daily.ui.editor.DewormEditor
 import com.xiaofu.daily.ui.editor.EditorTarget
 import com.xiaofu.daily.ui.editor.VaccineEditor
 import com.xiaofu.daily.ui.editor.WeightEditor
+import com.xiaofu.daily.ui.calendar.CalendarScreen
+import com.xiaofu.daily.ui.calendar.CalendarViewModel
+import com.xiaofu.daily.ui.records.RecordsScreen
+import com.xiaofu.daily.ui.records.RecordsViewModel
 import com.xiaofu.daily.ui.today.TodayScreen
 import com.xiaofu.daily.ui.today.TodayViewModel
 import kotlinx.coroutines.channels.BufferOverflow
@@ -74,6 +78,8 @@ fun XiaoFuApp() {
     var selectedTab by rememberSaveable { mutableStateOf(Tab.TODAY) }
     var editor by remember { mutableStateOf<EditorTarget?>(null) }
     val vm: TodayViewModel = viewModel(factory = TodayViewModel.Factory)
+    val calendarVm: CalendarViewModel = viewModel(factory = CalendarViewModel.Factory)
+    val recordsVm: RecordsViewModel = viewModel(factory = RecordsViewModel.Factory)
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val cs = MaterialTheme.colorScheme
@@ -133,17 +139,30 @@ fun XiaoFuApp() {
                         modifier = Modifier.padding(innerPadding),
                     )
 
-                    Tab.CALENDAR -> PlaceholderScreen("日历", "按日期回看与补记\n将在阶段 3 开放", Modifier.padding(innerPadding))
-                    Tab.RECORDS -> PlaceholderScreen("记录", "按类型查看历史\n将在阶段 3 开放", Modifier.padding(innerPadding))
+                    Tab.CALENDAR -> CalendarScreen(
+                        vm = calendarVm,
+                        actions = vm,
+                        onOpenEditor = { editor = it },
+                        onDeleteRecord = onDelete,
+                        modifier = Modifier.padding(innerPadding),
+                    )
+
+                    Tab.RECORDS -> RecordsScreen(
+                        vm = recordsVm,
+                        actions = vm,
+                        onOpenEditor = { editor = it },
+                        onDeleteRecord = onDelete,
+                        modifier = Modifier.padding(innerPadding),
+                    )
                     Tab.PROFILE -> PlaceholderScreen("我的", "档案与设置\n将在阶段 4 开放", Modifier.padding(innerPadding))
                 }
             }
         } else {
             when (current) {
-                is EditorTarget.Weight -> WeightEditor(vm, current.record) { editor = null }
-                is EditorTarget.Deworm -> DewormEditor(vm, current.record) { editor = null }
-                is EditorTarget.Vaccine -> VaccineEditor(vm, current.record) { editor = null }
-                is EditorTarget.Anomaly -> AnomalyEditor(vm, current.record) { editor = null }
+                is EditorTarget.Weight -> WeightEditor(vm, current.record, current.occurredAtMs) { editor = null }
+                is EditorTarget.Deworm -> DewormEditor(vm, current.record, current.occurredAtMs) { editor = null }
+                is EditorTarget.Vaccine -> VaccineEditor(vm, current.record, current.occurredAtMs) { editor = null }
+                is EditorTarget.Anomaly -> AnomalyEditor(vm, current.record, current.occurredAtMs) { editor = null }
             }
         }
     }

@@ -2,6 +2,7 @@ package com.xiaofu.daily.ui.format
 
 import java.time.Instant
 import java.time.LocalDate
+import java.time.YearMonth
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -51,4 +52,19 @@ object Fmt {
     fun monthDay(day: Long): String = epochDayToDate(day).format(monthDayFormatter)
 
     fun fullDate(day: Long): String = epochDayToDate(day).format(weekFormatter)
+
+    fun monthTitle(month: YearMonth): String = "${month.year}年${month.monthValue}月"
+
+    fun weekday(date: LocalDate): String =
+        date.format(DateTimeFormatter.ofPattern("EEE", Locale.CHINA))
+
+    /** 今天 / 昨天 / 周三 */
+    fun dayLabelOrWeekday(date: LocalDate): String {
+        val today = LocalDate.now(zone)
+        return when (date) {
+            today -> "今天"
+            today.minusDays(1) -> "昨天"
+            else -> weekday(date)
+        }
+    }
 }

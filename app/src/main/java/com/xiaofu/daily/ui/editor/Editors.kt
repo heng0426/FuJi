@@ -209,13 +209,13 @@ private fun combineDayWithTime(day: Long, sourceMillis: Long): Long {
 // ===================== 体重 =====================
 
 @Composable
-fun WeightEditor(vm: TodayViewModel, record: RecordEntity?, onBack: () -> Unit) {
+fun WeightEditor(vm: TodayViewModel, record: RecordEntity?, initialOccurredAt: Long? = null, onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     var jinText by remember {
         mutableStateOf(record?.weightGrams?.let { String.format(Locale.CHINA, "%.1f", it / 500.0) } ?: "")
     }
     var note by remember { mutableStateOf(record?.note ?: "") }
-    var occurredAt by remember { mutableStateOf(record?.occurredAt ?: nowMillis()) }
+    var occurredAt by remember { mutableStateOf(record?.occurredAt ?: initialOccurredAt ?: nowMillis()) }
     var showPicker by remember { mutableStateOf(false) }
     val jin = jinText.toDoubleOrNull()
     val valid = jin != null && jin in 0.1..50.0
@@ -265,12 +265,12 @@ fun WeightEditor(vm: TodayViewModel, record: RecordEntity?, onBack: () -> Unit) 
 // ===================== 驱虫 =====================
 
 @Composable
-fun DewormEditor(vm: TodayViewModel, record: RecordEntity?, onBack: () -> Unit) {
+fun DewormEditor(vm: TodayViewModel, record: RecordEntity?, initialOccurredAt: Long? = null, onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     var kindIndex by remember { mutableIntStateOf(if (record?.dewormKind == DewormKind.EXTERNAL) 1 else 0) }
     var medicine by remember { mutableStateOf(record?.medicine ?: "") }
     var note by remember { mutableStateOf(record?.note ?: "") }
-    var occurredAt by remember { mutableStateOf(record?.occurredAt ?: nowMillis()) }
+    var occurredAt by remember { mutableStateOf(record?.occurredAt ?: initialOccurredAt ?: nowMillis()) }
     var nextDueDay by remember { mutableStateOf(record?.nextDueDate) }
     var cycleDays by remember { mutableIntStateOf(if (kindIndex == 1) 30 else 90) }
     var showOccurredPicker by remember { mutableStateOf(false) }
@@ -280,7 +280,7 @@ fun DewormEditor(vm: TodayViewModel, record: RecordEntity?, onBack: () -> Unit) 
     LaunchedEffect(kindIndex) {
         cycleDays = vm.dewormCycleDays(kind)
         if (record?.nextDueDate == null) {
-            nextDueDay = LocalDate.now().plusDays(cycleDays.toLong()).toEpochDay()
+            nextDueDay = Fmt.date(occurredAt).plusDays(cycleDays.toLong()).toEpochDay()
         }
     }
 
@@ -330,11 +330,11 @@ fun DewormEditor(vm: TodayViewModel, record: RecordEntity?, onBack: () -> Unit) 
 // ===================== 疫苗 =====================
 
 @Composable
-fun VaccineEditor(vm: TodayViewModel, record: RecordEntity?, onBack: () -> Unit) {
+fun VaccineEditor(vm: TodayViewModel, record: RecordEntity?, initialOccurredAt: Long? = null, onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     var name by remember { mutableStateOf(record?.vaccineName ?: "") }
     var note by remember { mutableStateOf(record?.note ?: "") }
-    var occurredAt by remember { mutableStateOf(record?.occurredAt ?: nowMillis()) }
+    var occurredAt by remember { mutableStateOf(record?.occurredAt ?: initialOccurredAt ?: nowMillis()) }
     var nextDueDay by remember { mutableStateOf(record?.nextDueDate) }
     var showPicker by remember { mutableStateOf(false) }
 
@@ -355,10 +355,10 @@ fun VaccineEditor(vm: TodayViewModel, record: RecordEntity?, onBack: () -> Unit)
         FormLabel("下次接种", badge = "选填", badgeColor = MaterialTheme.colorScheme.onSurfaceVariant)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             PillChip("1 年后", selected = false, onClick = {
-                nextDueDay = LocalDate.now().plusYears(1).toEpochDay()
+                nextDueDay = Fmt.date(occurredAt).plusYears(1).toEpochDay()
             })
             PillChip("3 年后", selected = false, onClick = {
-                nextDueDay = LocalDate.now().plusYears(3).toEpochDay()
+                nextDueDay = Fmt.date(occurredAt).plusYears(3).toEpochDay()
             })
             if (nextDueDay != null) {
                 PillChip("清除", selected = false, onClick = { nextDueDay = null })
@@ -382,7 +382,7 @@ fun VaccineEditor(vm: TodayViewModel, record: RecordEntity?, onBack: () -> Unit)
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun AnomalyEditor(vm: TodayViewModel, record: RecordEntity?, onBack: () -> Unit) {
+fun AnomalyEditor(vm: TodayViewModel, record: RecordEntity?, initialOccurredAt: Long? = null, onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     val tags by vm.tags.collectAsState()
     var category by remember { mutableStateOf(record?.anomalyCategory ?: "") }
@@ -397,7 +397,7 @@ fun AnomalyEditor(vm: TodayViewModel, record: RecordEntity?, onBack: () -> Unit)
         )
     }
     var note by remember { mutableStateOf(record?.note ?: "") }
-    var occurredAt by remember { mutableStateOf(record?.occurredAt ?: nowMillis()) }
+    var occurredAt by remember { mutableStateOf(record?.occurredAt ?: initialOccurredAt ?: nowMillis()) }
     var showCustomDialog by remember { mutableStateOf(false) }
     var customName by remember { mutableStateOf("") }
     var showPicker by remember { mutableStateOf(false) }

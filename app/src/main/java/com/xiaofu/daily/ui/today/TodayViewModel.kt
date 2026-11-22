@@ -60,8 +60,8 @@ class TodayViewModel(private val repo: RecordRepository) : ViewModel() {
 
     suspend fun restore(snapshot: RecordSnapshot) = repo.restore(snapshot)
 
-    suspend fun saveWater(ml: Int, existing: RecordEntity?) =
-        repo.saveWater(ml, System.currentTimeMillis(), existing)
+    suspend fun saveWater(ml: Int, existing: RecordEntity?, at: Long? = null) =
+        repo.saveWater(ml, at ?: existing?.occurredAt ?: System.currentTimeMillis(), existing)
 
     suspend fun saveFood(
         kind: MealKind,
@@ -69,7 +69,8 @@ class TodayViewModel(private val repo: RecordRepository) : ViewModel() {
         grams: Int,
         snackType: String?,
         existing: RecordEntity?,
-    ) = repo.saveFood(kind, servings, grams, snackType, System.currentTimeMillis(), existing)
+        at: Long? = null,
+    ) = repo.saveFood(kind, servings, grams, snackType, at ?: existing?.occurredAt ?: System.currentTimeMillis(), existing)
 
     suspend fun quickAddMain(grams: Int) =
         repo.saveFood(MealKind.MAIN, 1.0, grams, null, System.currentTimeMillis())

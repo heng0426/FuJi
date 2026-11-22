@@ -235,6 +235,7 @@
 | 无障碍 | 图标按钮补 `contentDescription`；文本对比度按 §2 表；支持系统字号缩放（sp） |
 | 深色 | 全部颜色走 `MaterialTheme.colorScheme` 与 `recordStyle(type)` 的 dark 分支；判断主题用 `LocalAppDarkTheme.current`，不要用 `isSystemInDarkTheme()`，否则强制深色会取错色板 |
 | 日历 | 月历使用 `HorizontalPager` 实现跟手翻页；月份状态以 `currentPage` 同步；日期格标记与到期信息分离 |
+| 弹窗状态栏 | Activity 的 `attachBaseContext` 按外观设置强制资源 `uiMode`（SYSTEM 除外），使 ModalBottomSheet/Dialog 继承正确明暗主题，状态栏图标不会在深色弹窗时变暗 |
 
 ## 6. 校验清单
 

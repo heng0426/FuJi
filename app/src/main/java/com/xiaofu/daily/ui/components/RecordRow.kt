@@ -2,7 +2,9 @@ package com.xiaofu.daily.ui.components
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -12,6 +14,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.text.SpanStyle
@@ -20,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.xiaofu.daily.data.local.entity.RecordEntity
 import com.xiaofu.daily.ui.format.Fmt
 import com.xiaofu.daily.ui.today.recordDisplay
@@ -33,10 +37,17 @@ fun RecordRow(
     onClick: () -> Unit,
 ) {
     val display = recordDisplay(record)
-    Column(Modifier.fillMaxWidth().clickable(onClick = onClick)) {
-        if (showDivider) DashedDivider()
+    Column(Modifier.fillMaxWidth()) {
+        if (showDivider) {
+            Box(Modifier.padding(horizontal = 8.dp)) { DashedDivider() }
+        }
         Row(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .clickable(onClick = onClick)
+                .padding(horizontal = 8.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             TypeIcon(display.iconRes, display.fg, display.bg)
@@ -79,7 +90,8 @@ fun RecordRow(
 fun DayGroupHeader(date: LocalDate, count: Int) {
     Text(
         "${Fmt.dayLabel(date)} · $count 条",
-        style = MaterialTheme.typography.labelMedium,
+        fontSize = 14.sp,
+        fontWeight = FontWeight.Medium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(top = 2.dp),
     )

@@ -1,12 +1,14 @@
 package com.xiaofu.daily.ui.today
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -64,13 +66,13 @@ import com.xiaofu.daily.ui.components.TypeIcon
 import com.xiaofu.daily.ui.editor.EditorTarget
 import com.xiaofu.daily.ui.format.Fmt
 import com.xiaofu.daily.ui.theme.SnackStyle
+import com.xiaofu.daily.ui.theme.LocalAppDarkTheme
 import com.xiaofu.daily.ui.theme.recordStyle
 import java.time.LocalDate
 import java.time.ZoneId
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TodayScreen(
     vm: TodayViewModel,
@@ -138,14 +140,7 @@ fun TodayScreen(
                     waterEditing = null
                     showWater = true
                 },
-                onFoodClick = {
-                    scope.launch {
-                        val grams = vm.servingGrams()
-                        vm.quickAddMain(grams)
-                        onMessage("已记 1 份主粮 · $grams 克")
-                    }
-                },
-                onFoodLong = {
+                onFood = {
                     foodEditing = null
                     foodKind = MealKind.MAIN
                     showFood = true
@@ -165,12 +160,16 @@ fun TodayScreen(
 
         groups.entries.forEachIndexed { index, (date, dayRecords) ->
             item(key = "head_$date") { DayGroupHeader(date, dayRecords.size) }
-            items(items = dayRecords, key = { it.id }) { record ->
-                RecordRow(
-                    record = record,
-                    showDivider = dayRecords.indexOf(record) > 0,
-                    onClick = { detail = record },
-                )
+            item(key = "rows_$date") {
+                Column {
+                    dayRecords.forEachIndexed { position, record ->
+                        RecordRow(
+                            record = record,
+                            showDivider = position > 0,
+                            onClick = { detail = record },
+                        )
+                    }
+                }
             }
             if (index == 0 && groups.size > 1) {
                 item(key = "scroll_hint") { ScrollHint() }
@@ -348,13 +347,19 @@ private fun OverviewCard(summary: DaySummary, onWeightClick: () -> Unit) {
                     label = "主粮",
                     value = "${Fmt.servings(summary.mainServings)} 份 · ${summary.mainGrams} 克",
                 )
-                MiniRow(
-                    iconRes = R.drawable.ic_ms_cookie,
-                    fg = SnackStyle.fg,
-                    bg = SnackStyle.bg,
-                    label = "加餐",
-                    value = "${Fmt.servings(summary.snackServings)} 份 · ${summary.snackGrams} 克",
-                )
+                AnimatedVisibility(
+                    visible = summary.snackGrams > 0,
+                    enter = fadeIn() + expandVertically(),
+                    exit = fadeOut() + shrinkVertically(),
+                ) {
+                    MiniRow(
+                        iconRes = R.drawable.ic_ms_cookie,
+                        fg = SnackStyle.fg,
+                        bg = SnackStyle.bg,
+                        label = "加餐",
+                        value = "${Fmt.servings(summary.snackServings)} 份 · ${summary.snackGrams} 克",
+                    )
+                }
                 Row(
                     modifier = Modifier.fillMaxWidth().clickable(onClick = onWeightClick),
                     verticalAlignment = Alignment.CenterVertically,
@@ -412,7 +417,7 @@ private fun MiniRow(iconRes: Int, fg: Color, bg: Color, label: String, value: St
 
 @Composable
 private fun DueBar(info: DueInfo) {
-    val dark = isSystemInDarkTheme()
+    val dark = LocalAppDarkTheme.current
     val bg = if (dark) Color(0xFF33220F) else Color(0xFFFFF1DF)
     val borderColor = if (dark) Color(0xFF553516) else Color(0xFFF6DDBC)
     val style = recordStyle(info.type)
@@ -444,13 +449,12 @@ private fun DueBar(info: DueInfo) {
 @Composable
 private fun QuickActions(
     onWater: () -> Unit,
-    onFoodClick: () -> Unit,
-    onFoodLong: () -> Unit,
+    onFood: () -> Unit,
     onSnack: () -> Unit,
     onMore: () -> Unit,
 ) {
     val cs = MaterialTheme.colorScheme
-    val accent = if (isSystemInDarkTheme()) cs.primary else Color(0xFFB5501A)
+    val accent = if (LocalAppDarkTheme.current) cs.primary else Color(0xFFB5501A)
     Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
         QuickTile(
             iconRes = R.drawable.ic_ms_water_drop,
@@ -470,8 +474,7 @@ private fun QuickActions(
             contentColor = cs.onSurface,
             iconColor = accent,
             bordered = true,
-            onClick = onFoodClick,
-            onLongClick = onFoodLong,
+            onClick = onFood,
         )
         QuickTile(
             iconRes = R.drawable.ic_ms_cookie,
@@ -496,7 +499,6 @@ private fun QuickActions(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun QuickTile(
     iconRes: Int,
@@ -507,7 +509,6 @@ private fun QuickTile(
     iconColor: Color,
     bordered: Boolean,
     onClick: () -> Unit,
-    onLongClick: (() -> Unit)? = null,
 ) {
     val outline = MaterialTheme.colorScheme.outline
     Column(
@@ -516,7 +517,7 @@ private fun QuickTile(
             .clip(RoundedCornerShape(18.dp))
             .background(background)
             .then(if (bordered) Modifier.border(1.dp, outline, RoundedCornerShape(18.dp)) else Modifier)
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
+            .clickable(onClick = onClick),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {

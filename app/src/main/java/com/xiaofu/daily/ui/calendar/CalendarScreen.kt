@@ -147,7 +147,8 @@ fun CalendarScreen(
             Row(Modifier.fillMaxWidth().padding(top = 2.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     "${selected.monthValue}月${selected.dayOfMonth}日 · ${Fmt.dayLabelOrWeekday(selected)}",
-                    style = MaterialTheme.typography.labelMedium,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
                     color = cs.onSurfaceVariant,
                     modifier = Modifier.weight(1f),
                 )
@@ -167,12 +168,16 @@ fun CalendarScreen(
                 }
             }
         } else {
-            items(items = selectedRecords, key = { it.id }) { record ->
-                RecordRow(
-                    record = record,
-                    showDivider = selectedRecords.indexOf(record) > 0,
-                    onClick = { detail = record },
-                )
+            item(key = "selected_rows") {
+                Column {
+                    selectedRecords.forEachIndexed { position, record ->
+                        RecordRow(
+                            record = record,
+                            showDivider = position > 0,
+                            onClick = { detail = record },
+                        )
+                    }
+                }
             }
         }
         item(key = "add") {
@@ -379,35 +384,42 @@ private fun RowScope.DayCell(
     Column(
         modifier = Modifier
             .weight(1f)
-            .height(38.dp)
-            .clickable(onClick = onClick),
+            .height(42.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
         Box(
             modifier = Modifier
-                .size(31.dp)
+                .size(38.dp)
                 .clip(CircleShape)
-                .background(if (selected) cs.primary else Color.Transparent)
-                .then(
-                    if (!selected && (isToday || due)) {
-                        Modifier.border(1.5.dp, if (isToday) cs.primary else Color(0xFFC98A3E), CircleShape)
-                    } else {
-                        Modifier
-                    },
-                ),
+                .clickable(onClick = onClick),
             contentAlignment = Alignment.Center,
         ) {
-            Text(
-                "${date.dayOfMonth}",
-                fontSize = 12.5.sp,
-                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                color = when {
-                    selected -> cs.onPrimary
-                    !inMonth -> cs.onSurfaceVariant.copy(alpha = 0.35f)
-                    else -> cs.onSurface
-                },
-            )
+            Box(
+                modifier = Modifier
+                    .size(31.dp)
+                    .clip(CircleShape)
+                    .background(if (selected) cs.primary else Color.Transparent)
+                    .then(
+                        if (!selected && (isToday || due)) {
+                            Modifier.border(1.5.dp, if (isToday) cs.primary else Color(0xFFC98A3E), CircleShape)
+                        } else {
+                            Modifier
+                        },
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    "${date.dayOfMonth}",
+                    fontSize = 12.5.sp,
+                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                    color = when {
+                        selected -> cs.onPrimary
+                        !inMonth -> cs.onSurfaceVariant.copy(alpha = 0.35f)
+                        else -> cs.onSurface
+                    },
+                )
+            }
         }
         Row(Modifier.height(4.dp), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
             if (hasRecords) Dot(Color(0xFF8A7566).copy(alpha = 0.8f))

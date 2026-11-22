@@ -72,9 +72,6 @@ class TodayViewModel(private val repo: RecordRepository) : ViewModel() {
         at: Long? = null,
     ) = repo.saveFood(kind, servings, grams, snackType, at ?: existing?.occurredAt ?: System.currentTimeMillis(), existing)
 
-    suspend fun quickAddMain(grams: Int) =
-        repo.saveFood(MealKind.MAIN, 1.0, grams, null, System.currentTimeMillis())
-
     suspend fun addTag(name: String) = repo.addTag(name)
 
     suspend fun saveWeight(

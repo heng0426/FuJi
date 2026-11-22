@@ -173,19 +173,24 @@ fun RecordsScreen(
                     Row(Modifier.fillMaxWidth().padding(top = 2.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             "${date.monthValue}月${date.dayOfMonth}日 · ${Fmt.dayLabelOrWeekday(date)}",
-                            style = MaterialTheme.typography.labelMedium,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
                             color = cs.onSurfaceVariant,
                             modifier = Modifier.weight(1f),
                         )
                         Text("${dayRecords.size} 条", style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
                     }
                 }
-                items(items = dayRecords, key = { it.id }) { record ->
-                    RecordRow(
-                        record = record,
-                        showDivider = dayRecords.indexOf(record) > 0,
-                        onClick = { detail = record },
-                    )
+                item(key = "rows_$date") {
+                    Column {
+                        dayRecords.forEachIndexed { position, record ->
+                            RecordRow(
+                                record = record,
+                                showDivider = position > 0,
+                                onClick = { detail = record },
+                            )
+                        }
+                    }
                 }
             }
         }

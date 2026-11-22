@@ -1,5 +1,8 @@
 package com.xiaofu.daily.ui.profile
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import android.content.Intent
 import android.graphics.BitmapFactory
 import android.net.Uri
@@ -74,6 +77,8 @@ import com.xiaofu.daily.ui.components.SheetHandle
 import com.xiaofu.daily.ui.components.StepperRow
 import com.xiaofu.daily.ui.components.TextFieldBox
 import com.xiaofu.daily.ui.format.Fmt
+import com.xiaofu.daily.ui.theme.ThemeMode
+import com.xiaofu.daily.ui.theme.ThemePreference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -87,6 +92,7 @@ import java.time.ZoneOffset
 @Composable
 fun ProfileScreen(vm: ProfileViewModel, modifier: Modifier = Modifier) {
     val cs = MaterialTheme.colorScheme
+    val context = LocalContext.current
     val profile by vm.profile.collectAsState()
     val settings by vm.settings.collectAsState()
 
@@ -95,6 +101,7 @@ fun ProfileScreen(vm: ProfileViewModel, modifier: Modifier = Modifier) {
     var editCycle by remember { mutableStateOf(false) }
     var showAbout by remember { mutableStateOf(false) }
     var showReminder by remember { mutableStateOf(false) }
+    var showTheme by remember { mutableStateOf(false) }
 
     val serving = settings[SettingsKeys.SERVING_GRAMS]?.toIntOrNull() ?: 15
     val internalDays = settings[SettingsKeys.DEWORM_INTERNAL_DAYS]?.toIntOrNull() ?: 90
@@ -102,6 +109,7 @@ fun ProfileScreen(vm: ProfileViewModel, modifier: Modifier = Modifier) {
     val notifyEnabled = settings[SettingsKeys.NOTIFY_ENABLED] != "false"
     val notifyDays = settings[SettingsKeys.NOTIFY_DAYS_AHEAD]?.toIntOrNull() ?: 3
     val notifyHour = settings[SettingsKeys.NOTIFY_HOUR]?.toIntOrNull() ?: 9
+    val themeMode = ThemePreference.read(context)
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -172,9 +180,8 @@ fun ProfileScreen(vm: ProfileViewModel, modifier: Modifier = Modifier) {
                     SettingRow(
                         iconRes = R.drawable.ic_ms_dark_mode,
                         title = "外观",
-                        value = "跟随系统",
-                        onClick = null,
-                        showChevron = false,
+                        value = themeMode.label,
+                        onClick = { showTheme = true },
                     )
                     SettingRow(
                         iconRes = R.drawable.ic_ms_info,
@@ -206,6 +213,18 @@ fun ProfileScreen(vm: ProfileViewModel, modifier: Modifier = Modifier) {
             onSave = { name, breed, gender, birthday, photoUri ->
                 vm.saveProfile(profile, name, breed, gender, birthday, photoUri)
                 editProfile = false
+            },
+        )
+    }
+
+    if (showTheme) {
+        ThemeDialog(
+            current = themeMode,
+            onDismiss = { showTheme = false },
+            onPick = { mode ->
+                ThemePreference.write(context, mode)
+                showTheme = false
+                context.findActivity()?.recreate()
             },
         )
     }
@@ -711,4 +730,55 @@ private fun ProfileAvatar(
             )
         }
     }
+}
+
+@Composable
+private fun ThemeDialog(
+    current: ThemeMode,
+    onDismiss: () -> Unit,
+    onPick: (ThemeMode) -> Unit,
+) {
+    val cs = MaterialTheme.colorScheme
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = cs.surface,
+        shape = RoundedCornerShape(22.dp),
+        title = { Text("外观", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = cs.onSurface) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                ThemeMode.entries.forEach { mode ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { onPick(mode) }
+                            .padding(horizontal = 8.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            mode.label,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = cs.onSurface,
+                            modifier = Modifier.weight(1f),
+                        )
+                        if (mode == current) {
+                            Icon(painterResource(R.drawable.ic_ms_check), null, Modifier.size(18.dp), tint = cs.primary)
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("关闭", color = cs.onSurfaceVariant) }
+        },
+    )
+}
+
+private fun Context.findActivity(): Activity? {
+    var current: Context = this
+    while (current is ContextWrapper) {
+        if (current is Activity) return current
+        current = current.baseContext
+    }
+    return null
 }

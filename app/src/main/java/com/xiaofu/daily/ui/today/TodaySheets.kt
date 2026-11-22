@@ -1,5 +1,7 @@
 package com.xiaofu.daily.ui.today
 
+import android.graphics.BitmapFactory
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -9,6 +11,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
@@ -16,7 +19,9 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -27,15 +32,21 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.xiaofu.daily.AppContainer
 import com.xiaofu.daily.R
 import com.xiaofu.daily.data.local.entity.RecordEntity
 import com.xiaofu.daily.data.local.model.MealKind
@@ -52,7 +63,10 @@ import com.xiaofu.daily.ui.editor.EditorTarget
 import com.xiaofu.daily.ui.format.Fmt
 import com.xiaofu.daily.ui.theme.SnackStyle
 import com.xiaofu.daily.ui.theme.recordStyle
+import java.io.File
 import kotlin.math.roundToInt
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 private val SnackTypes = listOf("冻干", "罐头", "零食", "自制", "其他")
 
@@ -143,7 +157,9 @@ fun FoodSheet(
     var kindIndex by remember {
         mutableIntStateOf(if ((editing?.mealKind ?: initialKind) == MealKind.SNACK) 1 else 0)
     }
-    var servings by remember { mutableStateOf(editing?.servingCount ?: 1.0) }
+    var servings by remember {
+        mutableStateOf(kotlin.math.ceil(editing?.servingCount ?: 1.0).coerceAtLeast(1.0))
+    }
     var grams by remember { mutableIntStateOf(editing?.gramsPerServing ?: initialGrams) }
     var snackType by remember { mutableStateOf(editing?.snackType ?: initialSnack ?: SnackTypes.first()) }
 
@@ -173,7 +189,7 @@ fun FoodSheet(
                 color = cs.onSurface,
             )
             Text(
-                "单击「喂食」= 1 份主粮；长按可调份数与克重",
+                "选好份数与每份克重，保存即记一笔",
                 style = MaterialTheme.typography.labelSmall,
                 color = cs.onSurfaceVariant,
                 modifier = Modifier.padding(top = 4.dp),
@@ -189,9 +205,9 @@ fun FoodSheet(
                 label = "份数",
                 valueText = Fmt.servings(servings),
                 unit = "份",
-                onMinus = { if (servings > 0.5) servings -= 0.5 },
-                onPlus = { if (servings < 20) servings += 0.5 },
-                minusEnabled = servings > 0.5,
+                onMinus = { if (servings > 1) servings -= 1.0 },
+                onPlus = { if (servings < 20) servings += 1.0 },
+                minusEnabled = servings > 1,
                 plusEnabled = servings < 20,
             )
             StepperRow(
@@ -342,6 +358,7 @@ fun DetailSheet(
         Column(
             Modifier
                 .navigationBarsPadding()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 20.dp),
         ) {
@@ -360,10 +377,17 @@ fun DetailSheet(
             }
             Spacer(Modifier.height(14.dp))
             DetailRow("时间", Fmt.detailTime(record.occurredAt))
-            record.note?.takeIf { it.isNotBlank() }?.let { DetailRow("备注", it, multiline = true) }
-            if (record.type == RecordType.DEWORM || record.type == RecordType.VACCINE) {
-                record.nextDueDate?.let {
-                    DetailRow(if (record.type == RecordType.VACCINE) "下次接种" else "下次到期", Fmt.fullDate(it))
+            if (record.type == RecordType.ANOMALY) {
+                DetailRow("分类", record.anomalyCategory ?: "—")
+                record.severity?.let { DetailRow("程度", it.label()) }
+                DetailRow("备注", record.note?.takeIf { it.isNotBlank() } ?: "无", multiline = true)
+                AnomalyPhotoStrip(record.id)
+            } else {
+                record.note?.takeIf { it.isNotBlank() }?.let { DetailRow("备注", it, multiline = true) }
+                if (record.type == RecordType.DEWORM || record.type == RecordType.VACCINE) {
+                    record.nextDueDate?.let {
+                        DetailRow(if (record.type == RecordType.VACCINE) "下次接种" else "下次到期", Fmt.fullDate(it))
+                    }
                 }
             }
             Row(
@@ -391,5 +415,55 @@ private fun DetailRow(label: String, value: String, multiline: Boolean = false) 
             color = cs.onSurface,
             modifier = Modifier.weight(1f),
         )
+    }
+}
+
+@Composable
+private fun AnomalyPhotoStrip(recordId: Long) {
+    val cs = MaterialTheme.colorScheme
+    val photos by produceState(initialValue = emptyList<File>(), recordId) {
+        value = runCatching {
+            AppContainer.repository.photoNames(recordId).map { AppContainer.repository.photoFile(it) }
+        }.getOrDefault(emptyList())
+    }
+    Spacer(Modifier.height(8.dp))
+    Text("照片", style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
+    if (photos.isEmpty()) {
+        Text(
+            "无照片",
+            style = MaterialTheme.typography.labelSmall,
+            color = cs.onSurfaceVariant,
+            modifier = Modifier.padding(top = 4.dp),
+        )
+    } else {
+        Row(
+            Modifier.fillMaxWidth().padding(top = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            photos.take(3).forEach { file -> AnomalyThumb(file) }
+        }
+    }
+}
+
+@Composable
+private fun AnomalyThumb(file: File) {
+    val cs = MaterialTheme.colorScheme
+    val bitmap by produceState<ImageBitmap?>(initialValue = null, file.path) {
+        value = withContext(Dispatchers.IO) {
+            runCatching {
+                BitmapFactory.decodeFile(file.path, BitmapFactory.Options().apply { inSampleSize = 4 })
+                    ?.asImageBitmap()
+            }.getOrNull()
+        }
+    }
+    Box(
+        Modifier
+            .size(72.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(cs.surfaceVariant),
+    ) {
+        if (bitmap != null) {
+            Image(bitmap!!, contentDescription = "异常照片", modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        }
     }
 }

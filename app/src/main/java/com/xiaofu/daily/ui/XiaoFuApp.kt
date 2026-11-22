@@ -9,7 +9,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -72,6 +71,7 @@ import com.xiaofu.daily.ui.profile.ProfileScreen
 import com.xiaofu.daily.ui.profile.ProfileViewModel
 import com.xiaofu.daily.ui.records.RecordsViewModel
 import com.xiaofu.daily.ui.today.TodayScreen
+import com.xiaofu.daily.ui.theme.LocalAppDarkTheme
 import com.xiaofu.daily.ui.today.TodayViewModel
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -96,7 +96,7 @@ fun XiaoFuApp() {
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val cs = MaterialTheme.colorScheme
-    val accentText = if (isSystemInDarkTheme()) cs.primary else Color(0xFFB5501A)
+    val accentText = if (LocalAppDarkTheme.current) cs.primary else Color(0xFFB5501A)
 
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("xiaofu_prefs", Context.MODE_PRIVATE) }

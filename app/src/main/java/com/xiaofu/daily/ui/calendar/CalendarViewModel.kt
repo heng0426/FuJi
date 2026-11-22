@@ -29,8 +29,9 @@ class CalendarViewModel(private val repo: RecordRepository) : ViewModel() {
     val monthRecords: StateFlow<List<RecordEntity>> = _month
         .flatMapLatest { month ->
             val zone = ZoneId.systemDefault()
-            val start = month.atDay(1).atStartOfDay(zone).toInstant().toEpochMilli()
-            val end = month.plusMonths(1).atDay(1).atStartOfDay(zone).toInstant().toEpochMilli()
+            // 多取前后一个月：分页跟手滑动时，相邻月份的小点也能立即显示
+            val start = month.minusMonths(1).atDay(1).atStartOfDay(zone).toInstant().toEpochMilli()
+            val end = month.plusMonths(2).atDay(1).atStartOfDay(zone).toInstant().toEpochMilli()
             repo.observeRange(start, end)
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())

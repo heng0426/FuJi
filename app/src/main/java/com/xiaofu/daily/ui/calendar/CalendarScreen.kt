@@ -398,7 +398,8 @@ private fun MonthCard(
         if (pagerState.currentPage != targetPage) pagerState.scrollToPage(targetPage)
     }
     LaunchedEffect(pagerState) {
-        snapshotFlow { pagerState.settledPage }.collect { page ->
+        // 以当前页（而非落位页）同步月份：滑过中线即加载目标月记录，圆点无需再点日期
+        snapshotFlow { pagerState.currentPage }.collect { page ->
             val target = anchor.plusMonths(page.toLong())
             if (target != month) onMonthChange(target)
         }
@@ -608,7 +609,6 @@ private fun RowScope.DayCell(
         Row(Modifier.height(4.dp), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
             if (hasRecords) Dot(Color(0xFF8A7566).copy(alpha = 0.8f))
             if (hasAnomaly) Dot(cs.error)
-            if (due && !hasRecords && !hasAnomaly) Dot(dueColor)
         }
     }
 }

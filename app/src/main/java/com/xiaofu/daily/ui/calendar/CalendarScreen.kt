@@ -1,5 +1,11 @@
 package com.xiaofu.daily.ui.calendar
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -50,6 +56,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.xiaofu.daily.R
+import com.xiaofu.daily.data.DueCard
 import com.xiaofu.daily.data.local.entity.RecordEntity
 import com.xiaofu.daily.data.local.model.MealKind
 import com.xiaofu.daily.data.local.model.RecordType
@@ -133,6 +140,9 @@ fun CalendarScreen(
         dueCards.groupBy { it.dueDay }.mapValues { (_, cards) -> cards.map { it.type }.toSet() }
     }
     val selectedRecords = byDay[selected].orEmpty().sortedByDescending { it.occurredAt }
+    val selectedDue = remember(dueCards, selected) {
+        dueCards.filter { it.dueDay == selected.toEpochDay() }
+    }
     val backfillAt = remember(selected) { selected.atTime(LocalTime.now(ZoneId.systemDefault())).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli() }
 
     LazyColumn(
@@ -178,7 +188,10 @@ fun CalendarScreen(
                 Text("${selectedRecords.size} 条", style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
             }
         }
-        if (selectedRecords.isEmpty()) {
+        items(items = selectedDue, key = { "sel_due_${it.type}_${it.dueDay}" }) { card ->
+            CalendarDueRow(card)
+        }
+        if (selectedRecords.isEmpty() && selectedDue.isEmpty()) {
             item(key = "empty") {
                 CardSurface(contentPadding = 16.dp) {
                     Text("这一天还没有记录", style = MaterialTheme.typography.bodyMedium, color = cs.onSurface)
@@ -389,6 +402,21 @@ private fun MonthCard(
                     )
                 },
         ) {
+            AnimatedContent(
+                targetState = month,
+                transitionSpec = {
+                    if (targetState > initialState) {
+                        (slideInHorizontally { it } + fadeIn()) togetherWith
+                            (slideOutHorizontally { -it } + fadeOut())
+                    } else {
+                        (slideInHorizontally { -it } + fadeIn()) togetherWith
+                            (slideOutHorizontally { it } + fadeOut())
+                    }
+                },
+                label = "month_switch",
+            ) { animatedMonth ->
+                val month = animatedMonth
+                Column(Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(32.dp).clip(CircleShape).clickable(onClick = onPrev), contentAlignment = Alignment.Center) {
                 Icon(painterResource(R.drawable.ic_ms_chevron_left), "上个月", Modifier.size(20.dp), tint = cs.onSurfaceVariant)
@@ -446,6 +474,8 @@ private fun MonthCard(
                 }
             }
         }
+                }
+            }
         Row(
             Modifier.fillMaxWidth().padding(top = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -498,7 +528,7 @@ private fun RowScope.DayCell(
     Column(
         modifier = Modifier
             .weight(1f)
-            .height(50.dp),
+            .height(56.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
@@ -553,11 +583,13 @@ private fun RowScope.DayCell(
                 color = Color(0xFFC98A3E),
                 maxLines = 1,
             )
-        } else {
-            Row(Modifier.height(4.dp), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                if (hasRecords) Dot(Color(0xFF8A7566).copy(alpha = 0.8f))
-                if (hasAnomaly) Dot(cs.error)
-            }
+        }
+        Row(
+            Modifier.height(4.dp).padding(top = if (dueLabel != null) 1.dp else 0.dp),
+            horizontalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
+            if (hasRecords) Dot(Color(0xFF8A7566).copy(alpha = 0.8f))
+            if (hasAnomaly) Dot(cs.error)
         }
     }
 }
@@ -627,5 +659,42 @@ private fun CreateSheet(onDismiss: () -> Unit, onPick: (CreateOption) -> Unit) {
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun CalendarDueRow(card: DueCard) {
+    val cs = MaterialTheme.colorScheme
+    val style = recordStyle(card.type)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(cs.surface)
+            .border(1.dp, cs.outline, RoundedCornerShape(16.dp))
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        TypeIcon(style.iconRes, style.fg, style.bg, size = 36.dp, iconSize = 18.dp, radius = 12.dp)
+        Column(Modifier.weight(1f).padding(start = 12.dp)) {
+            Text(
+                if (card.type == RecordType.DEWORM) "驱虫到期" else "疫苗到期",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = cs.onSurface,
+            )
+            Text(
+                card.note?.takeIf { it.isNotBlank() } ?: "今天到期",
+                style = MaterialTheme.typography.labelSmall,
+                color = cs.onSurfaceVariant,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+        }
+        Text(
+            "到期日",
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Medium,
+            color = Color(0xFFC98A3E),
+        )
     }
 }

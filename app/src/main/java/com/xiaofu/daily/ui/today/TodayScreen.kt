@@ -25,9 +25,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -85,6 +87,7 @@ fun TodayScreen(
     val due by vm.due.collectAsState()
     val records by vm.records.collectAsState()
     val hasMore by vm.hasMore.collectAsState()
+    val cs = MaterialTheme.colorScheme
 
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
@@ -100,6 +103,9 @@ fun TodayScreen(
     var foodKind by remember { mutableStateOf(MealKind.MAIN) }
     var showMore by remember { mutableStateOf(false) }
     var detail by remember { mutableStateOf<RecordEntity?>(null) }
+    var selecting by remember { mutableStateOf(false) }
+    var selectedIds by remember { mutableStateOf(setOf<Long>()) }
+    var confirmDeleteSelected by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         lastWater = vm.lastWaterMl()
@@ -119,6 +125,13 @@ fun TodayScreen(
         if (shouldLoadMore && hasMore) vm.loadMore()
     }
 
+    if (selecting) {
+        androidx.activity.compose.BackHandler {
+            selecting = false
+            selectedIds = emptySet()
+        }
+    }
+
     val zone = remember { ZoneId.systemDefault() }
     val groups = remember(records) {
         records.groupBy { Fmt.date(it.occurredAt) }
@@ -130,7 +143,20 @@ fun TodayScreen(
         contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        item(key = "topbar") { TodayTopBar() }
+        item(key = "topbar") {
+            if (selecting) {
+                SelectionTopBar(
+                    count = selectedIds.size,
+                    onCancel = {
+                        selecting = false
+                        selectedIds = emptySet()
+                    },
+                    onDelete = { if (selectedIds.isNotEmpty()) confirmDeleteSelected = true },
+                )
+            } else {
+                TodayTopBar()
+            }
+        }
         item(key = "overview") {
             OverviewCard(summary = summary, onWeightClick = { onOpenEditor(EditorTarget.Weight()) })
         }
@@ -168,7 +194,23 @@ fun TodayScreen(
                         RecordRow(
                             record = record,
                             showDivider = position > 0,
-                            onClick = { detail = record },
+                            onClick = {
+                                if (selecting) {
+                                    selectedIds = if (record.id in selectedIds) {
+                                        selectedIds - record.id
+                                    } else {
+                                        selectedIds + record.id
+                                    }
+                                } else {
+                                    detail = record
+                                }
+                            },
+                            onLongClick = {
+                                selecting = true
+                                selectedIds = selectedIds + record.id
+                            },
+                            selectionMode = selecting,
+                            selected = record.id in selectedIds,
                         )
                     }
                 }
@@ -263,6 +305,32 @@ fun TodayScreen(
         )
     }
 
+    if (confirmDeleteSelected) {
+        val count = selectedIds.size
+        AlertDialog(
+            onDismissRequest = { confirmDeleteSelected = false },
+            containerColor = cs.surface,
+            shape = RoundedCornerShape(22.dp),
+            title = { Text("删除 $count 条记录", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = cs.onSurface) },
+            text = { Text("删除后不可恢复。", style = MaterialTheme.typography.bodyMedium, color = cs.onSurfaceVariant) },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmDeleteSelected = false
+                    val ids = selectedIds
+                    scope.launch {
+                        vm.deleteMany(ids)
+                        selectedIds = emptySet()
+                        selecting = false
+                        onMessage("已删除 $count 条记录")
+                    }
+                }) { Text("删除", color = cs.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmDeleteSelected = false }) { Text("取消", color = cs.onSurfaceVariant) }
+            },
+        )
+    }
+
     detail?.let { record ->
         DetailSheet(
             record = record,
@@ -289,6 +357,28 @@ fun TodayScreen(
                 detail = null
                 onDeleteRecord(record)
             },
+        )
+    }
+}
+
+@Composable
+private fun SelectionTopBar(count: Int, onCancel: () -> Unit, onDelete: () -> Unit) {
+    val cs = MaterialTheme.colorScheme
+    Row(
+        Modifier.fillMaxWidth().height(52.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            "已选 $count 条",
+            style = MaterialTheme.typography.titleMedium,
+            color = cs.onSurface,
+            modifier = Modifier.weight(1f),
+        )
+        TextButton(onClick = onCancel) { Text("取消", color = cs.onSurfaceVariant) }
+        RoundIconButton(
+            R.drawable.ic_ms_delete,
+            onClick = onDelete,
+            tint = cs.error,
         )
     }
 }

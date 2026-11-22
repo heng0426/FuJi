@@ -77,6 +77,7 @@ object SettingsKeys {
     const val LAST_SERVINGS = "last_servings"
     const val LAST_WEIGHT_GRAMS = "last_weight_grams"
     const val FOOD_PRESETS = "food_presets"
+    const val TYPE_ORDER = "record_type_order"
     const val DEWORM_INTERNAL_DAYS = "deworm_internal_cycle_days"
     const val DEWORM_EXTERNAL_DAYS = "deworm_external_cycle_days"
     const val NOTIFY_ENABLED = "notify_enabled"
@@ -224,8 +225,19 @@ class RecordRepository(
     suspend fun addFoodPreset(name: String, servings: Int) {
         val clean = name.trim().take(8)
         if (clean.isBlank()) return
-        val custom = foodPresets().filter { candidate -> FoodPreset.defaults.none { it.name == candidate.name } }
-            .filterNot { it.name == clean } + FoodPreset(clean, servings.coerceIn(1, 20))
+        val custom = customPresets().filterNot { it.name == clean } +
+            FoodPreset(clean, servings.coerceIn(1, 20))
+        saveCustomPresets(custom)
+    }
+
+    suspend fun deleteFoodPreset(name: String) {
+        saveCustomPresets(customPresets().filterNot { it.name == name })
+    }
+
+    private suspend fun customPresets(): List<FoodPreset> =
+        foodPresets().filter { candidate -> FoodPreset.defaults.none { it.name == candidate.name } }
+
+    private suspend fun saveCustomPresets(custom: List<FoodPreset>) {
         val array = org.json.JSONArray()
         custom.forEach {
             array.put(org.json.JSONObject().put("name", it.name).put("servings", it.servings))
@@ -384,6 +396,23 @@ class RecordRepository(
             })
         }
         return id
+    }
+
+    suspend fun deleteTag(id: Long) {
+        tagDao.deleteCustom(id)
+    }
+
+    suspend fun typeOrder(): List<RecordType> {
+        val saved = settingsDao.get(SettingsKeys.TYPE_ORDER)
+            ?.split(",")
+            ?.mapNotNull { name -> RecordType.entries.firstOrNull { it.name == name } }
+            ?.distinct()
+            .orEmpty()
+        return saved + RecordType.entries.filterNot { it in saved }
+    }
+
+    suspend fun saveTypeOrder(order: List<RecordType>) {
+        settingsDao.put(SettingEntity(SettingsKeys.TYPE_ORDER, order.joinToString(",") { it.name }))
     }
 
     suspend fun addTag(name: String) {

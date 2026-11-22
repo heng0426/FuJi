@@ -63,6 +63,7 @@ import com.xiaofu.daily.ui.components.SecondaryButton
 import com.xiaofu.daily.ui.components.SegmentedRow
 import com.xiaofu.daily.ui.components.SheetHandle
 import com.xiaofu.daily.ui.components.StepperRow
+import com.xiaofu.daily.ui.components.roundedRowClickable
 import com.xiaofu.daily.ui.components.TextFieldBox
 import com.xiaofu.daily.ui.components.TypeIcon
 import com.xiaofu.daily.ui.editor.EditorTarget
@@ -171,6 +172,7 @@ fun FoodSheet(
     var snackType by remember { mutableStateOf(editing?.snackType ?: initialSnack ?: SnackTypes.first()) }
     var presets by remember { mutableStateOf<List<com.xiaofu.daily.data.FoodPreset>>(emptyList()) }
     var showAddPreset by remember { mutableStateOf(false) }
+    var pendingDeletePreset by remember { mutableStateOf<com.xiaofu.daily.data.FoodPreset?>(null) }
 
     LaunchedEffect(Unit) {
         presets = runCatching { AppContainer.repository.foodPresets() }.getOrDefault(emptyList())
@@ -220,10 +222,12 @@ fun FoodSheet(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     presets.forEach { preset ->
+                        val isCustom = com.xiaofu.daily.data.FoodPreset.defaults.none { it.name == preset.name }
                         PillChip(
                             text = "${preset.name} ${preset.servings}份",
                             selected = false,
                             onClick = { onSavePreset(preset, grams) },
+                            onLongClick = if (isCustom) ({ pendingDeletePreset = preset }) else null,
                         )
                     }
                     PillChip(
@@ -305,6 +309,29 @@ fun FoodSheet(
                 )
             }
         }
+    }
+
+    pendingDeletePreset?.let { preset ->
+        AlertDialog(
+            onDismissRequest = { pendingDeletePreset = null },
+            containerColor = cs.surface,
+            shape = RoundedCornerShape(22.dp),
+            title = { Text("删除预设", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = cs.onSurface) },
+            text = { Text("删除「${preset.name}」这个预设？", style = MaterialTheme.typography.bodyMedium, color = cs.onSurfaceVariant) },
+            confirmButton = {
+                TextButton(onClick = {
+                    val name = preset.name
+                    pendingDeletePreset = null
+                    scope.launch {
+                        runCatching { AppContainer.repository.deleteFoodPreset(name) }
+                        presets = runCatching { AppContainer.repository.foodPresets() }.getOrDefault(presets)
+                    }
+                }) { Text("删除", color = cs.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDeletePreset = null }) { Text("取消", color = cs.onSurfaceVariant) }
+            },
+        )
     }
 
     if (showAddPreset) {
@@ -407,7 +434,11 @@ private fun MoreRow(iconRes: Int, title: String, subtitle: String, type: RecordT
     val style = recordStyle(type)
     Column {
         Row(
-            modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 2.dp)
+                .roundedRowClickable(onClick = onClick)
+                .padding(horizontal = 8.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             TypeIcon(style.iconRes, style.fg, style.bg, size = 36.dp, iconSize = 18.dp, radius = 12.dp)

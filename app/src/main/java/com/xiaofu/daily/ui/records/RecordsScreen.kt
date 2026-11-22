@@ -19,9 +19,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -85,6 +87,8 @@ fun RecordsScreen(
     val filter by vm.filter.collectAsState()
     val records by vm.records.collectAsState()
     val dueCards by vm.dueCards.collectAsState()
+    val typeOrder by vm.typeOrder.collectAsState()
+    var showOrderDialog by remember { mutableStateOf(false) }
 
     val scope = rememberCoroutineScope()
     var detail by remember { mutableStateOf<RecordEntity?>(null) }
@@ -127,11 +131,12 @@ fun RecordsScreen(
                 item {
                     PillChip("全部", selected = filter == null, onClick = { vm.setFilter(null) })
                 }
-                items(items = RecordType.entries, key = { it.name }) { type ->
+                items(items = typeOrder, key = { it.name }) { type ->
                     PillChip(
                         text = typeLabels.getValue(type),
                         selected = filter == type,
                         onClick = { vm.setFilter(type) },
+                        onLongClick = { showOrderDialog = true },
                     )
                 }
             }
@@ -196,6 +201,38 @@ fun RecordsScreen(
                 }
             }
         }
+    }
+
+    if (showOrderDialog) {
+        AlertDialog(
+            onDismissRequest = { showOrderDialog = false },
+            containerColor = cs.surface,
+            shape = RoundedCornerShape(22.dp),
+            title = { Text("调整类型顺序", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = cs.onSurface) },
+            text = {
+                Column {
+                    typeOrder.forEachIndexed { index, type ->
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                typeLabels.getValue(type),
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = cs.onSurface,
+                                modifier = Modifier.weight(1f),
+                            )
+                            TextButton(onClick = { vm.moveType(type, -1) }, enabled = index > 0) {
+                                Text("↑", color = if (index > 0) cs.primary else cs.onSurfaceVariant.copy(alpha = 0.4f))
+                            }
+                            TextButton(onClick = { vm.moveType(type, 1) }, enabled = index < typeOrder.lastIndex) {
+                                Text("↓", color = if (index < typeOrder.lastIndex) cs.primary else cs.onSurfaceVariant.copy(alpha = 0.4f))
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showOrderDialog = false }) { Text("完成", color = cs.primary) }
+            },
+        )
     }
 
     if (showWater) {

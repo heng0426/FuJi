@@ -2,7 +2,9 @@ package com.xiaofu.daily.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -118,12 +120,14 @@ fun RoundIconButton(
 
 /** 标签 chip：34dp 高、999dp 圆角、左右 14dp（设计规范 §3） */
 @Composable
+@OptIn(ExperimentalFoundationApi::class)
 fun PillChip(
     text: String,
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     leadingIconRes: Int? = null,
+    onLongClick: (() -> Unit)? = null,
 ) {
     val cs = MaterialTheme.colorScheme
     val shape = RoundedCornerShape(999.dp)
@@ -133,7 +137,13 @@ fun PillChip(
             .clip(shape)
             .background(if (selected) cs.primaryContainer else cs.surface)
             .border(1.dp, if (selected) Color.Transparent else cs.outline, shape)
-            .clickable(onClick = onClick)
+            .then(
+                if (onLongClick == null) {
+                    Modifier.clickable(onClick = onClick)
+                } else {
+                    Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick)
+                },
+            )
             .padding(horizontal = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(3.dp),

@@ -39,6 +39,7 @@ import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -407,6 +408,9 @@ fun AnomalyEditor(vm: TodayViewModel, record: RecordEntity?, initialOccurredAt: 
     var occurredAt by remember { mutableStateOf(record?.occurredAt ?: initialOccurredAt ?: nowMillis()) }
     var showCustomDialog by remember { mutableStateOf(false) }
     var customName by remember { mutableStateOf("") }
+    var pendingDeleteTag by remember {
+        mutableStateOf<com.xiaofu.daily.data.local.entity.AnomalyTagEntity?>(null)
+    }
     var showPicker by remember { mutableStateOf(false) }
 
     var existingPhotos by remember { mutableStateOf<List<String>>(emptyList()) }
@@ -449,7 +453,12 @@ fun AnomalyEditor(vm: TodayViewModel, record: RecordEntity?, initialOccurredAt: 
         FormLabel("分类", badge = "必填")
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             tags.forEach { tag ->
-                PillChip(text = tag.name, selected = category == tag.name, onClick = { category = tag.name })
+                PillChip(
+                    text = tag.name,
+                    selected = category == tag.name,
+                    onClick = { category = tag.name },
+                    onLongClick = if (tag.isPreset) null else ({ pendingDeleteTag = tag }),
+                )
             }
             PillChip(
                 text = "自定义",
@@ -492,6 +501,31 @@ fun AnomalyEditor(vm: TodayViewModel, record: RecordEntity?, initialOccurredAt: 
             initialDay = Fmt.date(occurredAt).toEpochDay(),
             onDismiss = { showPicker = false },
             onPick = { day -> occurredAt = combineDayWithTime(day, occurredAt) },
+        )
+    }
+
+    pendingDeleteTag?.let { tag ->
+        AlertDialog(
+            onDismissRequest = { pendingDeleteTag = null },
+            containerColor = MaterialTheme.colorScheme.surface,
+            shape = RoundedCornerShape(22.dp),
+            title = { Text("删除分类", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold) },
+            text = { Text("删除自定义分类「${tag.name}」？历史记录不受影响。", style = MaterialTheme.typography.bodyMedium) },
+            confirmButton = {
+                TextButton(onClick = {
+                    val removed = tag.name
+                    pendingDeleteTag = null
+                    scope.launch {
+                        vm.deleteTag(tag.id)
+                        if (category == removed) {
+                            category = tags.firstOrNull { it.isPreset }?.name ?: ""
+                        }
+                    }
+                }) { Text("删除", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDeleteTag = null }) { Text("取消") }
+            },
         )
     }
 

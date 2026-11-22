@@ -55,6 +55,7 @@ import com.xiaofu.daily.data.local.model.RecordType
 import com.xiaofu.daily.ui.components.CardSurface
 import com.xiaofu.daily.ui.components.RecordRow
 import com.xiaofu.daily.ui.components.appRippleColor
+import com.xiaofu.daily.ui.components.roundedRowClickable
 import com.xiaofu.daily.ui.components.RoundIconButton
 import com.xiaofu.daily.ui.components.SheetHandle
 import com.xiaofu.daily.ui.components.TypeIcon
@@ -520,8 +521,9 @@ private fun CreateSheet(onDismiss: () -> Unit, onPick: (CreateOption) -> Unit) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { onPick(option) }
-                        .padding(vertical = 9.dp),
+                        .padding(vertical = 2.dp)
+                        .roundedRowClickable(onClick = { onPick(option) })
+                        .padding(horizontal = 8.dp, vertical = 9.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     TypeIcon(style.iconRes, style.fg, style.bg, size = 34.dp, iconSize = 17.dp, radius = 11.dp)

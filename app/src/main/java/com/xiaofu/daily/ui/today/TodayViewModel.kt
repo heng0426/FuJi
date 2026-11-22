@@ -60,11 +60,17 @@ class TodayViewModel(private val repo: RecordRepository) : ViewModel() {
 
     suspend fun addFoodPreset(name: String, servings: Int) = repo.addFoodPreset(name, servings)
 
+    suspend fun deleteTag(id: Long) = repo.deleteTag(id)
+
     suspend fun lastSnackType(): String? = repo.lastSnackType()
 
     suspend fun dewormCycleDays(kind: DewormKind): Int = repo.dewormCycleDays(kind)
 
     suspend fun delete(record: RecordEntity): RecordSnapshot? = repo.deleteWithSnapshot(record.id)
+
+    suspend fun deleteMany(ids: Set<Long>) {
+        ids.forEach { repo.deleteWithSnapshot(it) }
+    }
 
     suspend fun restore(snapshot: RecordSnapshot) = repo.restore(snapshot)
 

@@ -3,6 +3,7 @@ package com.xiaofu.daily.ui.calendar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,16 +22,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ripple
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -42,8 +41,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -58,6 +59,7 @@ import com.xiaofu.daily.ui.components.appRippleColor
 import com.xiaofu.daily.ui.components.roundedRowClickable
 import com.xiaofu.daily.ui.components.RoundIconButton
 import com.xiaofu.daily.ui.components.SheetHandle
+import com.xiaofu.daily.ui.components.TextFieldBox
 import com.xiaofu.daily.ui.components.TypeIcon
 import com.xiaofu.daily.ui.editor.EditorTarget
 import com.xiaofu.daily.ui.format.Fmt
@@ -66,12 +68,10 @@ import com.xiaofu.daily.ui.today.DetailSheet
 import com.xiaofu.daily.ui.today.FoodSheet
 import com.xiaofu.daily.ui.today.TodayViewModel
 import com.xiaofu.daily.ui.today.WaterSheet
-import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.YearMonth
 import java.time.ZoneId
-import java.time.ZoneOffset
 import kotlinx.coroutines.launch
 
 private data class CreateOption(
@@ -108,6 +108,7 @@ fun CalendarScreen(
     val scope = rememberCoroutineScope()
     var showCreate by remember { mutableStateOf(false) }
     var showJump by remember { mutableStateOf(false) }
+    var jumpText by remember { mutableStateOf("") }
     var detail by remember { mutableStateOf<RecordEntity?>(null) }
     var showWater by remember { mutableStateOf(false) }
     var waterEditing by remember { mutableStateOf<RecordEntity?>(null) }
@@ -128,6 +129,9 @@ fun CalendarScreen(
 
     val byDay = remember(records) { records.groupBy { Fmt.date(it.occurredAt) } }
     val dueDays = remember(dueCards) { dueCards.map { it.dueDay }.toSet() }
+    val dueByDay = remember(dueCards) {
+        dueCards.groupBy { it.dueDay }.mapValues { (_, cards) -> cards.map { it.type }.toSet() }
+    }
     val selectedRecords = byDay[selected].orEmpty().sortedByDescending { it.occurredAt }
     val backfillAt = remember(selected) { selected.atTime(LocalTime.now(ZoneId.systemDefault())).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli() }
 
@@ -142,10 +146,7 @@ fun CalendarScreen(
                     Text("日历", style = MaterialTheme.typography.headlineSmall, color = cs.onBackground)
                     Text("按日期回看与补记", style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant, modifier = Modifier.padding(top = 2.dp))
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    RoundIconButton(R.drawable.ic_ms_add, onClick = { showCreate = true })
-                    RoundIconButton(R.drawable.ic_ms_today, onClick = vm::goToday)
-                }
+                RoundIconButton(R.drawable.ic_ms_add, onClick = { showCreate = true })
             }
         }
         item(key = "calendar") {
@@ -154,10 +155,15 @@ fun CalendarScreen(
                 selected = selected,
                 byDay = byDay,
                 dueDays = dueDays,
+                dueByDay = dueByDay,
                 onPrev = vm::previousMonth,
                 onNext = vm::nextMonth,
                 onSelect = vm::select,
-                onJump = { showJump = true },
+                onJump = {
+                    jumpText = selected.toString()
+                    showJump = true
+                },
+                onToday = vm::goToday,
             )
         }
         item(key = "day_head") {
@@ -200,23 +206,41 @@ fun CalendarScreen(
     }
 
     if (showJump) {
-        val jumpState = rememberDatePickerState(
-            initialSelectedDateMillis = selected.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(),
-        )
-        DatePickerDialog(
+        val parsed = runCatching { LocalDate.parse(jumpText.trim()) }.getOrNull()
+        AlertDialog(
             onDismissRequest = { showJump = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    jumpState.selectedDateMillis?.let {
-                        vm.select(Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate())
+            containerColor = cs.surface,
+            shape = RoundedCornerShape(22.dp),
+            title = { Text("跳转到日期", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = cs.onSurface) },
+            text = {
+                Column {
+                    Text("手动输入日期（年-月-日）", style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
+                    TextFieldBox(
+                        value = jumpText,
+                        onValueChange = { jumpText = it.take(10) },
+                        placeholder = "2026-11-23",
+                    )
+                    if (parsed == null && jumpText.isNotBlank()) {
+                        Text(
+                            "格式应为 yyyy-MM-dd，例如 2026-11-23",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = cs.error,
+                            modifier = Modifier.padding(top = 6.dp),
+                        )
                     }
-                    showJump = false
-                }) { Text("跳转") }
+                }
             },
-            dismissButton = { TextButton(onClick = { showJump = false }) { Text("取消") } },
-        ) {
-            DatePicker(state = jumpState)
-        }
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        parsed?.let { vm.select(it) }
+                        showJump = false
+                    },
+                    enabled = parsed != null,
+                ) { Text("跳转", color = if (parsed != null) cs.primary else cs.onSurfaceVariant) }
+            },
+            dismissButton = { TextButton(onClick = { showJump = false }) { Text("取消", color = cs.onSurfaceVariant) } },
+        )
     }
 
     if (showCreate) {
@@ -339,13 +363,32 @@ private fun MonthCard(
     selected: LocalDate,
     byDay: Map<LocalDate, List<RecordEntity>>,
     dueDays: Set<Long>,
+    dueByDay: Map<Long, Set<RecordType>>,
     onPrev: () -> Unit,
     onNext: () -> Unit,
     onSelect: (LocalDate) -> Unit,
     onJump: () -> Unit,
+    onToday: () -> Unit,
 ) {
     val cs = MaterialTheme.colorScheme
+    val density = LocalDensity.current
+    var swipeTotal by remember(month) { mutableStateOf(0f) }
     CardSurface(contentPadding = 14.dp) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .pointerInput(month) {
+                    val threshold = with(density) { 48.dp.toPx() }
+                    detectHorizontalDragGestures(
+                        onDragEnd = {
+                            if (swipeTotal > threshold) onPrev() else if (swipeTotal < -threshold) onNext()
+                            swipeTotal = 0f
+                        },
+                        onDragCancel = { swipeTotal = 0f },
+                        onHorizontalDrag = { _, amount -> swipeTotal += amount },
+                    )
+                },
+        ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(32.dp).clip(CircleShape).clickable(onClick = onPrev), contentAlignment = Alignment.Center) {
                 Icon(painterResource(R.drawable.ic_ms_chevron_left), "上个月", Modifier.size(20.dp), tint = cs.onSurfaceVariant)
@@ -397,6 +440,7 @@ private fun MonthCard(
                         hasRecords = dayRecords.isNotEmpty(),
                         hasAnomaly = dayRecords.any { it.type == RecordType.ANOMALY },
                         due = dueDays.contains(date.toEpochDay()),
+                        dueTypes = dueByDay[date.toEpochDay()].orEmpty(),
                         onClick = { onSelect(date) },
                     )
                 }
@@ -404,11 +448,36 @@ private fun MonthCard(
         }
         Row(
             Modifier.fillMaxWidth().padding(top = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            LegendDot(Color(0xFFA08B7C).copy(alpha = 0.55f), "有记录")
-            LegendDot(cs.error, "异常")
-            LegendDot(Color(0xFFC98A3E), "驱虫/疫苗到期")
+            Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                LegendDot(Color(0xFFA08B7C).copy(alpha = 0.55f), "有记录")
+                LegendDot(cs.error, "异常")
+                LegendDot(Color(0xFFC98A3E), "驱虫/疫苗到期")
+            }
+            Spacer(Modifier.weight(1f))
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(999.dp))
+                    .clickable(onClick = onToday)
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    painterResource(R.drawable.ic_ms_today),
+                    contentDescription = null,
+                    modifier = Modifier.size(13.dp),
+                    tint = cs.primary,
+                )
+                Text(
+                    "今天",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = cs.primary,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.padding(start = 3.dp),
+                )
+            }
+        }
         }
     }
 }
@@ -422,13 +491,14 @@ private fun RowScope.DayCell(
     hasRecords: Boolean,
     hasAnomaly: Boolean,
     due: Boolean,
+    dueTypes: Set<RecordType>,
     onClick: () -> Unit,
 ) {
     val cs = MaterialTheme.colorScheme
     Column(
         modifier = Modifier
             .weight(1f)
-            .height(42.dp),
+            .height(50.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
@@ -469,9 +539,25 @@ private fun RowScope.DayCell(
                 )
             }
         }
-        Row(Modifier.height(4.dp), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-            if (hasRecords) Dot(Color(0xFF8A7566).copy(alpha = 0.8f))
-            if (hasAnomaly) Dot(cs.error)
+        val dueLabel = when {
+            RecordType.DEWORM in dueTypes && RecordType.VACCINE in dueTypes -> "驱虫·疫苗"
+            RecordType.DEWORM in dueTypes -> "驱虫"
+            RecordType.VACCINE in dueTypes -> "疫苗"
+            else -> null
+        }
+        if (dueLabel != null) {
+            Text(
+                dueLabel,
+                fontSize = 8.sp,
+                lineHeight = 9.sp,
+                color = Color(0xFFC98A3E),
+                maxLines = 1,
+            )
+        } else {
+            Row(Modifier.height(4.dp), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                if (hasRecords) Dot(Color(0xFF8A7566).copy(alpha = 0.8f))
+                if (hasAnomaly) Dot(cs.error)
+            }
         }
     }
 }

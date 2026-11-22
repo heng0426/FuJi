@@ -126,6 +126,13 @@ fun RecordsScreen(
     }
 
     val groups = remember(records) { records.groupBy { Fmt.date(it.occurredAt) } }
+    val visibleDueCards = remember(dueCards, filter) {
+        when (filter) {
+            null -> dueCards
+            RecordType.DEWORM, RecordType.VACCINE -> dueCards.filter { it.type == filter }
+            else -> emptyList()
+        }
+    }
 
     if (selecting) {
         BackHandler {
@@ -233,8 +240,8 @@ fun RecordsScreen(
         if (filter == RecordType.WEIGHT && weightView == 1) {
             item(key = "weight_trend") { WeightTrendCard(records) }
         } else {
-            if (dueCards.isNotEmpty() && filter == null) {
-                items(items = dueCards, key = { "due_${it.type}_${it.dueDay}" }) { card ->
+            if (visibleDueCards.isNotEmpty()) {
+                items(items = visibleDueCards, key = { "due_${it.type}_${it.dueDay}" }) { card ->
                     DueCardRow(card) { vm.setFilter(card.type) }
                 }
             }

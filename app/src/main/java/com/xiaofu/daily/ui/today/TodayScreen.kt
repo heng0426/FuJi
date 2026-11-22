@@ -91,6 +91,7 @@ fun TodayScreen(
 
     var lastWater by remember { mutableStateOf(60) }
     var serving by remember { mutableStateOf(15) }
+    var lastServings by remember { mutableStateOf(1.0) }
     var lastSnack by remember { mutableStateOf<String?>(null) }
     var showWater by remember { mutableStateOf(false) }
     var waterEditing by remember { mutableStateOf<RecordEntity?>(null) }
@@ -103,6 +104,7 @@ fun TodayScreen(
     LaunchedEffect(Unit) {
         lastWater = vm.lastWaterMl()
         serving = vm.servingGrams()
+        lastServings = vm.lastServings()
         lastSnack = vm.lastSnackType()
     }
 
@@ -215,8 +217,24 @@ fun TodayScreen(
         FoodSheet(
             initialKind = foodKind,
             initialGrams = editing?.gramsPerServing ?: serving,
+            initialServings = editing?.servingCount ?: lastServings,
             initialSnack = editing?.snackType ?: lastSnack,
             editing = editing,
+            onSavePreset = { preset, grams ->
+                scope.launch {
+                    vm.saveFood(
+                        kind = foodKind,
+                        servings = preset.servings.toDouble(),
+                        grams = grams,
+                        snackType = if (foodKind == MealKind.SNACK) lastSnack else null,
+                        existing = null,
+                        rememberDefaults = false,
+                    )
+                    showFood = false
+                    foodEditing = null
+                    onMessage("已记${preset.name} ${preset.servings} 份 · ${preset.servings * grams} 克")
+                }
+            },
             onDismiss = {
                 showFood = false
                 foodEditing = null
@@ -225,6 +243,7 @@ fun TodayScreen(
                 scope.launch {
                     vm.saveFood(kind, servings, grams, snackType, editing)
                     serving = grams
+                    lastServings = servings
                     if (snackType != null) lastSnack = snackType
                     showFood = false
                     foodEditing = null

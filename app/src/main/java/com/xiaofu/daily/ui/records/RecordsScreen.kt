@@ -95,12 +95,14 @@ fun RecordsScreen(
     var foodKind by remember { mutableStateOf(MealKind.MAIN) }
     var lastWater by remember { mutableStateOf(60) }
     var serving by remember { mutableStateOf(15) }
+    var lastServings by remember { mutableStateOf(1.0) }
     var lastSnack by remember { mutableStateOf<String?>(null) }
     var weightView by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(Unit) {
         lastWater = actions.lastWaterMl()
         serving = actions.servingGrams()
+        lastServings = actions.lastServings()
         lastSnack = actions.lastSnackType()
     }
 
@@ -221,8 +223,23 @@ fun RecordsScreen(
         FoodSheet(
             initialKind = foodKind,
             initialGrams = editing?.gramsPerServing ?: serving,
+            initialServings = editing?.servingCount ?: lastServings,
             initialSnack = editing?.snackType ?: lastSnack,
             editing = editing,
+            onSavePreset = { preset, grams ->
+                scope.launch {
+                    actions.saveFood(
+                        kind = foodKind,
+                        servings = preset.servings.toDouble(),
+                        grams = grams,
+                        snackType = null,
+                        existing = null,
+                        rememberDefaults = false,
+                    )
+                    showFood = false
+                    foodEditing = null
+                }
+            },
             onDismiss = {
                 showFood = false
                 foodEditing = null
@@ -231,6 +248,7 @@ fun RecordsScreen(
                 scope.launch {
                     actions.saveFood(kind, servings, grams, snackType, editing)
                     serving = grams
+                    lastServings = servings
                     if (snackType != null) lastSnack = snackType
                     showFood = false
                     foodEditing = null

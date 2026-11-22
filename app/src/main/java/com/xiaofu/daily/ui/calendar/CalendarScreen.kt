@@ -3,6 +3,7 @@ package com.xiaofu.daily.ui.calendar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,11 +21,16 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ripple
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -48,6 +54,7 @@ import com.xiaofu.daily.data.local.model.MealKind
 import com.xiaofu.daily.data.local.model.RecordType
 import com.xiaofu.daily.ui.components.CardSurface
 import com.xiaofu.daily.ui.components.RecordRow
+import com.xiaofu.daily.ui.components.appRippleColor
 import com.xiaofu.daily.ui.components.RoundIconButton
 import com.xiaofu.daily.ui.components.SheetHandle
 import com.xiaofu.daily.ui.components.TypeIcon
@@ -58,10 +65,12 @@ import com.xiaofu.daily.ui.today.DetailSheet
 import com.xiaofu.daily.ui.today.FoodSheet
 import com.xiaofu.daily.ui.today.TodayViewModel
 import com.xiaofu.daily.ui.today.WaterSheet
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.YearMonth
 import java.time.ZoneId
+import java.time.ZoneOffset
 import kotlinx.coroutines.launch
 
 private data class CreateOption(
@@ -97,6 +106,7 @@ fun CalendarScreen(
 
     val scope = rememberCoroutineScope()
     var showCreate by remember { mutableStateOf(false) }
+    var showJump by remember { mutableStateOf(false) }
     var detail by remember { mutableStateOf<RecordEntity?>(null) }
     var showWater by remember { mutableStateOf(false) }
     var waterEditing by remember { mutableStateOf<RecordEntity?>(null) }
@@ -105,11 +115,13 @@ fun CalendarScreen(
     var foodKind by remember { mutableStateOf(MealKind.MAIN) }
     var lastWater by remember { mutableStateOf(60) }
     var serving by remember { mutableStateOf(15) }
+    var lastServings by remember { mutableStateOf(1.0) }
     var lastSnack by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         lastWater = actions.lastWaterMl()
         serving = actions.servingGrams()
+        lastServings = actions.lastServings()
         lastSnack = actions.lastSnackType()
     }
 
@@ -129,7 +141,10 @@ fun CalendarScreen(
                     Text("日历", style = MaterialTheme.typography.headlineSmall, color = cs.onBackground)
                     Text("按日期回看与补记", style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant, modifier = Modifier.padding(top = 2.dp))
                 }
-                RoundIconButton(R.drawable.ic_ms_today, onClick = vm::goToday)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    RoundIconButton(R.drawable.ic_ms_add, onClick = { showCreate = true })
+                    RoundIconButton(R.drawable.ic_ms_today, onClick = vm::goToday)
+                }
             }
         }
         item(key = "calendar") {
@@ -141,12 +156,13 @@ fun CalendarScreen(
                 onPrev = vm::previousMonth,
                 onNext = vm::nextMonth,
                 onSelect = vm::select,
+                onJump = { showJump = true },
             )
         }
         item(key = "day_head") {
             Row(Modifier.fillMaxWidth().padding(top = 2.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    "${selected.monthValue}月${selected.dayOfMonth}日 · ${Fmt.dayLabelOrWeekday(selected)}",
+                    "${selected.year}年${selected.monthValue}月${selected.dayOfMonth}日 · ${Fmt.dayLabelOrWeekday(selected)}",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
                     color = cs.onSurfaceVariant,
@@ -160,7 +176,7 @@ fun CalendarScreen(
                 CardSurface(contentPadding = 16.dp) {
                     Text("这一天还没有记录", style = MaterialTheme.typography.bodyMedium, color = cs.onSurface)
                     Text(
-                        "点下面的「补记这一天的记录」添加",
+                        "点右上角 + 补记这一天的记录",
                         style = MaterialTheme.typography.labelSmall,
                         color = cs.onSurfaceVariant,
                         modifier = Modifier.padding(top = 4.dp),
@@ -180,26 +196,25 @@ fun CalendarScreen(
                 }
             }
         }
-        item(key = "add") {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(42.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .border(1.dp, cs.outline, RoundedCornerShape(14.dp))
-                    .clickable { showCreate = true },
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(painterResource(R.drawable.ic_ms_add), null, Modifier.size(17.dp), tint = cs.primary)
-                Text(
-                    "补记这一天的记录",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = cs.primary,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.padding(start = 4.dp),
-                )
-            }
+    }
+
+    if (showJump) {
+        val jumpState = rememberDatePickerState(
+            initialSelectedDateMillis = selected.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(),
+        )
+        DatePickerDialog(
+            onDismissRequest = { showJump = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    jumpState.selectedDateMillis?.let {
+                        vm.select(Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate())
+                    }
+                    showJump = false
+                }) { Text("跳转") }
+            },
+            dismissButton = { TextButton(onClick = { showJump = false }) { Text("取消") } },
+        ) {
+            DatePicker(state = jumpState)
         }
     }
 
@@ -252,8 +267,24 @@ fun CalendarScreen(
         FoodSheet(
             initialKind = foodKind,
             initialGrams = editing?.gramsPerServing ?: serving,
+            initialServings = editing?.servingCount ?: lastServings,
             initialSnack = editing?.snackType ?: lastSnack,
             editing = editing,
+            onSavePreset = { preset, grams ->
+                scope.launch {
+                    actions.saveFood(
+                        kind = foodKind,
+                        servings = preset.servings.toDouble(),
+                        grams = grams,
+                        snackType = null,
+                        existing = null,
+                        at = backfillAt,
+                        rememberDefaults = false,
+                    )
+                    showFood = false
+                    foodEditing = null
+                }
+            },
             onDismiss = {
                 showFood = false
                 foodEditing = null
@@ -262,6 +293,7 @@ fun CalendarScreen(
                 scope.launch {
                     actions.saveFood(kind, servings, grams, snackType, editing, if (editing == null) backfillAt else null)
                     serving = grams
+                    lastServings = servings
                     if (snackType != null) lastSnack = snackType
                     showFood = false
                     foodEditing = null
@@ -309,6 +341,7 @@ private fun MonthCard(
     onPrev: () -> Unit,
     onNext: () -> Unit,
     onSelect: (LocalDate) -> Unit,
+    onJump: () -> Unit,
 ) {
     val cs = MaterialTheme.colorScheme
     CardSurface(contentPadding = 14.dp) {
@@ -316,13 +349,23 @@ private fun MonthCard(
             Box(Modifier.size(32.dp).clip(CircleShape).clickable(onClick = onPrev), contentAlignment = Alignment.Center) {
                 Icon(painterResource(R.drawable.ic_ms_chevron_left), "上个月", Modifier.size(20.dp), tint = cs.onSurfaceVariant)
             }
-            Text(
-                Fmt.monthTitle(month),
-                style = MaterialTheme.typography.titleMedium,
-                color = cs.onSurface,
-                modifier = Modifier.weight(1f),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-            )
+            Row(
+                modifier = Modifier.weight(1f).clip(RoundedCornerShape(10.dp)).clickable(onClick = onJump),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    Fmt.monthTitle(month),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = cs.onSurface,
+                )
+                Icon(
+                    painterResource(R.drawable.ic_ms_calendar_month),
+                    contentDescription = "跳转日期",
+                    modifier = Modifier.padding(start = 4.dp).size(15.dp),
+                    tint = cs.onSurfaceVariant,
+                )
+            }
             Box(Modifier.size(32.dp).clip(CircleShape).clickable(onClick = onNext), contentAlignment = Alignment.Center) {
                 Icon(painterResource(R.drawable.ic_ms_chevron_right), "下个月", Modifier.size(20.dp), tint = cs.onSurfaceVariant)
             }
@@ -392,7 +435,11 @@ private fun RowScope.DayCell(
             modifier = Modifier
                 .size(38.dp)
                 .clip(CircleShape)
-                .clickable(onClick = onClick),
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = ripple(color = appRippleColor()),
+                    onClick = onClick,
+                ),
             contentAlignment = Alignment.Center,
         ) {
             Box(

@@ -52,6 +52,14 @@ class TodayViewModel(private val repo: RecordRepository) : ViewModel() {
 
     suspend fun servingGrams(): Int = repo.servingGrams()
 
+    suspend fun lastServings(): Double = repo.lastServings()
+
+    suspend fun lastWeightGrams(): Int? = repo.lastWeightGrams()
+
+    suspend fun foodPresets(): List<com.xiaofu.daily.data.FoodPreset> = repo.foodPresets()
+
+    suspend fun addFoodPreset(name: String, servings: Int) = repo.addFoodPreset(name, servings)
+
     suspend fun lastSnackType(): String? = repo.lastSnackType()
 
     suspend fun dewormCycleDays(kind: DewormKind): Int = repo.dewormCycleDays(kind)
@@ -70,7 +78,16 @@ class TodayViewModel(private val repo: RecordRepository) : ViewModel() {
         snackType: String?,
         existing: RecordEntity?,
         at: Long? = null,
-    ) = repo.saveFood(kind, servings, grams, snackType, at ?: existing?.occurredAt ?: System.currentTimeMillis(), existing)
+        rememberDefaults: Boolean = true,
+    ) = repo.saveFood(
+        kind,
+        servings,
+        grams,
+        snackType,
+        at ?: existing?.occurredAt ?: System.currentTimeMillis(),
+        existing,
+        rememberDefaults,
+    )
 
     suspend fun addTag(name: String) = repo.addTag(name)
 

@@ -137,19 +137,19 @@ private val LightRecordStyles = mapOf(
 )
 
 private val DarkRecordStyles = mapOf(
-    RecordType.WATER to RecordStyle(R.drawable.ic_ms_water_drop, Color(0xFF8FB9DC), Color(0xFF1D2B36)),
-    RecordType.FOOD to RecordStyle(R.drawable.ic_ms_restaurant, Color(0xFFFFB77E), Color(0xFF3A2415)),
-    RecordType.WEIGHT to RecordStyle(R.drawable.ic_ms_monitor_weight, Color(0xFFB7C6A4), Color(0xFF252B1F)),
-    RecordType.DEWORM to RecordStyle(R.drawable.ic_ms_pest_control, Color(0xFFC4B2E6), Color(0xFF2A2436)),
-    RecordType.VACCINE to RecordStyle(R.drawable.ic_ms_vaccines, Color(0xFF96CFC2), Color(0xFF1C2B28)),
-    RecordType.ANOMALY to RecordStyle(R.drawable.ic_ms_warning, Color(0xFFF2B8B5), Color(0xFF3A211F)),
+    RecordType.WATER to RecordStyle(R.drawable.ic_ms_water_drop, Color(0xFF6FB6F0), Color(0xFF13283C)),
+    RecordType.FOOD to RecordStyle(R.drawable.ic_ms_restaurant, Color(0xFFFF9D57), Color(0xFF3B2112)),
+    RecordType.WEIGHT to RecordStyle(R.drawable.ic_ms_monitor_weight, Color(0xFFA9CE85), Color(0xFF202D18)),
+    RecordType.DEWORM to RecordStyle(R.drawable.ic_ms_pest_control, Color(0xFFC3A4FA), Color(0xFF2B2141)),
+    RecordType.VACCINE to RecordStyle(R.drawable.ic_ms_vaccines, Color(0xFF5FD6BE), Color(0xFF132D28)),
+    RecordType.ANOMALY to RecordStyle(R.drawable.ic_ms_warning, Color(0xFFFF9A93), Color(0xFF3D1B19)),
 )
 
 /** 加餐使用独立的棕金语义色（与主粮区分） */
 val SnackStyle: RecordStyle
     @Composable @ReadOnlyComposable get() =
-        if (isSystemInDarkTheme()) {
-            RecordStyle(R.drawable.ic_ms_cookie, Color(0xFFE3BE84), Color(0xFF33281A))
+        if (LocalAppDarkTheme.current) {
+            RecordStyle(R.drawable.ic_ms_cookie, Color(0xFFF2C46B), Color(0xFF35280F))
         } else {
             RecordStyle(R.drawable.ic_ms_cookie, Color(0xFF9A6B2F), Color(0xFFFBF0DE))
         }
@@ -157,7 +157,7 @@ val SnackStyle: RecordStyle
 @Composable
 @ReadOnlyComposable
 fun recordStyle(type: RecordType): RecordStyle =
-    if (isSystemInDarkTheme()) DarkRecordStyles.getValue(type) else LightRecordStyles.getValue(type)
+    if (LocalAppDarkTheme.current) DarkRecordStyles.getValue(type) else LightRecordStyles.getValue(type)
 
 /** 页面统一留白与按钮尺寸（设计规范 §2.5） */
 object Dimens {

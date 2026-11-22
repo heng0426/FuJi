@@ -214,6 +214,13 @@ fun WeightEditor(vm: TodayViewModel, record: RecordEntity?, initialOccurredAt: L
     var jinText by remember {
         mutableStateOf(record?.weightGrams?.let { String.format(Locale.CHINA, "%.1f", it / 500.0) } ?: "")
     }
+    LaunchedEffect(record) {
+        if (record == null && jinText.isBlank()) {
+            vm.lastWeightGrams()?.let {
+                jinText = String.format(Locale.CHINA, "%.1f", it / 500.0)
+            }
+        }
+    }
     var note by remember { mutableStateOf(record?.note ?: "") }
     var occurredAt by remember { mutableStateOf(record?.occurredAt ?: initialOccurredAt ?: nowMillis()) }
     var showPicker by remember { mutableStateOf(false) }

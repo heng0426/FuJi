@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -25,15 +26,19 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,6 +63,7 @@ import com.xiaofu.daily.ui.components.SecondaryButton
 import com.xiaofu.daily.ui.components.SegmentedRow
 import com.xiaofu.daily.ui.components.SheetHandle
 import com.xiaofu.daily.ui.components.StepperRow
+import com.xiaofu.daily.ui.components.TextFieldBox
 import com.xiaofu.daily.ui.components.TypeIcon
 import com.xiaofu.daily.ui.editor.EditorTarget
 import com.xiaofu.daily.ui.format.Fmt
@@ -66,6 +72,7 @@ import com.xiaofu.daily.ui.theme.recordStyle
 import java.io.File
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private val SnackTypes = listOf("冻干", "罐头", "零食", "自制", "其他")
@@ -147,23 +154,29 @@ fun WaterSheet(
 fun FoodSheet(
     initialKind: MealKind,
     initialGrams: Int,
+    initialServings: Double,
     initialSnack: String?,
     editing: RecordEntity?,
+    onSavePreset: (com.xiaofu.daily.data.FoodPreset, Int) -> Unit,
     onDismiss: () -> Unit,
     onSave: (MealKind, Double, Int, String?) -> Unit,
 ) {
     val cs = MaterialTheme.colorScheme
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var kindIndex by remember {
-        mutableIntStateOf(if ((editing?.mealKind ?: initialKind) == MealKind.SNACK) 1 else 0)
-    }
+    val scope = rememberCoroutineScope()
     var servings by remember {
-        mutableStateOf(kotlin.math.ceil(editing?.servingCount ?: 1.0).coerceAtLeast(1.0))
+        mutableStateOf(kotlin.math.ceil(editing?.servingCount ?: initialServings).coerceAtLeast(1.0))
     }
     var grams by remember { mutableIntStateOf(editing?.gramsPerServing ?: initialGrams) }
     var snackType by remember { mutableStateOf(editing?.snackType ?: initialSnack ?: SnackTypes.first()) }
+    var presets by remember { mutableStateOf<List<com.xiaofu.daily.data.FoodPreset>>(emptyList()) }
+    var showAddPreset by remember { mutableStateOf(false) }
 
-    val kind = if (kindIndex == 1) MealKind.SNACK else MealKind.MAIN
+    LaunchedEffect(Unit) {
+        presets = runCatching { AppContainer.repository.foodPresets() }.getOrDefault(emptyList())
+    }
+
+    val kind = editing?.mealKind ?: initialKind
     val total = (servings * grams).roundToInt()
 
     ModalBottomSheet(
@@ -183,7 +196,12 @@ fun FoodSheet(
         ) {
             SheetHandle()
             Text(
-                if (editing == null) "记喂食" else "编辑喂食",
+                when {
+                    editing != null && kind == MealKind.SNACK -> "编辑加餐"
+                    editing != null -> "编辑喂食"
+                    kind == MealKind.SNACK -> "记加餐"
+                    else -> "记喂食"
+                },
                 fontSize = 17.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = cs.onSurface,
@@ -194,13 +212,28 @@ fun FoodSheet(
                 color = cs.onSurfaceVariant,
                 modifier = Modifier.padding(top = 4.dp),
             )
-            Spacer(Modifier.height(14.dp))
-            SegmentedRow(
-                options = listOf("主粮", "加餐"),
-                selectedIndex = kindIndex,
-                onSelect = { kindIndex = it },
-            )
-            Spacer(Modifier.height(4.dp))
+            if (kind == MealKind.MAIN && editing == null) {
+                Spacer(Modifier.height(12.dp))
+                Text("常用", style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
+                Row(
+                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(top = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    presets.forEach { preset ->
+                        PillChip(
+                            text = "${preset.name} ${preset.servings}份",
+                            selected = false,
+                            onClick = { onSavePreset(preset, grams) },
+                        )
+                    }
+                    PillChip(
+                        text = "+ 自定义",
+                        selected = false,
+                        onClick = { showAddPreset = true },
+                    )
+                }
+            }
+            Spacer(Modifier.height(8.dp))
             StepperRow(
                 label = "份数",
                 valueText = Fmt.servings(servings),
@@ -273,6 +306,61 @@ fun FoodSheet(
             }
         }
     }
+
+    if (showAddPreset) {
+        AddPresetDialog(
+            onDismiss = { showAddPreset = false },
+            onConfirm = { name, count ->
+                showAddPreset = false
+                scope.launch {
+                    runCatching { AppContainer.repository.addFoodPreset(name, count) }
+                    presets = runCatching { AppContainer.repository.foodPresets() }.getOrDefault(presets)
+                }
+            },
+        )
+    }
+}
+
+@Composable
+private fun AddPresetDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (String, Int) -> Unit,
+) {
+    val cs = MaterialTheme.colorScheme
+    var name by remember { mutableStateOf("") }
+    var count by remember { mutableIntStateOf(1) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = cs.surface,
+        shape = RoundedCornerShape(22.dp),
+        title = { Text("自定义预设", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = cs.onSurface) },
+        text = {
+            Column {
+                Text("名称", style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
+                TextFieldBox(
+                    value = name,
+                    onValueChange = { name = it.take(8) },
+                    placeholder = "例如：夜宵",
+                )
+                StepperRow(
+                    label = "份数",
+                    valueText = count.toString(),
+                    unit = "份",
+                    onMinus = { if (count > 1) count-- },
+                    onPlus = { if (count < 20) count++ },
+                    minusEnabled = count > 1,
+                    plusEnabled = count < 20,
+                    showDivider = false,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(name, count) }, enabled = name.isNotBlank()) { Text("保存", color = cs.primary) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("取消", color = cs.onSurfaceVariant) }
+        },
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

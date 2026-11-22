@@ -74,6 +74,9 @@ data class RecordSnapshot(
 
 object SettingsKeys {
     const val SERVING_GRAMS = "serving_grams_current"
+    const val LAST_SERVINGS = "last_servings"
+    const val LAST_WEIGHT_GRAMS = "last_weight_grams"
+    const val FOOD_PRESETS = "food_presets"
     const val DEWORM_INTERNAL_DAYS = "deworm_internal_cycle_days"
     const val DEWORM_EXTERNAL_DAYS = "deworm_external_cycle_days"
     const val NOTIFY_ENABLED = "notify_enabled"
@@ -195,6 +198,41 @@ class RecordRepository(
 
     suspend fun lastSnackType(): String? = settingsDao.get(SettingsKeys.LAST_SNACK_TYPE)
 
+    suspend fun lastServings(): Double =
+        settingsDao.get(SettingsKeys.LAST_SERVINGS)?.toDoubleOrNull()?.coerceAtLeast(1.0)
+            ?: recordDao.latestOfType(RecordType.FOOD)?.servingCount?.coerceAtLeast(1.0)
+            ?: 1.0
+
+    suspend fun lastWeightGrams(): Int? =
+        settingsDao.get(SettingsKeys.LAST_WEIGHT_GRAMS)?.toIntOrNull()
+            ?: recordDao.latestOfType(RecordType.WEIGHT)?.weightGrams
+
+    suspend fun foodPresets(): List<FoodPreset> {
+        val raw = settingsDao.get(SettingsKeys.FOOD_PRESETS)
+        val custom = runCatching {
+            val array = org.json.JSONArray(raw ?: "[]")
+            (0 until array.length()).mapNotNull { index ->
+                val item = array.optJSONObject(index) ?: return@mapNotNull null
+                val name = item.optString("name").takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                val servings = item.optInt("servings", 1).coerceIn(1, 20)
+                FoodPreset(name, servings)
+            }
+        }.getOrDefault(emptyList())
+        return FoodPreset.defaults + custom.filter { candidate -> FoodPreset.defaults.none { it.name == candidate.name } }
+    }
+
+    suspend fun addFoodPreset(name: String, servings: Int) {
+        val clean = name.trim().take(8)
+        if (clean.isBlank()) return
+        val custom = foodPresets().filter { candidate -> FoodPreset.defaults.none { it.name == candidate.name } }
+            .filterNot { it.name == clean } + FoodPreset(clean, servings.coerceIn(1, 20))
+        val array = org.json.JSONArray()
+        custom.forEach {
+            array.put(org.json.JSONObject().put("name", it.name).put("servings", it.servings))
+        }
+        settingsDao.put(SettingEntity(SettingsKeys.FOOD_PRESETS, array.toString()))
+    }
+
     suspend fun setting(key: String): String? = settingsDao.get(key)
 
     suspend fun putSetting(key: String, value: String) = settingsDao.put(SettingEntity(key, value))
@@ -236,9 +274,13 @@ class RecordRepository(
         snackType: String?,
         occurredAt: Long,
         existing: RecordEntity? = null,
+        rememberDefaults: Boolean = true,
     ): Long {
         val total = (servings * gramsPerServing).roundToInt()
-        settingsDao.put(SettingEntity(SettingsKeys.SERVING_GRAMS, gramsPerServing.toString()))
+        if (rememberDefaults) {
+            settingsDao.put(SettingEntity(SettingsKeys.SERVING_GRAMS, gramsPerServing.toString()))
+            settingsDao.put(SettingEntity(SettingsKeys.LAST_SERVINGS, servings.toString()))
+        }
         if (mealKind == MealKind.SNACK && snackType != null) {
             settingsDao.put(SettingEntity(SettingsKeys.LAST_SNACK_TYPE, snackType))
         }
@@ -258,6 +300,7 @@ class RecordRepository(
     }
 
     suspend fun saveWeight(grams: Int, occurredAt: Long, note: String?, existing: RecordEntity? = null): Long {
+        settingsDao.put(SettingEntity(SettingsKeys.LAST_WEIGHT_GRAMS, grams.toString()))
         val record = (existing ?: base(RecordType.WEIGHT, occurredAt)).copy(
             occurredAt = occurredAt,
             weightGrams = grams,

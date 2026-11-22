@@ -93,6 +93,9 @@ interface RecordDao {
     @Query("SELECT * FROM records WHERE type = :type ORDER BY occurred_at DESC LIMIT 1")
     fun observeLatestOfType(type: RecordType): Flow<RecordEntity?>
 
+    @Query("SELECT * FROM records WHERE type = :type ORDER BY occurred_at DESC LIMIT 1")
+    suspend fun latestOfType(type: RecordType): RecordEntity?
+
     /** 体重曲线数据（按时间正序），UI 以"斤"展示 */
     @Query("SELECT * FROM records WHERE type = :type ORDER BY occurred_at ASC")
     fun observeAllOfType(type: RecordType): Flow<List<RecordEntity>>

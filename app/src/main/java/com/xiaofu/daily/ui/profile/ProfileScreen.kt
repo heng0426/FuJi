@@ -97,13 +97,11 @@ fun ProfileScreen(vm: ProfileViewModel, modifier: Modifier = Modifier) {
     val settings by vm.settings.collectAsState()
 
     var editProfile by remember { mutableStateOf(false) }
-    var editServing by remember { mutableStateOf(false) }
     var editCycle by remember { mutableStateOf(false) }
     var showAbout by remember { mutableStateOf(false) }
     var showReminder by remember { mutableStateOf(false) }
     var showTheme by remember { mutableStateOf(false) }
 
-    val serving = settings[SettingsKeys.SERVING_GRAMS]?.toIntOrNull() ?: 15
     val internalDays = settings[SettingsKeys.DEWORM_INTERNAL_DAYS]?.toIntOrNull() ?: 90
     val externalDays = settings[SettingsKeys.DEWORM_EXTERNAL_DAYS]?.toIntOrNull() ?: 30
     val notifyEnabled = settings[SettingsKeys.NOTIFY_ENABLED] != "false"
@@ -155,12 +153,6 @@ fun ProfileScreen(vm: ProfileViewModel, modifier: Modifier = Modifier) {
         item(key = "settings") {
             CardSurface(contentPadding = 0.dp) {
                 Column(Modifier.padding(horizontal = 18.dp, vertical = 2.dp)) {
-                    SettingRow(
-                        iconRes = R.drawable.ic_ms_restaurant,
-                        title = "喂养 · 每份克重",
-                        value = "$serving 克",
-                        onClick = { editServing = true },
-                    )
                     SettingRow(
                         iconRes = R.drawable.ic_ms_pest_control,
                         title = "驱虫周期",
@@ -240,20 +232,6 @@ fun ProfileScreen(vm: ProfileViewModel, modifier: Modifier = Modifier) {
                 vm.setSetting(SettingsKeys.NOTIFY_DAYS_AHEAD, d.toString())
                 vm.setSetting(SettingsKeys.NOTIFY_HOUR, h.toString())
                 showReminder = false
-            },
-        )
-    }
-
-    if (editServing) {
-        NumberSettingDialog(
-            title = "每份克重",
-            unit = "克",
-            initial = serving,
-            range = 1..200,
-            onDismiss = { editServing = false },
-            onSave = {
-                vm.setSetting(SettingsKeys.SERVING_GRAMS, it.toString())
-                editServing = false
             },
         )
     }
@@ -507,51 +485,6 @@ private fun EditProfileSheet(
             DatePicker(state = state)
         }
     }
-}
-
-@Composable
-private fun NumberSettingDialog(
-    title: String,
-    unit: String,
-    initial: Int,
-    range: IntRange,
-    onDismiss: () -> Unit,
-    onSave: (Int) -> Unit,
-) {
-    val cs = MaterialTheme.colorScheme
-    var value by remember { mutableIntStateOf(initial) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = cs.surface,
-        shape = RoundedCornerShape(22.dp),
-        title = { Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = cs.onSurface) },
-        text = {
-            Column {
-                StepperRow(
-                    label = title,
-                    valueText = value.toString(),
-                    unit = unit,
-                    onMinus = { if (value > range.first) value-- },
-                    onPlus = { if (value < range.last) value++ },
-                    minusEnabled = value > range.first,
-                    plusEnabled = value < range.last,
-                    showDivider = false,
-                )
-                Text(
-                    "范围 ${range.first}–${range.last} $unit",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = cs.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 8.dp),
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = { onSave(value) }) { Text("保存", color = cs.primary) }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("取消", color = cs.onSurfaceVariant) }
-        },
-    )
 }
 
 @Composable

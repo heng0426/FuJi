@@ -11,31 +11,32 @@ object Fmt {
 
     private val zone: ZoneId get() = ZoneId.systemDefault()
     private val timeFormatter = DateTimeFormatter.ofPattern("HH:mm", Locale.CHINA)
-    private val weekFormatter = DateTimeFormatter.ofPattern("M月d日 EEE", Locale.CHINA)
+    private val weekFormatter = DateTimeFormatter.ofPattern("yyyy年M月d日 EEE", Locale.CHINA)
     private val monthDayFormatter = DateTimeFormatter.ofPattern("M月d日", Locale.CHINA)
+    private val fullDateFormatter = DateTimeFormatter.ofPattern("yyyy年M月d日", Locale.CHINA)
 
     fun time(ms: Long): String =
         Instant.ofEpochMilli(ms).atZone(zone).format(timeFormatter)
 
     fun date(ms: Long): LocalDate = Instant.ofEpochMilli(ms).atZone(zone).toLocalDate()
 
-    /** 今天 / 昨天 / M月d日 */
+    /** 今天 / 昨天 / yyyy年M月d日 */
     fun dayLabel(date: LocalDate): String {
         val today = LocalDate.now(zone)
         return when (date) {
             today -> "今天"
             today.minusDays(1) -> "昨天"
-            else -> date.format(monthDayFormatter)
+            else -> date.format(fullDateFormatter)
         }
     }
 
-    /** 首页顶部日期：11月22日 · 周六 */
+    /** 首页顶部日期：2026年11月22日 · 周六 */
     fun todayHeader(): String = LocalDate.now(zone).format(weekFormatter)
 
-    /** 详情时间：11月22日 08:12 */
+    /** 详情时间：2026年11月22日 08:12 */
     fun detailTime(ms: Long): String {
         val zoned = Instant.ofEpochMilli(ms).atZone(zone)
-        return "${zoned.format(monthDayFormatter)} ${zoned.format(timeFormatter)}"
+        return "${zoned.format(fullDateFormatter)} ${zoned.format(timeFormatter)}"
     }
 
     /** 克 → 斤（1 位小数） */
@@ -49,9 +50,9 @@ object Fmt {
 
     fun epochDayToDate(day: Long): LocalDate = LocalDate.ofEpochDay(day)
 
-    fun monthDay(day: Long): String = epochDayToDate(day).format(monthDayFormatter)
+    fun monthDay(day: Long): String = epochDayToDate(day).format(fullDateFormatter)
 
-    fun monthDayOf(ms: Long): String = date(ms).format(monthDayFormatter)
+    fun monthDayOf(ms: Long): String = date(ms).format(fullDateFormatter)
 
     fun fullDate(day: Long): String = epochDayToDate(day).format(weekFormatter)
 

@@ -36,8 +36,8 @@ class DueReminderWorker(
             .first()
             .filter { it.daysLeft in 0..daysAhead.toLong() }
 
-        repo.putSetting(SettingsKeys.NOTIFY_LAST_DAY, today)
         if (cards.isNotEmpty()) {
+            repo.putSetting(SettingsKeys.NOTIFY_LAST_DAY, today)
             ReminderNotifier.show(applicationContext, cards)
         }
         Result.success()

@@ -1,9 +1,11 @@
 package com.xiaofu.daily.ui.records
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
@@ -28,14 +31,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
@@ -54,6 +62,7 @@ import com.xiaofu.daily.data.local.model.RecordType
 import com.xiaofu.daily.ui.components.CardSurface
 import com.xiaofu.daily.ui.components.PillChip
 import com.xiaofu.daily.ui.components.RecordRow
+import com.xiaofu.daily.ui.components.SelectionTopBar
 import com.xiaofu.daily.ui.components.SegmentedRow
 import com.xiaofu.daily.ui.components.RoundIconButton
 import com.xiaofu.daily.ui.components.TypeIcon
@@ -88,7 +97,13 @@ fun RecordsScreen(
     val records by vm.records.collectAsState()
     val dueCards by vm.dueCards.collectAsState()
     val typeOrder by vm.typeOrder.collectAsState()
-    var showOrderDialog by remember { mutableStateOf(false) }
+    val latestOrder by rememberUpdatedState(typeOrder)
+    val chipState = rememberLazyListState()
+    var draggingType by remember { mutableStateOf<RecordType?>(null) }
+    var dragOffset by remember { mutableFloatStateOf(0f) }
+    var selecting by remember { mutableStateOf(false) }
+    var selectedIds by remember { mutableStateOf(setOf<Long>()) }
+    var confirmDeleteSelected by remember { mutableStateOf(false) }
 
     val scope = rememberCoroutineScope()
     var detail by remember { mutableStateOf<RecordEntity?>(null) }
@@ -112,11 +127,31 @@ fun RecordsScreen(
 
     val groups = remember(records) { records.groupBy { Fmt.date(it.occurredAt) } }
 
-    LazyColumn(
-        modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
+    if (selecting) {
+        BackHandler {
+            selecting = false
+            selectedIds = emptySet()
+        }
+    }
+
+    Column(modifier.fillMaxSize()) {
+        if (selecting) {
+            SelectionTopBar(
+                count = selectedIds.size,
+                onCancel = {
+                    selecting = false
+                    selectedIds = emptySet()
+                },
+                onDelete = { if (selectedIds.isNotEmpty()) confirmDeleteSelected = true },
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
+            )
+        }
+        LazyColumn(
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+        if (!selecting) {
         item(key = "top") {
             Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
@@ -126,18 +161,63 @@ fun RecordsScreen(
                 RoundIconButton(R.drawable.ic_ms_search)
             }
         }
+        }
         item(key = "filters") {
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            LazyRow(state = chipState, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 item {
                     PillChip("全部", selected = filter == null, onClick = { vm.setFilter(null) })
                 }
                 items(items = typeOrder, key = { it.name }) { type ->
-                    PillChip(
-                        text = typeLabels.getValue(type),
-                        selected = filter == type,
-                        onClick = { vm.setFilter(type) },
-                        onLongClick = { showOrderDialog = true },
-                    )
+                    val order = latestOrder
+                    val isDragging = draggingType == type
+                    Box(
+                        modifier = Modifier
+                            .graphicsLayer { translationX = if (isDragging) dragOffset else 0f }
+                            .zIndex(if (isDragging) 1f else 0f)
+                            .pointerInput(type) {
+                                detectDragGesturesAfterLongPress(
+                                    onDragStart = { draggingType = type },
+                                    onDrag = { change, amount ->
+                                        change.consume()
+                                        dragOffset += amount.x
+                                        val current = latestOrder
+                                        val visualIndex = current.indexOf(type) + 1
+                                        val info = chipState.layoutInfo.visibleItemsInfo
+                                        val currentItem = info.firstOrNull { it.index == visualIndex }
+                                        val neighbor = if (dragOffset > 0) {
+                                            info.firstOrNull { it.index == visualIndex + 1 }
+                                        } else {
+                                            info.firstOrNull { it.index == visualIndex - 1 }
+                                        }
+                                        if (neighbor != null) {
+                                            val threshold = ((currentItem?.size ?: 0) + neighbor.size) / 2f
+                                            if (kotlin.math.abs(dragOffset) > threshold) {
+                                                vm.moveType(type, if (dragOffset > 0) 1 else -1)
+                                                dragOffset += if (dragOffset > 0) {
+                                                    -neighbor.size.toFloat()
+                                                } else {
+                                                    neighbor.size.toFloat()
+                                                }
+                                            }
+                                        }
+                                    },
+                                    onDragEnd = {
+                                        draggingType = null
+                                        dragOffset = 0f
+                                    },
+                                    onDragCancel = {
+                                        draggingType = null
+                                        dragOffset = 0f
+                                    },
+                                )
+                            },
+                    ) {
+                        PillChip(
+                            text = typeLabels.getValue(type),
+                            selected = filter == type,
+                            onClick = { vm.setFilter(type) },
+                        )
+                    }
                 }
             }
         }
@@ -194,7 +274,23 @@ fun RecordsScreen(
                             RecordRow(
                                 record = record,
                                 showDivider = position > 0,
-                                onClick = { detail = record },
+                                onClick = {
+                                    if (selecting) {
+                                        selectedIds = if (record.id in selectedIds) {
+                                            selectedIds - record.id
+                                        } else {
+                                            selectedIds + record.id
+                                        }
+                                    } else {
+                                        detail = record
+                                    }
+                                },
+                                onLongClick = {
+                                    selecting = true
+                                    selectedIds = selectedIds + record.id
+                                },
+                                selectionMode = selecting,
+                                selected = record.id in selectedIds,
                             )
                         }
                     }
@@ -202,35 +298,29 @@ fun RecordsScreen(
             }
         }
     }
+    }
 
-    if (showOrderDialog) {
+    if (confirmDeleteSelected) {
+        val count = selectedIds.size
         AlertDialog(
-            onDismissRequest = { showOrderDialog = false },
+            onDismissRequest = { confirmDeleteSelected = false },
             containerColor = cs.surface,
             shape = RoundedCornerShape(22.dp),
-            title = { Text("调整类型顺序", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = cs.onSurface) },
-            text = {
-                Column {
-                    typeOrder.forEachIndexed { index, type ->
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                typeLabels.getValue(type),
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = cs.onSurface,
-                                modifier = Modifier.weight(1f),
-                            )
-                            TextButton(onClick = { vm.moveType(type, -1) }, enabled = index > 0) {
-                                Text("↑", color = if (index > 0) cs.primary else cs.onSurfaceVariant.copy(alpha = 0.4f))
-                            }
-                            TextButton(onClick = { vm.moveType(type, 1) }, enabled = index < typeOrder.lastIndex) {
-                                Text("↓", color = if (index < typeOrder.lastIndex) cs.primary else cs.onSurfaceVariant.copy(alpha = 0.4f))
-                            }
-                        }
-                    }
-                }
-            },
+            title = { Text("删除 $count 条记录", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = cs.onSurface) },
+            text = { Text("删除后不可恢复。", style = MaterialTheme.typography.bodyMedium, color = cs.onSurfaceVariant) },
             confirmButton = {
-                TextButton(onClick = { showOrderDialog = false }) { Text("完成", color = cs.primary) }
+                TextButton(onClick = {
+                    confirmDeleteSelected = false
+                    val ids = selectedIds
+                    scope.launch {
+                        vm.deleteMany(ids)
+                        selectedIds = emptySet()
+                        selecting = false
+                    }
+                }) { Text("删除", color = cs.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmDeleteSelected = false }) { Text("取消", color = cs.onSurfaceVariant) }
             },
         )
     }

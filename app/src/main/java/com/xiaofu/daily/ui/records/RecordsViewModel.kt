@@ -44,6 +44,10 @@ class RecordsViewModel(private val repo: RecordRepository) : ViewModel() {
         _filter.value = type
     }
 
+    suspend fun deleteMany(ids: Set<Long>) {
+        ids.forEach { repo.deleteWithSnapshot(it) }
+    }
+
     fun moveType(type: RecordType, offset: Int) {
         val current = _typeOrder.value.toMutableList()
         val index = current.indexOf(type)

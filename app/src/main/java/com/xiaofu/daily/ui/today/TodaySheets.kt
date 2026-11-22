@@ -114,12 +114,6 @@ fun WaterSheet(
                 fontWeight = FontWeight.SemiBold,
                 color = cs.onSurface,
             )
-            Text(
-                if (editing == null) "上次 $lastMl ml，已为你填好；直接确认即可" else "修改毫升数后保存",
-                style = MaterialTheme.typography.labelSmall,
-                color = cs.onSurfaceVariant,
-                modifier = Modifier.padding(top = 4.dp),
-            )
             Spacer(Modifier.height(14.dp))
             BigNumberField(value = text, onValueChange = { text = it }, unit = "ml")
             Row(
@@ -207,12 +201,6 @@ fun FoodSheet(
                 fontSize = 17.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = cs.onSurface,
-            )
-            Text(
-                "选好份数与每份克重，保存即记一笔",
-                style = MaterialTheme.typography.labelSmall,
-                color = cs.onSurfaceVariant,
-                modifier = Modifier.padding(top = 4.dp),
             )
             if (kind == MealKind.MAIN && editing == null) {
                 Spacer(Modifier.height(12.dp))

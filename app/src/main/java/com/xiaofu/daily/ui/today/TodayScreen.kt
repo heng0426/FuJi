@@ -63,6 +63,7 @@ import com.xiaofu.daily.ui.components.CardSurface
 import com.xiaofu.daily.ui.components.CircleTypeIcon
 import com.xiaofu.daily.ui.components.DayGroupHeader
 import com.xiaofu.daily.ui.components.RecordRow
+import com.xiaofu.daily.ui.components.SelectionTopBar
 import com.xiaofu.daily.ui.components.RoundIconButton
 import com.xiaofu.daily.ui.components.TypeIcon
 import com.xiaofu.daily.ui.editor.EditorTarget
@@ -137,25 +138,26 @@ fun TodayScreen(
         records.groupBy { Fmt.date(it.occurredAt) }
     }
 
-    LazyColumn(
-        state = listState,
-        modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        item(key = "topbar") {
-            if (selecting) {
-                SelectionTopBar(
-                    count = selectedIds.size,
-                    onCancel = {
-                        selecting = false
-                        selectedIds = emptySet()
-                    },
-                    onDelete = { if (selectedIds.isNotEmpty()) confirmDeleteSelected = true },
-                )
-            } else {
-                TodayTopBar()
-            }
+    Column(modifier.fillMaxSize()) {
+        if (selecting) {
+            SelectionTopBar(
+                count = selectedIds.size,
+                onCancel = {
+                    selecting = false
+                    selectedIds = emptySet()
+                },
+                onDelete = { if (selectedIds.isNotEmpty()) confirmDeleteSelected = true },
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
+            )
+        }
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+        if (!selecting) {
+            item(key = "topbar") { TodayTopBar() }
         }
         item(key = "overview") {
             OverviewCard(summary = summary, onWeightClick = { onOpenEditor(EditorTarget.Weight()) })
@@ -231,6 +233,7 @@ fun TodayScreen(
                 }
             }
         }
+    }
     }
 
     if (showWater) {
@@ -357,28 +360,6 @@ fun TodayScreen(
                 detail = null
                 onDeleteRecord(record)
             },
-        )
-    }
-}
-
-@Composable
-private fun SelectionTopBar(count: Int, onCancel: () -> Unit, onDelete: () -> Unit) {
-    val cs = MaterialTheme.colorScheme
-    Row(
-        Modifier.fillMaxWidth().height(52.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            "已选 $count 条",
-            style = MaterialTheme.typography.titleMedium,
-            color = cs.onSurface,
-            modifier = Modifier.weight(1f),
-        )
-        TextButton(onClick = onCancel) { Text("取消", color = cs.onSurfaceVariant) }
-        RoundIconButton(
-            R.drawable.ic_ms_delete,
-            onClick = onDelete,
-            tint = cs.error,
         )
     }
 }

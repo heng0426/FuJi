@@ -1,6 +1,7 @@
 package com.xiaofu.daily.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -24,10 +25,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarData
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -37,6 +40,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -53,6 +57,9 @@ import com.xiaofu.daily.ui.editor.VaccineEditor
 import com.xiaofu.daily.ui.editor.WeightEditor
 import com.xiaofu.daily.ui.today.TodayScreen
 import com.xiaofu.daily.ui.today.TodayViewModel
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 private enum class Tab(val label: String, val iconRes: Int) {
@@ -75,6 +82,7 @@ fun XiaoFuApp() {
     val onDelete: (RecordEntity) -> Unit = { record ->
         scope.launch {
             val snapshot = vm.delete(record)
+            snackbar.currentSnackbarData?.dismiss()
             val result = snackbar.showSnackbar(
                 message = "已删除该记录",
                 actionLabel = "撤销",
@@ -86,9 +94,17 @@ fun XiaoFuApp() {
         }
     }
 
-    val onMessage: (String) -> Unit = { text ->
-        scope.launch { snackbar.showSnackbar(text, duration = SnackbarDuration.Short) }
+    // 只保留最新一条提示：新消息到达即取消上一条，避免快速操作造成积压与延迟
+    val messages = remember {
+        MutableSharedFlow<String>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
     }
+    LaunchedEffect(Unit) {
+        messages.collectLatest { text ->
+            snackbar.currentSnackbarData?.dismiss()
+            snackbar.showSnackbar(text, duration = SnackbarDuration.Short)
+        }
+    }
+    val onMessage: (String) -> Unit = { messages.tryEmit(it) }
 
     Box(Modifier.fillMaxSize().background(cs.background)) {
         val current = editor
@@ -96,9 +112,13 @@ fun XiaoFuApp() {
             Scaffold(
                 containerColor = Color.Transparent,
                 contentWindowInsets = WindowInsets.safeDrawing,
-                snackbarHost = { SnackbarHost(snackbar) },
-                bottomBar = {
-                    BottomNav(selected = selectedTab, accentText = accentText) { selectedTab = it }
+                snackbarHost = {
+                    SnackbarHost(
+                        hostState = snackbar,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                    ) { data ->
+                        XiaoFuSnackbar(data, accentText)
+                    }
                 },
             ) { innerPadding ->
                 when (selectedTab) {
@@ -194,6 +214,54 @@ private fun PlaceholderScreen(title: String, hint: String, modifier: Modifier = 
                 color = cs.onSurfaceVariant,
                 textAlign = TextAlign.Center,
                 lineHeight = 20.sp,
+            )
+        }
+    }
+}
+
+/** 自定义提示条：奶白卡片 + 描边 + 橘色操作，替代 Material 默认深色 Snackbar */
+@Composable
+private fun XiaoFuSnackbar(data: SnackbarData, accent: Color) {
+    val cs = MaterialTheme.colorScheme
+    val shape = RoundedCornerShape(16.dp)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(8.dp, shape, clip = false)
+            .clip(shape)
+            .background(cs.surface)
+            .border(1.dp, cs.outline, shape)
+            .padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            data.visuals.message,
+            style = MaterialTheme.typography.bodyMedium,
+            color = cs.onSurface,
+            modifier = Modifier.weight(1f),
+        )
+        data.visuals.actionLabel?.let { label ->
+            Text(
+                label,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = accent,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .clickable { data.performAction() }
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+            )
+        }
+        if (data.visuals.withDismissAction) {
+            Icon(
+                painterResource(R.drawable.ic_ms_close),
+                contentDescription = "关闭",
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .clickable { data.dismiss() }
+                    .padding(8.dp)
+                    .size(16.dp),
+                tint = cs.onSurfaceVariant,
             )
         }
     }

@@ -112,6 +112,9 @@ fun XiaoFuApp() {
             Scaffold(
                 containerColor = Color.Transparent,
                 contentWindowInsets = WindowInsets.safeDrawing,
+                bottomBar = {
+                    BottomNav(selected = selectedTab, accentText = accentText) { selectedTab = it }
+                },
                 snackbarHost = {
                     SnackbarHost(
                         hostState = snackbar,

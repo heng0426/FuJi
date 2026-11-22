@@ -39,6 +39,13 @@ interface RecordDao {
     @Query("SELECT * FROM records WHERE occurred_at < :beforeMs ORDER BY occurred_at DESC LIMIT :limit")
     fun observeTimeline(beforeMs: Long, limit: Int): Flow<List<RecordEntity>>
 
+    /** 带 id 兜底键的 keyset 分页（同一毫秒多条时不丢数据） */
+    @Query(
+        "SELECT * FROM records WHERE (occurred_at < :beforeMs OR (occurred_at = :beforeMs AND id < :beforeId)) " +
+            "ORDER BY occurred_at DESC, id DESC LIMIT :limit",
+    )
+    fun observeTimelinePage(beforeMs: Long, beforeId: Long, limit: Int): Flow<List<RecordEntity>>
+
     /** 日历月历标记：取区间内记录，由调用方按本地日期分组（规避 SQL 时区问题） */
     @Query(
         "SELECT * FROM records WHERE occurred_at >= :startMs AND occurred_at < :endMs " +

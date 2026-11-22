@@ -22,4 +22,7 @@ interface AnomalyTagDao {
 
     @Query("SELECT COUNT(*) FROM anomaly_tags")
     suspend fun count(): Int
+
+    @Query("SELECT IFNULL(MAX(sort_order), -1) FROM anomaly_tags")
+    suspend fun maxSortOrder(): Int
 }

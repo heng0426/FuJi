@@ -66,6 +66,8 @@ import com.xiaofu.daily.ui.editor.WeightEditor
 import com.xiaofu.daily.ui.calendar.CalendarScreen
 import com.xiaofu.daily.ui.calendar.CalendarViewModel
 import com.xiaofu.daily.ui.records.RecordsScreen
+import com.xiaofu.daily.ui.profile.ProfileScreen
+import com.xiaofu.daily.ui.profile.ProfileViewModel
 import com.xiaofu.daily.ui.records.RecordsViewModel
 import com.xiaofu.daily.ui.today.TodayScreen
 import com.xiaofu.daily.ui.today.TodayViewModel
@@ -88,6 +90,7 @@ fun XiaoFuApp() {
     val vm: TodayViewModel = viewModel(factory = TodayViewModel.Factory)
     val calendarVm: CalendarViewModel = viewModel(factory = CalendarViewModel.Factory)
     val recordsVm: RecordsViewModel = viewModel(factory = RecordsViewModel.Factory)
+    val profileVm: ProfileViewModel = viewModel(factory = ProfileViewModel.Factory)
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val cs = MaterialTheme.colorScheme
@@ -180,7 +183,10 @@ fun XiaoFuApp() {
                         onDeleteRecord = onDelete,
                         modifier = Modifier.padding(innerPadding),
                     )
-                    Tab.PROFILE -> PlaceholderScreen("我的", "档案与设置\n将在阶段 4 开放", Modifier.padding(innerPadding))
+                    Tab.PROFILE -> ProfileScreen(
+                        vm = profileVm,
+                        modifier = Modifier.padding(innerPadding),
+                    )
                 }
             }
         } else {

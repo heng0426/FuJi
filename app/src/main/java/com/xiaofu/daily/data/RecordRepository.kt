@@ -89,6 +89,7 @@ class RecordRepository(
 ) {
     private val recordDao = db.recordDao()
     private val photoDao = db.photoDao()
+    private val profileDao = db.profileDao()
     private val settingsDao = db.settingsDao()
     private val tagDao = db.anomalyTagDao()
     private val photoStore = PhotoStore(context.applicationContext)
@@ -178,6 +179,13 @@ class RecordRepository(
         }
 
     fun observeTags(): Flow<List<AnomalyTagEntity>> = tagDao.observeAll()
+
+    fun observeProfile(): Flow<com.xiaofu.daily.data.local.entity.ProfileEntity?> = profileDao.observeProfile()
+
+    suspend fun updateProfile(profile: com.xiaofu.daily.data.local.entity.ProfileEntity) =
+        profileDao.upsert(profile.copy(updatedAt = System.currentTimeMillis()))
+
+    fun observeSettings(): Flow<List<SettingEntity>> = settingsDao.observeAll()
 
     suspend fun lastWaterMl(): Int =
         settingsDao.get(SettingsKeys.LAST_WATER_ML)?.toIntOrNull()

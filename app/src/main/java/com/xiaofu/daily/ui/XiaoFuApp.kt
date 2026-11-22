@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -35,6 +36,7 @@ import androidx.compose.material3.SnackbarData
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -97,6 +99,8 @@ fun XiaoFuApp() {
     val accentText = if (isSystemInDarkTheme()) cs.primary else Color(0xFFB5501A)
 
     val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("xiaofu_prefs", Context.MODE_PRIVATE) }
+    var showGuide by remember { mutableStateOf(!prefs.getBoolean("onboarding_done", false)) }
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { }
@@ -140,6 +144,33 @@ fun XiaoFuApp() {
         }
     }
     val onMessage: (String) -> Unit = { messages.tryEmit(it) }
+
+    if (showGuide && editor == null) {
+        AlertDialog(
+            onDismissRequest = {
+                prefs.edit().putBoolean("onboarding_done", true).apply()
+                showGuide = false
+            },
+            containerColor = cs.surface,
+            shape = RoundedCornerShape(22.dp),
+            title = {
+                Text("欢迎使用小福日常", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = cs.onSurface)
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    GuideRow(R.drawable.ic_ms_water_drop, "点一下「喝水」或「喂食」，3 秒记一笔")
+                    GuideRow(R.drawable.ic_ms_calendar_month, "日历可回看，也能补记过去的记录")
+                    GuideRow(R.drawable.ic_ms_notifications, "驱虫、疫苗到期前会提醒你")
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    prefs.edit().putBoolean("onboarding_done", true).apply()
+                    showGuide = false
+                }) { Text("开始使用", color = cs.primary, fontWeight = FontWeight.SemiBold) }
+            },
+        )
+    }
 
     Box(Modifier.fillMaxSize().background(cs.background)) {
         val current = editor
@@ -318,5 +349,24 @@ private fun XiaoFuSnackbar(data: SnackbarData, accent: Color) {
                 tint = cs.onSurfaceVariant,
             )
         }
+    }
+}
+
+@Composable
+private fun GuideRow(iconRes: Int, text: String) {
+    val cs = MaterialTheme.colorScheme
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            Modifier.size(32.dp).clip(RoundedCornerShape(10.dp)).background(cs.primaryContainer),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(painterResource(iconRes), null, Modifier.size(18.dp), tint = cs.onPrimaryContainer)
+        }
+        Text(
+            text,
+            style = MaterialTheme.typography.bodyMedium,
+            color = cs.onSurface,
+            modifier = Modifier.padding(start = 12.dp),
+        )
     }
 }

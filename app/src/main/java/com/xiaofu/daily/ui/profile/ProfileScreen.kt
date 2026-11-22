@@ -1,5 +1,13 @@
 package com.xiaofu.daily.ui.profile
 
+import android.content.Intent
+import android.graphics.BitmapFactory
+import android.net.Uri
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -16,6 +24,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
@@ -36,12 +45,17 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -60,6 +74,10 @@ import com.xiaofu.daily.ui.components.SheetHandle
 import com.xiaofu.daily.ui.components.StepperRow
 import com.xiaofu.daily.ui.components.TextFieldBox
 import com.xiaofu.daily.ui.format.Fmt
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.File
+import androidx.core.app.NotificationManagerCompat
 import java.time.Instant
 import java.time.LocalDate
 import java.time.Period
@@ -76,12 +94,14 @@ fun ProfileScreen(vm: ProfileViewModel, modifier: Modifier = Modifier) {
     var editServing by remember { mutableStateOf(false) }
     var editCycle by remember { mutableStateOf(false) }
     var showAbout by remember { mutableStateOf(false) }
+    var showReminder by remember { mutableStateOf(false) }
 
     val serving = settings[SettingsKeys.SERVING_GRAMS]?.toIntOrNull() ?: 15
     val internalDays = settings[SettingsKeys.DEWORM_INTERNAL_DAYS]?.toIntOrNull() ?: 90
     val externalDays = settings[SettingsKeys.DEWORM_EXTERNAL_DAYS]?.toIntOrNull() ?: 30
     val notifyEnabled = settings[SettingsKeys.NOTIFY_ENABLED] != "false"
     val notifyDays = settings[SettingsKeys.NOTIFY_DAYS_AHEAD]?.toIntOrNull() ?: 3
+    val notifyHour = settings[SettingsKeys.NOTIFY_HOUR]?.toIntOrNull() ?: 9
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -100,15 +120,7 @@ fun ProfileScreen(vm: ProfileViewModel, modifier: Modifier = Modifier) {
         item(key = "profile") {
             CardSurface {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        Modifier
-                            .size(56.dp)
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(cs.primaryContainer),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(painterResource(R.drawable.ic_ms_pets), null, Modifier.size(30.dp), tint = cs.onPrimaryContainer)
-                    }
+                    ProfileAvatar(photoFile = profile?.photoFile)
                     Column(Modifier.weight(1f).padding(start = 14.dp)) {
                         Text(profile?.name ?: "小福", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = cs.onSurface)
                         Text(
@@ -150,19 +162,12 @@ fun ProfileScreen(vm: ProfileViewModel, modifier: Modifier = Modifier) {
                     SettingRow(
                         iconRes = R.drawable.ic_ms_notifications,
                         title = "提醒",
-                        value = if (notifyEnabled) "提前 $notifyDays 天 · 09:00" else "已关闭",
-                        onClick = { vm.setSetting(SettingsKeys.NOTIFY_ENABLED, if (notifyEnabled) "false" else "true") },
-                        trailing = {
-                            Switch(
-                                checked = notifyEnabled,
-                                onCheckedChange = { vm.setSetting(SettingsKeys.NOTIFY_ENABLED, it.toString()) },
-                                colors = SwitchDefaults.colors(
-                                    checkedTrackColor = cs.primary,
-                                    checkedThumbColor = Color.White,
-                                ),
-                            )
+                        value = if (notifyEnabled) {
+                            "提前 $notifyDays 天 · ${notifyHour.toString().padStart(2, '0')}:00"
+                        } else {
+                            "已关闭"
                         },
-                        showChevron = false,
+                        onClick = { showReminder = true },
                     )
                     SettingRow(
                         iconRes = R.drawable.ic_ms_dark_mode,
@@ -198,9 +203,24 @@ fun ProfileScreen(vm: ProfileViewModel, modifier: Modifier = Modifier) {
         EditProfileSheet(
             profile = profile,
             onDismiss = { editProfile = false },
-            onSave = { name, breed, gender, birthday ->
-                vm.saveProfile(profile, name, breed, gender, birthday)
+            onSave = { name, breed, gender, birthday, photoUri ->
+                vm.saveProfile(profile, name, breed, gender, birthday, photoUri)
                 editProfile = false
+            },
+        )
+    }
+
+    if (showReminder) {
+        ReminderDialog(
+            enabled = notifyEnabled,
+            days = notifyDays,
+            hour = notifyHour,
+            onDismiss = { showReminder = false },
+            onSave = { e, d, h ->
+                vm.setSetting(SettingsKeys.NOTIFY_ENABLED, e.toString())
+                vm.setSetting(SettingsKeys.NOTIFY_DAYS_AHEAD, d.toString())
+                vm.setSetting(SettingsKeys.NOTIFY_HOUR, h.toString())
+                showReminder = false
             },
         )
     }
@@ -332,7 +352,7 @@ private fun SettingRow(
 private fun EditProfileSheet(
     profile: ProfileEntity?,
     onDismiss: () -> Unit,
-    onSave: (String, String?, Gender?, Long?) -> Unit,
+    onSave: (String, String?, Gender?, Long?, Uri?) -> Unit,
 ) {
     val cs = MaterialTheme.colorScheme
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -349,6 +369,10 @@ private fun EditProfileSheet(
     }
     var birthdayDay by remember { mutableStateOf(profile?.birthdayDay) }
     var showPicker by remember { mutableStateOf(false) }
+    var pickedPhoto by remember { mutableStateOf<Uri?>(null) }
+    val photoPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia(),
+    ) { uri -> if (uri != null) pickedPhoto = uri }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -367,6 +391,23 @@ private fun EditProfileSheet(
         ) {
             SheetHandle()
             Text("编辑档案", fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = cs.onSurface)
+            Row(
+                modifier = Modifier.fillMaxWidth().clickable {
+                    photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                },
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                ProfileAvatar(photoFile = profile?.photoFile, pickedUri = pickedPhoto, size = 64.dp, radius = 22.dp)
+                Column(Modifier.padding(start = 14.dp)) {
+                    Text("更换头像", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium, color = cs.onSurface)
+                    Text(
+                        if (pickedPhoto != null) "已选择新照片，保存后生效" else "从相册选择",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = cs.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 2.dp),
+                    )
+                }
+            }
             Text("名字", style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
             TextFieldBox(value = name, onValueChange = { name = it.take(12) }, placeholder = "小福")
             Text("品种", style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
@@ -418,7 +459,7 @@ private fun EditProfileSheet(
                             1 -> Gender.FEMALE
                             else -> null
                         }
-                        onSave(name, breed.ifBlank { null }, gender, birthdayDay)
+                        onSave(name, breed.ifBlank { null }, gender, birthdayDay, pickedPhoto)
                     },
                     modifier = Modifier.weight(1f),
                     enabled = name.isNotBlank(),
@@ -545,4 +586,129 @@ private fun CycleDialog(
             TextButton(onClick = onDismiss) { Text("取消", color = cs.onSurfaceVariant) }
         },
     )
+}
+
+@Composable
+private fun ReminderDialog(
+    enabled: Boolean,
+    days: Int,
+    hour: Int,
+    onDismiss: () -> Unit,
+    onSave: (Boolean, Int, Int) -> Unit,
+) {
+    val cs = MaterialTheme.colorScheme
+    val context = LocalContext.current
+    var on by remember { mutableStateOf(enabled) }
+    var daysAhead by remember { mutableIntStateOf(days) }
+    var hourOfDay by remember { mutableIntStateOf(hour) }
+    val notificationsAllowed = remember { NotificationManagerCompat.from(context).areNotificationsEnabled() }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = cs.surface,
+        shape = RoundedCornerShape(22.dp),
+        title = { Text("提醒设置", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = cs.onSurface) },
+        text = {
+            Column {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text("到期提醒", style = MaterialTheme.typography.bodyMedium, color = cs.onSurface, modifier = Modifier.weight(1f))
+                    Switch(
+                        checked = on,
+                        onCheckedChange = { on = it },
+                        colors = SwitchDefaults.colors(checkedTrackColor = cs.primary, checkedThumbColor = Color.White),
+                    )
+                }
+                if (on) {
+                    StepperRow(
+                        label = "提前天数",
+                        valueText = daysAhead.toString(),
+                        unit = "天",
+                        onMinus = { if (daysAhead > 0) daysAhead-- },
+                        onPlus = { if (daysAhead < 14) daysAhead++ },
+                        minusEnabled = daysAhead > 0,
+                        plusEnabled = daysAhead < 14,
+                    )
+                    StepperRow(
+                        label = "提醒时间",
+                        valueText = hourOfDay.toString().padStart(2, '0'),
+                        unit = "点",
+                        onMinus = { if (hourOfDay > 0) hourOfDay-- },
+                        onPlus = { if (hourOfDay < 23) hourOfDay++ },
+                        minusEnabled = hourOfDay > 0,
+                        plusEnabled = hourOfDay < 23,
+                        showDivider = false,
+                    )
+                }
+                if (on && !notificationsAllowed) {
+                    Text(
+                        "系统通知未开启，提醒无法展示。点此去开启",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = cs.error,
+                        modifier = Modifier
+                            .padding(top = 10.dp)
+                            .clickable {
+                                context.startActivity(
+                                    Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                                        .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                                )
+                            },
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onSave(on, daysAhead, hourOfDay) }) { Text("保存", color = cs.primary) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("取消", color = cs.onSurfaceVariant) }
+        },
+    )
+}
+
+@Composable
+private fun ProfileAvatar(
+    photoFile: String?,
+    pickedUri: Uri? = null,
+    size: androidx.compose.ui.unit.Dp = 56.dp,
+    radius: androidx.compose.ui.unit.Dp = 20.dp,
+) {
+    val cs = MaterialTheme.colorScheme
+    val context = LocalContext.current
+    val bitmap by produceState<ImageBitmap?>(initialValue = null, photoFile, pickedUri) {
+        value = withContext(Dispatchers.IO) {
+            runCatching {
+                val opts = BitmapFactory.Options().apply { inSampleSize = 4 }
+                val bmp = when {
+                    pickedUri != null -> context.contentResolver.openInputStream(pickedUri)?.use {
+                        BitmapFactory.decodeStream(it, null, opts)
+                    }
+                    photoFile != null -> BitmapFactory.decodeFile(
+                        File(context.filesDir, "photos/$photoFile").path,
+                        opts,
+                    )
+                    else -> null
+                }
+                bmp?.asImageBitmap()
+            }.getOrNull()
+        }
+    }
+    Box(
+        Modifier
+            .size(size)
+            .clip(RoundedCornerShape(radius))
+            .background(cs.primaryContainer),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (bitmap != null) {
+            Image(bitmap!!, contentDescription = "小福头像", modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        } else {
+            Icon(
+                painterResource(R.drawable.ic_ms_pets),
+                contentDescription = null,
+                modifier = Modifier.size(30.dp),
+                tint = cs.onPrimaryContainer,
+            )
+        }
+    }
 }

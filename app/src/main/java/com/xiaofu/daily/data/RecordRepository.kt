@@ -81,6 +81,7 @@ object SettingsKeys {
     const val NOTIFY_HOUR = "notify_hour"
     const val LAST_WATER_ML = "last_water_ml"
     const val LAST_SNACK_TYPE = "last_snack_type"
+    const val NOTIFY_LAST_DAY = "notify_last_day"
 }
 
 class RecordRepository(
@@ -354,6 +355,8 @@ class RecordRepository(
         photoDao.observeByRecord(recordId).let { flow -> firstValue(flow).map { it.fileName } }
 
     fun photoFile(name: String): File = photoStore.file(name)
+
+    suspend fun importPhoto(uri: Uri): String? = photoStore.import(uri)
 
     // ---------- 删除与撤销 ----------
 

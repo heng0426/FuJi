@@ -1,5 +1,6 @@
 package com.xiaofu.daily.ui.records
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -8,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -24,6 +26,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -32,6 +35,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -44,6 +52,7 @@ import com.xiaofu.daily.data.local.model.RecordType
 import com.xiaofu.daily.ui.components.CardSurface
 import com.xiaofu.daily.ui.components.PillChip
 import com.xiaofu.daily.ui.components.RecordRow
+import com.xiaofu.daily.ui.components.SegmentedRow
 import com.xiaofu.daily.ui.components.RoundIconButton
 import com.xiaofu.daily.ui.components.TypeIcon
 import com.xiaofu.daily.ui.editor.EditorTarget
@@ -87,6 +96,7 @@ fun RecordsScreen(
     var lastWater by remember { mutableStateOf(60) }
     var serving by remember { mutableStateOf(15) }
     var lastSnack by remember { mutableStateOf<String?>(null) }
+    var weightView by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(Unit) {
         lastWater = actions.lastWaterMl()
@@ -124,46 +134,59 @@ fun RecordsScreen(
                 }
             }
         }
-        if (dueCards.isNotEmpty() && filter == null) {
-            items(items = dueCards, key = { "due_${it.type}_${it.dueDay}" }) { card ->
-                DueCardRow(card) { vm.setFilter(card.type) }
-            }
-        }
-        if (records.isEmpty()) {
-            item(key = "empty") {
-                CardSurface(contentPadding = 16.dp) {
-                    Text(
-                        if (filter == null) "还没有任何记录" else "没有${typeLabels[filter]}记录",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = cs.onSurface,
-                    )
-                    Text(
-                        "回到「今日」记一笔，或在「日历」补记",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = cs.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 4.dp),
-                    )
-                }
-            }
-        }
-        groups.entries.forEach { (date, dayRecords) ->
-            item(key = "head_$date") {
-                Row(Modifier.fillMaxWidth().padding(top = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        "${date.monthValue}月${date.dayOfMonth}日 · ${Fmt.dayLabelOrWeekday(date)}",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = cs.onSurfaceVariant,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Text("${dayRecords.size} 条", style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
-                }
-            }
-            items(items = dayRecords, key = { it.id }) { record ->
-                RecordRow(
-                    record = record,
-                    showDivider = dayRecords.indexOf(record) > 0,
-                    onClick = { detail = record },
+        if (filter == RecordType.WEIGHT) {
+            item(key = "weight_mode") {
+                SegmentedRow(
+                    options = listOf("列表", "趋势"),
+                    selectedIndex = weightView,
+                    onSelect = { weightView = it },
                 )
+            }
+        }
+        if (filter == RecordType.WEIGHT && weightView == 1) {
+            item(key = "weight_trend") { WeightTrendCard(records) }
+        } else {
+            if (dueCards.isNotEmpty() && filter == null) {
+                items(items = dueCards, key = { "due_${it.type}_${it.dueDay}" }) { card ->
+                    DueCardRow(card) { vm.setFilter(card.type) }
+                }
+            }
+            if (records.isEmpty()) {
+                item(key = "empty") {
+                    CardSurface(contentPadding = 16.dp) {
+                        Text(
+                            if (filter == null) "还没有任何记录" else "没有${typeLabels[filter]}记录",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = cs.onSurface,
+                        )
+                        Text(
+                            "回到「今日」记一笔，或在「日历」补记",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = cs.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 4.dp),
+                        )
+                    }
+                }
+            }
+            groups.entries.forEach { (date, dayRecords) ->
+                item(key = "head_$date") {
+                    Row(Modifier.fillMaxWidth().padding(top = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            "${date.monthValue}月${date.dayOfMonth}日 · ${Fmt.dayLabelOrWeekday(date)}",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = cs.onSurfaceVariant,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Text("${dayRecords.size} 条", style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
+                    }
+                }
+                items(items = dayRecords, key = { it.id }) { record ->
+                    RecordRow(
+                        record = record,
+                        showDivider = dayRecords.indexOf(record) > 0,
+                        onClick = { detail = record },
+                    )
+                }
             }
         }
     }
@@ -282,5 +305,96 @@ private fun DueCardRow(card: DueCard, onClick: () -> Unit) {
             Modifier.padding(start = 4.dp).size(17.dp),
             tint = cs.onSurfaceVariant.copy(alpha = 0.7f),
         )
+    }
+}
+
+@Composable
+private fun WeightTrendCard(records: List<RecordEntity>) {
+    val cs = MaterialTheme.colorScheme
+    val points = remember(records) {
+        records.mapNotNull { record -> record.weightGrams?.let { it to record.occurredAt } }
+            .sortedBy { it.second }
+            .takeLast(30)
+    }
+    CardSurface {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text("体重趋势", style = MaterialTheme.typography.titleMedium, color = cs.onSurface, modifier = Modifier.weight(1f))
+            Text("近 ${points.size} 次", style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
+        }
+        if (points.size < 2) {
+            Text(
+                "至少 2 次体重记录才能看到趋势",
+                style = MaterialTheme.typography.bodyMedium,
+                color = cs.onSurfaceVariant,
+                modifier = Modifier.padding(top = 10.dp),
+            )
+            return@CardSurface
+        }
+        val latest = points.last().first
+        val first = points.first().first
+        val delta = latest - first
+        val minValue = points.minOf { it.first }
+        val maxValue = points.maxOf { it.first }
+        Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+            Metric("当前", "${Fmt.jin(latest)} 斤")
+            Metric("变化", (if (delta > 0) "+" else "") + "${Fmt.jin(delta)} 斤")
+            Metric("范围", "${Fmt.jin(minValue)}–${Fmt.jin(maxValue)} 斤")
+        }
+        Canvas(Modifier.fillMaxWidth().height(150.dp).padding(top = 14.dp)) {
+            val padX = 4.dp.toPx()
+            val padY = 6.dp.toPx()
+            val width = size.width - padX * 2
+            val height = size.height - padY * 2
+            val range = (maxValue - minValue).coerceAtLeast(1)
+            repeat(4) { index ->
+                val y = padY + height * index / 3f
+                drawLine(
+                    color = cs.outline,
+                    start = Offset(padX, y),
+                    end = Offset(size.width - padX, y),
+                    strokeWidth = 1.dp.toPx(),
+                )
+            }
+            val path = Path()
+            points.forEachIndexed { index, point ->
+                val x = padX + width * index / (points.size - 1)
+                val y = padY + height * (1f - (point.first - minValue).toFloat() / range)
+                if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
+            }
+            drawPath(
+                path = path,
+                color = cs.primary,
+                style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round),
+            )
+            points.forEachIndexed { index, point ->
+                val x = padX + width * index / (points.size - 1)
+                val y = padY + height * (1f - (point.first - minValue).toFloat() / range)
+                drawCircle(color = cs.surface, radius = 4.5.dp.toPx(), center = Offset(x, y))
+                drawCircle(color = cs.primary, radius = 3.dp.toPx(), center = Offset(x, y))
+            }
+        }
+        val sameDay = Fmt.date(points.first().second) == Fmt.date(points.last().second)
+        Row(Modifier.fillMaxWidth().padding(top = 6.dp)) {
+            Text(
+                Fmt.monthDayOf(points.first().second) + if (sameDay) " ${Fmt.time(points.first().second)}" else "",
+                style = MaterialTheme.typography.labelSmall,
+                color = cs.onSurfaceVariant,
+            )
+            Spacer(Modifier.weight(1f))
+            Text(
+                Fmt.monthDayOf(points.last().second) + if (sameDay) " ${Fmt.time(points.last().second)}" else "",
+                style = MaterialTheme.typography.labelSmall,
+                color = cs.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun Metric(label: String, value: String) {
+    val cs = MaterialTheme.colorScheme
+    Column {
+        Text(label, style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
+        Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, color = cs.onSurface)
     }
 }

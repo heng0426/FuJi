@@ -1,5 +1,6 @@
 package com.xiaofu.daily.ui.profile
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -28,16 +29,21 @@ class ProfileViewModel(private val repo: RecordRepository) : ViewModel() {
         breed: String?,
         gender: Gender?,
         birthdayDay: Long?,
+        newPhotoUri: Uri? = null,
     ) {
         val now = System.currentTimeMillis()
-        val entity = (current ?: ProfileEntity(name = "小福", createdAt = now, updatedAt = now)).copy(
-            name = name.trim().ifBlank { "小福" },
-            breed = breed?.trim()?.ifBlank { null },
-            gender = gender,
-            birthdayDay = birthdayDay,
-            updatedAt = now,
-        )
-        viewModelScope.launch { repo.updateProfile(entity) }
+        viewModelScope.launch {
+            val imported = newPhotoUri?.let { repo.importPhoto(it) }
+            val entity = (current ?: ProfileEntity(name = "小福", createdAt = now, updatedAt = now)).copy(
+                name = name.trim().ifBlank { "小福" },
+                breed = breed?.trim()?.ifBlank { null },
+                gender = gender,
+                birthdayDay = birthdayDay,
+                photoFile = imported ?: current?.photoFile,
+                updatedAt = now,
+            )
+            repo.updateProfile(entity)
+        }
     }
 
     fun setSetting(key: String, value: String) {

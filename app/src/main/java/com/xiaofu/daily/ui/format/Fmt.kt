@@ -51,6 +51,8 @@ object Fmt {
 
     fun monthDay(day: Long): String = epochDayToDate(day).format(monthDayFormatter)
 
+    fun monthDayOf(ms: Long): String = date(ms).format(monthDayFormatter)
+
     fun fullDate(day: Long): String = epochDayToDate(day).format(weekFormatter)
 
     fun monthTitle(month: YearMonth): String = "${month.year}年${month.monthValue}月"

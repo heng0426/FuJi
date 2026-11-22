@@ -93,6 +93,11 @@ import java.time.ZoneOffset
 fun ProfileScreen(vm: ProfileViewModel, modifier: Modifier = Modifier) {
     val cs = MaterialTheme.colorScheme
     val context = LocalContext.current
+    val versionName = remember {
+        runCatching {
+            context.packageManager.getPackageInfo(context.packageName, 0).versionName
+        }.getOrNull().orEmpty()
+    }
     val profile by vm.profile.collectAsState()
     val settings by vm.settings.collectAsState()
 
@@ -178,7 +183,7 @@ fun ProfileScreen(vm: ProfileViewModel, modifier: Modifier = Modifier) {
                     SettingRow(
                         iconRes = R.drawable.ic_ms_info,
                         title = "关于",
-                        value = "版本 0.1.0",
+                        value = "版本 $versionName",
                         onClick = { showAbout = true },
                         last = true,
                     )
@@ -257,7 +262,7 @@ fun ProfileScreen(vm: ProfileViewModel, modifier: Modifier = Modifier) {
             title = { Text("小福日常", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = cs.onSurface) },
             text = {
                 Text(
-                    "版本 0.1.0\n数据仅保存在本机，不上传云端。",
+                    "版本 $versionName\n数据仅保存在本机，不上传云端。",
                     style = MaterialTheme.typography.bodyMedium,
                     color = cs.onSurfaceVariant,
                 )

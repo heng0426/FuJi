@@ -2,8 +2,8 @@
 
 单宠（橘猫「小福」）日常健康与生活记录 Android App。核心体验是「打开即可记、一眼看懂」：喝水、主粮/加餐、体重、驱虫、疫苗、异常六类记录，配合同步汇总、日历回看、到期提醒与趋势图。
 
-- **当前版本**：`0.1.0`（versionCode 1）
-- **交付形态**：`dist/小福日常-v0.1.0.apk`（自测签名，覆盖安装保留数据）
+- **当前版本**：`0.9.0`（versionCode 9）
+- **交付形态**：`dist/小福日常-v0.9.0.apk`（自测签名，覆盖安装保留数据）
 - **状态**：核心功能完成，已按 7 轮真机反馈迭代；剩余事项见 [`docs/任务清单-小福日常.md`](docs/任务清单-小福日常.md)
 - **技术栈**：Kotlin · Jetpack Compose · Material 3 · Room · WorkManager
 - **平台**：Android 9+（minSdk 28），compileSdk / targetSdk 37
@@ -52,7 +52,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:ANDROID_HOME\platform-tools;$env:Path"
 
 .\gradlew.bat assembleDebug      # 调试包
 .\gradlew.bat assembleRelease    # 交付包
-adb install -r dist/小福日常-v0.1.0.apk
+adb install -r dist/小福日常-v0.9.0.apk
 ```
 
 签名：当前为自测签名，不可上架应用商店；覆盖安装（`adb install -r`）不会清空数据。

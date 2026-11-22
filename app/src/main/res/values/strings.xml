@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">小福日常</string>
+
+    <!-- 底部导航 -->
+    <string name="tab_today">今日</string>
+    <string name="tab_calendar">日历</string>
+    <string name="tab_records">记录</string>
+    <string name="tab_profile">我的</string>
+
+    <string name="placeholder_hint">此页面将在后续阶段实现</string>
+</resources>

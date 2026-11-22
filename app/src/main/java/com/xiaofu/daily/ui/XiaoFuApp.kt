@@ -7,6 +7,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -90,6 +95,7 @@ fun XiaoFuApp() {
         if (current == null) {
             Scaffold(
                 containerColor = Color.Transparent,
+                contentWindowInsets = WindowInsets.safeDrawing,
                 snackbarHost = { SnackbarHost(snackbar) },
                 bottomBar = {
                     BottomNav(selected = selectedTab, accentText = accentText) { selectedTab = it }
@@ -124,7 +130,11 @@ fun XiaoFuApp() {
 private fun BottomNav(selected: Tab, accentText: Color, onSelect: (Tab) -> Unit) {
     val cs = MaterialTheme.colorScheme
     Column(Modifier.fillMaxWidth().background(cs.surface)) {
-        Box(Modifier.navigationBarsPadding()) {
+        Box(
+            Modifier.windowInsetsPadding(
+                WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal),
+            ),
+        ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()

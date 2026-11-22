@@ -26,6 +26,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -45,6 +47,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
@@ -166,8 +169,7 @@ fun CalendarScreen(
                 byDay = byDay,
                 dueDays = dueDays,
                 dueByDay = dueByDay,
-                onPrev = vm::previousMonth,
-                onNext = vm::nextMonth,
+                onMonthChange = vm::showMonth,
                 onSelect = vm::select,
                 onJump = {
                     jumpText = selected.toString()
@@ -377,82 +379,145 @@ private fun MonthCard(
     byDay: Map<LocalDate, List<RecordEntity>>,
     dueDays: Set<Long>,
     dueByDay: Map<Long, Set<RecordType>>,
-    onPrev: () -> Unit,
-    onNext: () -> Unit,
+    onMonthChange: (YearMonth) -> Unit,
     onSelect: (LocalDate) -> Unit,
     onJump: () -> Unit,
     onToday: () -> Unit,
 ) {
     val cs = MaterialTheme.colorScheme
-    val density = LocalDensity.current
-    var swipeTotal by remember(month) { mutableStateOf(0f) }
+    val scope = rememberCoroutineScope()
+    val anchor = remember { YearMonth.of(2000, 1) }
+    val pagerState = rememberPagerState(
+        initialPage = (month.year - anchor.year) * 12 + (month.monthValue - anchor.monthValue),
+        pageCount = { 12 * 200 },
+    )
+    val visibleMonth = anchor.plusMonths(pagerState.currentPage.toLong())
+
+    LaunchedEffect(month) {
+        val targetPage = (month.year - anchor.year) * 12 + (month.monthValue - anchor.monthValue)
+        if (pagerState.currentPage != targetPage) pagerState.scrollToPage(targetPage)
+    }
+    LaunchedEffect(pagerState) {
+        snapshotFlow { pagerState.settledPage }.collect { page ->
+            val target = anchor.plusMonths(page.toLong())
+            if (target != month) onMonthChange(target)
+        }
+    }
+
     CardSurface(contentPadding = 14.dp) {
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .pointerInput(month) {
-                    val threshold = with(density) { 48.dp.toPx() }
-                    detectHorizontalDragGestures(
-                        onDragEnd = {
-                            if (swipeTotal > threshold) onPrev() else if (swipeTotal < -threshold) onNext()
-                            swipeTotal = 0f
-                        },
-                        onDragCancel = { swipeTotal = 0f },
-                        onHorizontalDrag = { _, amount -> swipeTotal += amount },
+        Column(Modifier.fillMaxWidth()) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    Modifier.size(32.dp).clip(CircleShape).clickable {
+                        scope.launch {
+                            pagerState.animateScrollToPage((pagerState.currentPage - 1).coerceAtLeast(0))
+                        }
+                    },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(painterResource(R.drawable.ic_ms_chevron_left), "上个月", Modifier.size(20.dp), tint = cs.onSurfaceVariant)
+                }
+                Row(
+                    modifier = Modifier.weight(1f).clip(RoundedCornerShape(10.dp)).clickable(onClick = onJump),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        Fmt.monthTitle(visibleMonth),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = cs.onSurface,
                     )
-                },
-        ) {
-            AnimatedContent(
-                targetState = month,
-                transitionSpec = {
-                    if (targetState > initialState) {
-                        (slideInHorizontally { it } + fadeIn()) togetherWith
-                            (slideOutHorizontally { -it } + fadeOut())
-                    } else {
-                        (slideInHorizontally { -it } + fadeIn()) togetherWith
-                            (slideOutHorizontally { it } + fadeOut())
-                    }
-                },
-                label = "month_switch",
-            ) { animatedMonth ->
-                val month = animatedMonth
-                Column(Modifier.fillMaxWidth()) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(32.dp).clip(CircleShape).clickable(onClick = onPrev), contentAlignment = Alignment.Center) {
-                Icon(painterResource(R.drawable.ic_ms_chevron_left), "上个月", Modifier.size(20.dp), tint = cs.onSurfaceVariant)
+                    Icon(
+                        painterResource(R.drawable.ic_ms_calendar_month),
+                        contentDescription = "跳转日期",
+                        modifier = Modifier.padding(start = 4.dp).size(15.dp),
+                        tint = cs.onSurfaceVariant,
+                    )
+                }
+                Box(
+                    Modifier.size(32.dp).clip(CircleShape).clickable {
+                        scope.launch {
+                            pagerState.animateScrollToPage((pagerState.currentPage + 1).coerceAtMost(pagerState.pageCount - 1))
+                        }
+                    },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(painterResource(R.drawable.ic_ms_chevron_right), "下个月", Modifier.size(20.dp), tint = cs.onSurfaceVariant)
+                }
+            }
+            Row(Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 4.dp)) {
+                listOf("日", "一", "二", "三", "四", "五", "六").forEach { label ->
+                    Text(
+                        label,
+                        modifier = Modifier.weight(1f),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        fontSize = 10.5.sp,
+                        color = cs.onSurfaceVariant,
+                    )
+                }
+            }
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxWidth().height((6 * 42).dp),
+                beyondViewportPageCount = 1,
+            ) { page ->
+                val pageMonth = anchor.plusMonths(page.toLong())
+                MonthGrid(
+                    month = pageMonth,
+                    selected = selected,
+                    byDay = byDay,
+                    dueDays = dueDays,
+                    dueByDay = dueByDay,
+                    onSelect = onSelect,
+                )
             }
             Row(
-                modifier = Modifier.weight(1f).clip(RoundedCornerShape(10.dp)).clickable(onClick = onJump),
-                horizontalArrangement = Arrangement.Center,
+                Modifier.fillMaxWidth().padding(top = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    Fmt.monthTitle(month),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = cs.onSurface,
-                )
-                Icon(
-                    painterResource(R.drawable.ic_ms_calendar_month),
-                    contentDescription = "跳转日期",
-                    modifier = Modifier.padding(start = 4.dp).size(15.dp),
-                    tint = cs.onSurfaceVariant,
-                )
-            }
-            Box(Modifier.size(32.dp).clip(CircleShape).clickable(onClick = onNext), contentAlignment = Alignment.Center) {
-                Icon(painterResource(R.drawable.ic_ms_chevron_right), "下个月", Modifier.size(20.dp), tint = cs.onSurfaceVariant)
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    LegendDot(Color(0xFFA08B7C).copy(alpha = 0.55f), "有记录")
+                    LegendDot(cs.error, "异常")
+                    LegendDot(recordStyle(RecordType.DEWORM).fg, "驱虫")
+                    LegendDot(recordStyle(RecordType.VACCINE).fg, "疫苗")
+                }
+                Spacer(Modifier.weight(1f))
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(999.dp))
+                        .clickable(onClick = onToday)
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        painterResource(R.drawable.ic_ms_today),
+                        contentDescription = null,
+                        modifier = Modifier.size(13.dp),
+                        tint = cs.primary,
+                    )
+                    Text(
+                        "今天",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = cs.primary,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(start = 3.dp),
+                    )
+                }
             }
         }
-        Row(Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 4.dp)) {
-            listOf("日", "一", "二", "三", "四", "五", "六").forEach { label ->
-                Text(
-                    label,
-                    modifier = Modifier.weight(1f),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                    fontSize = 10.5.sp,
-                    color = cs.onSurfaceVariant,
-                )
-            }
-        }
+    }
+}
+
+@Composable
+private fun MonthGrid(
+    month: YearMonth,
+    selected: LocalDate,
+    byDay: Map<LocalDate, List<RecordEntity>>,
+    dueDays: Set<Long>,
+    dueByDay: Map<Long, Set<RecordType>>,
+    onSelect: (LocalDate) -> Unit,
+) {
+    Column(Modifier.fillMaxWidth()) {
         val first = month.atDay(1)
         val gridStart = first.minusDays((first.dayOfWeek.value % 7).toLong())
         repeat(6) { week ->
@@ -474,41 +539,6 @@ private fun MonthCard(
                 }
             }
         }
-                }
-            }
-        Row(
-            Modifier.fillMaxWidth().padding(top = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                LegendDot(Color(0xFFA08B7C).copy(alpha = 0.55f), "有记录")
-                LegendDot(cs.error, "异常")
-                LegendDot(Color(0xFFC98A3E), "驱虫/疫苗到期")
-            }
-            Spacer(Modifier.weight(1f))
-            Row(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(999.dp))
-                    .clickable(onClick = onToday)
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(
-                    painterResource(R.drawable.ic_ms_today),
-                    contentDescription = null,
-                    modifier = Modifier.size(13.dp),
-                    tint = cs.primary,
-                )
-                Text(
-                    "今天",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = cs.primary,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.padding(start = 3.dp),
-                )
-            }
-        }
-        }
     }
 }
 
@@ -525,10 +555,16 @@ private fun RowScope.DayCell(
     onClick: () -> Unit,
 ) {
     val cs = MaterialTheme.colorScheme
+    val dueColor = when {
+        RecordType.DEWORM in dueTypes && RecordType.VACCINE in dueTypes -> Color(0xFFC98A3E)
+        RecordType.DEWORM in dueTypes -> recordStyle(RecordType.DEWORM).fg
+        RecordType.VACCINE in dueTypes -> recordStyle(RecordType.VACCINE).fg
+        else -> Color(0xFFC98A3E)
+    }
     Column(
         modifier = Modifier
             .weight(1f)
-            .height(56.dp),
+            .height(42.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
@@ -550,7 +586,7 @@ private fun RowScope.DayCell(
                     .background(if (selected) cs.primary else Color.Transparent)
                     .then(
                         if (!selected && (isToday || due)) {
-                            Modifier.border(1.5.dp, if (isToday) cs.primary else Color(0xFFC98A3E), CircleShape)
+                            Modifier.border(1.5.dp, if (isToday) cs.primary else dueColor, CircleShape)
                         } else {
                             Modifier
                         },
@@ -569,27 +605,10 @@ private fun RowScope.DayCell(
                 )
             }
         }
-        val dueLabel = when {
-            RecordType.DEWORM in dueTypes && RecordType.VACCINE in dueTypes -> "驱虫·疫苗"
-            RecordType.DEWORM in dueTypes -> "驱虫"
-            RecordType.VACCINE in dueTypes -> "疫苗"
-            else -> null
-        }
-        if (dueLabel != null) {
-            Text(
-                dueLabel,
-                fontSize = 8.sp,
-                lineHeight = 9.sp,
-                color = Color(0xFFC98A3E),
-                maxLines = 1,
-            )
-        }
-        Row(
-            Modifier.height(4.dp).padding(top = if (dueLabel != null) 1.dp else 0.dp),
-            horizontalArrangement = Arrangement.spacedBy(3.dp),
-        ) {
+        Row(Modifier.height(4.dp), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
             if (hasRecords) Dot(Color(0xFF8A7566).copy(alpha = 0.8f))
             if (hasAnomaly) Dot(cs.error)
+            if (due && !hasRecords && !hasAnomaly) Dot(dueColor)
         }
     }
 }
@@ -694,7 +713,7 @@ private fun CalendarDueRow(card: DueCard) {
             "到期日",
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Medium,
-            color = Color(0xFFC98A3E),
+            color = style.fg,
         )
     }
 }

@@ -46,6 +46,10 @@ class CalendarViewModel(private val repo: RecordRepository) : ViewModel() {
         _month.value = _month.value.plusMonths(1)
     }
 
+    fun showMonth(month: YearMonth) {
+        _month.value = month
+    }
+
     fun select(date: LocalDate) {
         _selectedDate.value = date
         if (YearMonth.from(date) != _month.value) {

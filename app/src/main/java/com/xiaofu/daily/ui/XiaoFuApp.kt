@@ -1,5 +1,11 @@
 package com.xiaofu.daily.ui
 
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -42,11 +48,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.xiaofu.daily.R
 import com.xiaofu.daily.data.local.entity.RecordEntity
@@ -84,6 +92,24 @@ fun XiaoFuApp() {
     val scope = rememberCoroutineScope()
     val cs = MaterialTheme.colorScheme
     val accentText = if (isSystemInDarkTheme()) cs.primary else Color(0xFFB5501A)
+
+    val context = LocalContext.current
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { }
+    LaunchedEffect(Unit) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val granted = ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS,
+            ) == PackageManager.PERMISSION_GRANTED
+            val prefs = context.getSharedPreferences("xiaofu_prefs", Context.MODE_PRIVATE)
+            if (!granted && !prefs.getBoolean("notif_asked", false)) {
+                prefs.edit().putBoolean("notif_asked", true).apply()
+                permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+    }
 
     val onDelete: (RecordEntity) -> Unit = { record ->
         scope.launch {

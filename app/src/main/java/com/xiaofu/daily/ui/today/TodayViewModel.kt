@@ -77,8 +77,12 @@ class TodayViewModel(private val repo: RecordRepository) : ViewModel() {
 
     suspend fun addTag(name: String) = repo.addTag(name)
 
-    suspend fun saveWeight(grams: Int, note: String?, existing: RecordEntity?) =
-        repo.saveWeight(grams, System.currentTimeMillis(), note, existing)
+    suspend fun saveWeight(
+        grams: Int,
+        note: String?,
+        existing: RecordEntity?,
+        at: Long? = null,
+    ) = repo.saveWeight(grams, at ?: existing?.occurredAt ?: System.currentTimeMillis(), note, existing)
 
     suspend fun saveDeworm(
         kind: DewormKind,
@@ -86,10 +90,29 @@ class TodayViewModel(private val repo: RecordRepository) : ViewModel() {
         nextDueDay: Long?,
         note: String?,
         existing: RecordEntity?,
-    ) = repo.saveDeworm(kind, medicine, nextDueDay, System.currentTimeMillis(), note, existing)
+        at: Long? = null,
+    ) = repo.saveDeworm(
+        kind,
+        medicine,
+        nextDueDay,
+        at ?: existing?.occurredAt ?: System.currentTimeMillis(),
+        note,
+        existing,
+    )
 
-    suspend fun saveVaccine(name: String, nextDueDay: Long?, note: String?, existing: RecordEntity?) =
-        repo.saveVaccine(name, nextDueDay, System.currentTimeMillis(), note, existing)
+    suspend fun saveVaccine(
+        name: String,
+        nextDueDay: Long?,
+        note: String?,
+        existing: RecordEntity?,
+        at: Long? = null,
+    ) = repo.saveVaccine(
+        name,
+        nextDueDay,
+        at ?: existing?.occurredAt ?: System.currentTimeMillis(),
+        note,
+        existing,
+    )
 
     suspend fun saveAnomaly(
         category: String,
@@ -98,7 +121,16 @@ class TodayViewModel(private val repo: RecordRepository) : ViewModel() {
         photos: List<Uri>,
         existing: RecordEntity?,
         keepPhotoNames: List<String>,
-    ) = repo.saveAnomaly(category, severity, note, System.currentTimeMillis(), photos, existing, keepPhotoNames)
+        at: Long? = null,
+    ) = repo.saveAnomaly(
+        category,
+        severity,
+        note,
+        at ?: existing?.occurredAt ?: System.currentTimeMillis(),
+        photos,
+        existing,
+        keepPhotoNames,
+    )
 
     suspend fun photoNames(recordId: Long): List<String> = repo.photoNames(recordId)
 

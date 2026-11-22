@@ -228,7 +228,7 @@ fun WeightEditor(vm: TodayViewModel, record: RecordEntity?, initialOccurredAt: L
             val value = jin
             if (value != null) {
                 scope.launch {
-                    vm.saveWeight((value * 500).roundToInt(), note.ifBlank { null }, record)
+                    vm.saveWeight((value * 500).roundToInt(), note.ifBlank { null }, record, occurredAt)
                     onBack()
                 }
             }
@@ -289,7 +289,7 @@ fun DewormEditor(vm: TodayViewModel, record: RecordEntity?, initialOccurredAt: L
         onBack = onBack,
         onSave = {
             scope.launch {
-                vm.saveDeworm(kind, medicine.ifBlank { null }, nextDueDay, note.ifBlank { null }, record)
+                vm.saveDeworm(kind, medicine.ifBlank { null }, nextDueDay, note.ifBlank { null }, record, occurredAt)
                 onBack()
             }
         },
@@ -344,7 +344,7 @@ fun VaccineEditor(vm: TodayViewModel, record: RecordEntity?, initialOccurredAt: 
         primaryEnabled = name.isNotBlank(),
         onSave = {
             scope.launch {
-                vm.saveVaccine(name.trim(), nextDueDay, note.ifBlank { null }, record)
+                vm.saveVaccine(name.trim(), nextDueDay, note.ifBlank { null }, record, occurredAt)
                 onBack()
             }
         },
@@ -433,6 +433,7 @@ fun AnomalyEditor(vm: TodayViewModel, record: RecordEntity?, initialOccurredAt: 
                     photos = newUris,
                     existing = record,
                     keepPhotoNames = existingPhotos,
+                    at = occurredAt,
                 )
                 onBack()
             }

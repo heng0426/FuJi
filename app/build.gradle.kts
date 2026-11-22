@@ -82,6 +82,9 @@ dependencies {
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
 
+    // 到期提醒（每日检查一次，09:00 触发）
+    implementation(libs.androidx.work.runtime.ktx)
+
     // 真机 DAO 集成测试（无模拟器环境，instrumentation 测试跑在真机上）
     androidTestImplementation(libs.junit)
     androidTestImplementation(libs.androidx.test.junit)

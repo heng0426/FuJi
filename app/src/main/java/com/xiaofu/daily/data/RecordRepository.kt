@@ -47,7 +47,11 @@ data class DueInfo(
     val type: RecordType,
 ) {
     val text: String
-        get() = if (daysLeft >= 0) "${label}还有 $daysLeft 天到期" else "${label}已超期 ${-daysLeft} 天"
+        get() = when {
+            daysLeft == 0L -> "${label}今天到期"
+            daysLeft > 0 -> "${label}还有 $daysLeft 天到期"
+            else -> "${label}已超期 ${-daysLeft} 天"
+        }
 }
 
 /** 记录页的到期卡：内驱 / 外驱 / 疫苗 */
@@ -181,6 +185,10 @@ class RecordRepository(
             ?: 50
 
     suspend fun lastSnackType(): String? = settingsDao.get(SettingsKeys.LAST_SNACK_TYPE)
+
+    suspend fun setting(key: String): String? = settingsDao.get(key)
+
+    suspend fun putSetting(key: String, value: String) = settingsDao.put(SettingEntity(key, value))
 
     suspend fun servingGrams(): Int =
         settingsDao.get(SettingsKeys.SERVING_GRAMS)?.toIntOrNull() ?: 15

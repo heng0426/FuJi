@@ -514,13 +514,15 @@ fun SheetHandle() {
     }
 }
 
-/** 自定义异常分类输入弹窗（与设计稿弹窗风格一致） */
+/** 自定义标签输入弹窗（分类/药品名/疫苗名称等通用） */
 @Composable
 fun CustomTagDialog(
     value: String,
     onValueChange: (String) -> Unit,
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
+    title: String = "自定义分类",
+    placeholder: String = "例如：打喷嚏",
 ) {
     val cs = MaterialTheme.colorScheme
     AlertDialog(
@@ -529,7 +531,7 @@ fun CustomTagDialog(
         shape = RoundedCornerShape(22.dp),
         title = {
             Text(
-                "自定义分类",
+                title,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = cs.onSurface,
@@ -539,7 +541,7 @@ fun CustomTagDialog(
             TextFieldBox(
                 value = value,
                 onValueChange = { onValueChange(it.take(20)) },
-                placeholder = "例如：打喷嚏",
+                placeholder = placeholder,
             )
         },
         confirmButton = {

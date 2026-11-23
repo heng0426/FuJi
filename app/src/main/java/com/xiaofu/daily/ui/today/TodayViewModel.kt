@@ -66,6 +66,22 @@ class TodayViewModel(private val repo: RecordRepository) : ViewModel() {
 
     suspend fun dewormCycleDays(kind: DewormKind): Int = repo.dewormCycleDays(kind)
 
+    suspend fun medicineTags(): List<String> = repo.nameTags(com.xiaofu.daily.data.SettingsKeys.DEWORM_MEDICINE_TAGS)
+
+    suspend fun vaccineTags(): List<String> = repo.nameTags(com.xiaofu.daily.data.SettingsKeys.VACCINE_NAME_TAGS)
+
+    suspend fun addMedicineTag(name: String) =
+        repo.addNameTag(com.xiaofu.daily.data.SettingsKeys.DEWORM_MEDICINE_TAGS, name)
+
+    suspend fun addVaccineTag(name: String) =
+        repo.addNameTag(com.xiaofu.daily.data.SettingsKeys.VACCINE_NAME_TAGS, name)
+
+    suspend fun removeMedicineTag(name: String) =
+        repo.removeNameTag(com.xiaofu.daily.data.SettingsKeys.DEWORM_MEDICINE_TAGS, name)
+
+    suspend fun removeVaccineTag(name: String) =
+        repo.removeNameTag(com.xiaofu.daily.data.SettingsKeys.VACCINE_NAME_TAGS, name)
+
     suspend fun delete(record: RecordEntity): RecordSnapshot? = repo.deleteWithSnapshot(record.id)
 
     suspend fun deleteMany(ids: Set<Long>) {

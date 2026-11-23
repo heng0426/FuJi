@@ -86,7 +86,15 @@ object SettingsKeys {
     const val LAST_WATER_ML = "last_water_ml"
     const val LAST_SNACK_TYPE = "last_snack_type"
     const val NOTIFY_LAST_DAY = "notify_last_day"
+    const val DEWORM_MEDICINE_TAGS = "deworm_medicine_tags"
+    const val VACCINE_NAME_TAGS = "vaccine_name_tags"
 }
+
+/** 药品名/疫苗名称常用标签默认值；存 settings 表后可增删（含默认项），随备份导出/导入同步 */
+private val DefaultNameTags = mapOf(
+    SettingsKeys.DEWORM_MEDICINE_TAGS to listOf("海乐妙", "大宠爱", "福来恩", "爱沃克", "博来恩"),
+    SettingsKeys.VACCINE_NAME_TAGS to listOf("猫三联", "狂犬疫苗", "妙三多"),
+)
 
 class RecordRepository(
     db: XiaoFuDatabase,
@@ -255,6 +263,39 @@ class RecordRepository(
     suspend fun dewormCycleDays(kind: DewormKind): Int {
         val key = if (kind == DewormKind.INTERNAL) SettingsKeys.DEWORM_INTERNAL_DAYS else SettingsKeys.DEWORM_EXTERNAL_DAYS
         return settingsDao.get(key)?.toIntOrNull() ?: if (kind == DewormKind.INTERNAL) 90 else 30
+    }
+
+    // ---------- 药品名 / 疫苗名称 常用标签 ----------
+
+    /** 首次读取时写入默认值落库，使删除默认标签可持久化 */
+    suspend fun nameTags(key: String): List<String> {
+        val raw = settingsDao.get(key) ?: run {
+            val initial = DefaultNameTags[key].orEmpty()
+            saveNameTags(key, initial)
+            return initial
+        }
+        return parseNameTags(raw) ?: DefaultNameTags[key].orEmpty()
+    }
+
+    suspend fun addNameTag(key: String, name: String) {
+        val clean = name.trim().take(20)
+        if (clean.isBlank()) return
+        saveNameTags(key, nameTags(key).filterNot { it == clean } + clean)
+    }
+
+    suspend fun removeNameTag(key: String, name: String) {
+        saveNameTags(key, nameTags(key).filterNot { it == name })
+    }
+
+    private fun parseNameTags(raw: String): List<String>? = runCatching {
+        val array = org.json.JSONArray(raw)
+        (0 until array.length()).mapNotNull { index -> array.optString(index).takeIf { it.isNotBlank() } }
+    }.getOrNull()
+
+    private suspend fun saveNameTags(key: String, tags: List<String>) {
+        val array = org.json.JSONArray()
+        tags.forEach { array.put(it) }
+        settingsDao.put(SettingEntity(key, array.toString()))
     }
 
     // ---------- 写入 ----------

@@ -72,6 +72,7 @@ import com.xiaofu.daily.data.local.model.DewormKind
 import com.xiaofu.daily.data.local.model.RecordType
 import com.xiaofu.daily.data.local.model.Severity
 import com.xiaofu.daily.ui.components.BigNumberField
+import com.xiaofu.daily.ui.components.CustomTagDialog
 import com.xiaofu.daily.ui.components.FormLabel
 import com.xiaofu.daily.ui.components.NoteFieldBox
 import com.xiaofu.daily.ui.components.PillChip
@@ -272,6 +273,7 @@ fun WeightEditor(vm: TodayViewModel, record: RecordEntity?, initialOccurredAt: L
 
 // ===================== 驱虫 =====================
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun DewormEditor(vm: TodayViewModel, record: RecordEntity?, initialOccurredAt: Long? = null, onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
@@ -283,6 +285,11 @@ fun DewormEditor(vm: TodayViewModel, record: RecordEntity?, initialOccurredAt: L
     var cycleDays by remember { mutableIntStateOf(if (kindIndex == 1) 30 else 90) }
     var showOccurredPicker by remember { mutableStateOf(false) }
     var showDuePicker by remember { mutableStateOf(false) }
+    var medicineTags by remember { mutableStateOf<List<String>>(emptyList()) }
+    var showCustomTag by remember { mutableStateOf(false) }
+    var customTagName by remember { mutableStateOf("") }
+
+    LaunchedEffect(Unit) { medicineTags = vm.medicineTags() }
 
     val kind = if (kindIndex == 1) DewormKind.EXTERNAL else DewormKind.INTERNAL
     LaunchedEffect(kindIndex) {
@@ -310,6 +317,27 @@ fun DewormEditor(vm: TodayViewModel, record: RecordEntity?, initialOccurredAt: L
         )
         FormLabel("药品名", badge = "选填", badgeColor = MaterialTheme.colorScheme.onSurfaceVariant)
         TextFieldBox(value = medicine, onValueChange = { medicine = it }, placeholder = "例如：海乐妙")
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            medicineTags.forEach { tag ->
+                PillChip(
+                    text = tag,
+                    selected = medicine == tag,
+                    onClick = { medicine = tag },
+                    onLongClick = {
+                        scope.launch {
+                            vm.removeMedicineTag(tag)
+                            medicineTags = medicineTags - tag
+                        }
+                    },
+                )
+            }
+            PillChip(
+                text = "自定义",
+                selected = false,
+                onClick = { showCustomTag = true },
+                leadingIconRes = R.drawable.ic_ms_add,
+            )
+        }
         TimeRow("驱虫时间", Fmt.detailTime(occurredAt)) { showOccurredPicker = true }
         TimeRow(
             "下次到期",
@@ -323,7 +351,14 @@ fun DewormEditor(vm: TodayViewModel, record: RecordEntity?, initialOccurredAt: L
         DatePickerSheet(
             initialDay = Fmt.date(occurredAt).toEpochDay(),
             onDismiss = { showOccurredPicker = false },
-            onPick = { day -> occurredAt = combineDayWithTime(day, occurredAt) },
+            onPick = { day ->
+                val oldDay = Fmt.date(occurredAt).toEpochDay()
+                occurredAt = combineDayWithTime(day, occurredAt)
+                // 未手动改写的到期日（= 旧日期 + 周期）按新日期随周期平移；手动改写过的保持不变
+                if (nextDueDay == oldDay + cycleDays) {
+                    nextDueDay = Fmt.date(occurredAt).plusDays(cycleDays.toLong()).toEpochDay()
+                }
+            },
         )
     }
     if (showDuePicker) {
@@ -333,10 +368,33 @@ fun DewormEditor(vm: TodayViewModel, record: RecordEntity?, initialOccurredAt: L
             onPick = { day -> nextDueDay = day },
         )
     }
+
+    if (showCustomTag) {
+        CustomTagDialog(
+            value = customTagName,
+            onValueChange = { customTagName = it },
+            onDismiss = { showCustomTag = false; customTagName = "" },
+            onConfirm = {
+                val name = customTagName.trim()
+                if (name.isNotEmpty()) {
+                    scope.launch {
+                        vm.addMedicineTag(name)
+                        medicineTags = vm.medicineTags()
+                        medicine = name
+                        showCustomTag = false
+                        customTagName = ""
+                    }
+                }
+            },
+            title = "自定义药品",
+            placeholder = "例如：海乐妙",
+        )
+    }
 }
 
 // ===================== 疫苗 =====================
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun VaccineEditor(vm: TodayViewModel, record: RecordEntity?, initialOccurredAt: Long? = null, onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
@@ -345,6 +403,11 @@ fun VaccineEditor(vm: TodayViewModel, record: RecordEntity?, initialOccurredAt: 
     var occurredAt by remember { mutableStateOf(record?.occurredAt ?: initialOccurredAt ?: nowMillis()) }
     var nextDueDay by remember { mutableStateOf(record?.nextDueDate) }
     var showPicker by remember { mutableStateOf(false) }
+    var vaccineTags by remember { mutableStateOf<List<String>>(emptyList()) }
+    var showCustomTag by remember { mutableStateOf(false) }
+    var customTagName by remember { mutableStateOf("") }
+
+    LaunchedEffect(Unit) { vaccineTags = vm.vaccineTags() }
 
     EditorScaffold(
         title = if (record == null) "记录疫苗" else "编辑疫苗",
@@ -359,6 +422,27 @@ fun VaccineEditor(vm: TodayViewModel, record: RecordEntity?, initialOccurredAt: 
     ) {
         FormLabel("疫苗名称", badge = "必填")
         TextFieldBox(value = name, onValueChange = { name = it }, placeholder = "例如：猫三联 / 狂犬疫苗")
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            vaccineTags.forEach { tag ->
+                PillChip(
+                    text = tag,
+                    selected = name.trim() == tag,
+                    onClick = { name = tag },
+                    onLongClick = {
+                        scope.launch {
+                            vm.removeVaccineTag(tag)
+                            vaccineTags = vaccineTags - tag
+                        }
+                    },
+                )
+            }
+            PillChip(
+                text = "自定义",
+                selected = false,
+                onClick = { showCustomTag = true },
+                leadingIconRes = R.drawable.ic_ms_add,
+            )
+        }
         TimeRow("接种日期", Fmt.detailTime(occurredAt)) { showPicker = true }
         FormLabel("下次接种", badge = "选填", badgeColor = MaterialTheme.colorScheme.onSurfaceVariant)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -381,7 +465,39 @@ fun VaccineEditor(vm: TodayViewModel, record: RecordEntity?, initialOccurredAt: 
         DatePickerSheet(
             initialDay = nextDueDay ?: Fmt.date(occurredAt).toEpochDay(),
             onDismiss = { showPicker = false },
-            onPick = { day -> nextDueDay = day },
+            onPick = { day ->
+                val oldDate = Fmt.date(occurredAt)
+                occurredAt = combineDayWithTime(day, occurredAt)
+                val newDate = Fmt.date(occurredAt)
+                // 快捷选项（1年/3年）产生的下次接种日期随接种日期平移；手动自定义的保持不变
+                nextDueDay = when (nextDueDay) {
+                    oldDate.plusYears(1).toEpochDay() -> newDate.plusYears(1).toEpochDay()
+                    oldDate.plusYears(3).toEpochDay() -> newDate.plusYears(3).toEpochDay()
+                    else -> nextDueDay
+                }
+            },
+        )
+    }
+
+    if (showCustomTag) {
+        CustomTagDialog(
+            value = customTagName,
+            onValueChange = { customTagName = it },
+            onDismiss = { showCustomTag = false; customTagName = "" },
+            onConfirm = {
+                val tag = customTagName.trim()
+                if (tag.isNotEmpty()) {
+                    scope.launch {
+                        vm.addVaccineTag(tag)
+                        vaccineTags = vm.vaccineTags()
+                        name = tag
+                        showCustomTag = false
+                        customTagName = ""
+                    }
+                }
+            },
+            title = "自定义疫苗",
+            placeholder = "例如：猫三联",
         )
     }
 }

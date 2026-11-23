@@ -14,7 +14,12 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:screenOrientation="portrait"
             android:theme="@style/Theme.XiaoFu">
+            <!--
+                锁定竖屏：全 App 按 360dp 竖屏单手操作设计（UI 规范 §1），
+                横屏/折叠屏大屏适配未设计，P1 评估结论为锁定竖屏、v2 再评估。
+            -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

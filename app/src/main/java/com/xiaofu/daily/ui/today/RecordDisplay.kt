@@ -11,6 +11,7 @@ import com.xiaofu.daily.data.local.model.Severity
 import com.xiaofu.daily.ui.format.Fmt
 import com.xiaofu.daily.ui.theme.SnackStyle
 import com.xiaofu.daily.ui.theme.recordStyle
+import kotlin.math.roundToInt
 
 /** 时间线/详情共用的展示模型 */
 data class RecordDisplay(
@@ -42,7 +43,7 @@ fun recordDisplay(record: RecordEntity): RecordDisplay {
             fg = style.fg,
             bg = style.bg,
             title = if (isSnack) "加餐" else "主粮",
-            value = "${Fmt.servings(record.servingCount ?: 0.0)} 份 · ${record.totalGrams ?: 0} 克",
+            value = "${Fmt.servings(record.servingCount?.roundToInt() ?: 0)} 份 · ${record.totalGrams ?: 0} 克",
             subtitle = listOfNotNull(record.snackType, record.note).joinToString(" · ").ifBlank { null },
         )
 

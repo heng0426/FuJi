@@ -46,7 +46,10 @@ data class RecordEntity(
     // ---- 喂食 ----
     @ColumnInfo(name = "meal_kind")
     val mealKind: MealKind? = null,
-    /** 份数，0.5 步进 */
+    /**
+     * 份数。列类型保留 REAL 以兼容 Room v1 schema，但应用层只写整份 1–20；
+     * 历史半份在数据库打开时统一四舍五入为整份（0.5 → 1）。
+     */
     @ColumnInfo(name = "serving_count")
     val servingCount: Double? = null,
     @ColumnInfo(name = "grams_per_serving")

@@ -35,6 +35,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -95,7 +96,7 @@ fun TodayScreen(
 
     var lastWater by remember { mutableStateOf(60) }
     var serving by remember { mutableStateOf(15) }
-    var lastServings by remember { mutableStateOf(1.0) }
+    var lastServings by remember { mutableIntStateOf(1) }
     var lastSnack by remember { mutableStateOf<String?>(null) }
     var showWater by remember { mutableStateOf(false) }
     var waterEditing by remember { mutableStateOf<RecordEntity?>(null) }
@@ -262,14 +263,14 @@ fun TodayScreen(
         FoodSheet(
             initialKind = foodKind,
             initialGrams = editing?.gramsPerServing ?: serving,
-            initialServings = editing?.servingCount ?: lastServings,
+            initialServings = editing?.servingCount?.roundToInt() ?: lastServings,
             initialSnack = editing?.snackType ?: lastSnack,
             editing = editing,
             onSavePreset = { preset, grams ->
                 scope.launch {
                     vm.saveFood(
                         kind = foodKind,
-                        servings = preset.servings.toDouble(),
+                        servings = preset.servings,
                         grams = grams,
                         snackType = if (foodKind == MealKind.SNACK) lastSnack else null,
                         existing = null,
@@ -292,7 +293,7 @@ fun TodayScreen(
                     if (snackType != null) lastSnack = snackType
                     showFood = false
                     foodEditing = null
-                    onMessage("已记录 ${Fmt.servings(servings)} 份 · ${(servings * grams).roundToInt()} 克")
+                    onMessage("已记录 ${Fmt.servings(servings)} 份 · ${servings * grams} 克")
                 }
             },
         )

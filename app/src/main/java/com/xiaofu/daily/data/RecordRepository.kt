@@ -18,9 +18,14 @@ import java.io.FileOutputStream
 import java.time.LocalDate
 import java.time.ZoneId
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import kotlin.math.max
@@ -30,9 +35,9 @@ import kotlin.math.roundToInt
 data class DaySummary(
     val waterMl: Int = 0,
     val waterCount: Int = 0,
-    val mainServings: Double = 0.0,
+    val mainServings: Int = 0,
     val mainGrams: Int = 0,
-    val snackServings: Double = 0.0,
+    val snackServings: Int = 0,
     val snackGrams: Int = 0,
     val weightGrams: Int? = null,
     val weightAt: Long? = null,
@@ -96,6 +101,7 @@ private val DefaultNameTags = mapOf(
     SettingsKeys.VACCINE_NAME_TAGS to listOf("猫三联", "狂犬疫苗", "妙三多"),
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class RecordRepository(
     db: XiaoFuDatabase,
     context: Context,
@@ -118,73 +124,99 @@ class RecordRepository(
     fun observeByType(type: RecordType, limit: Int = 300): Flow<List<RecordEntity>> =
         recordDao.observeByType(type, limit)
 
+    /**
+     * 当前本地日期：跨零点自动发射新值，驱动"今日"汇总与到期天数重建。
+     * 用 delay 精确等到下一个零点，空闲时不做轮询。
+     */
+    private fun observeToday(): Flow<LocalDate> = flow {
+        while (true) {
+            // 每轮重新取时区，用户改时区后下一次零点切换即可生效
+            val zone = ZoneId.systemDefault()
+            val today = LocalDate.now(zone)
+            emit(today)
+            val nextMidnight = today.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
+            delay((nextMidnight - System.currentTimeMillis()).coerceAtLeast(1_000L))
+        }
+    }.distinctUntilChanged()
+
+    /** 提醒提前天数：首页到期条与通知使用同一设置 */
+    private fun observeNotifyDaysAhead(): Flow<Long> =
+        settingsDao.observeAll()
+            .map { rows ->
+                rows.firstOrNull { it.key == SettingsKeys.NOTIFY_DAYS_AHEAD }?.value?.toLongOrNull()
+                    ?: NOTIFY_DAYS_AHEAD
+            }
+            .distinctUntilChanged()
+
     /** 记录页顶部到期卡：内驱、外驱、疫苗各自最近一条的到期日 */
-    fun observeDueCards(): Flow<List<DueCard>> {
-        val today = LocalDate.now(ZoneId.systemDefault()).toEpochDay()
-        return combine(
-            recordDao.observeLatestDeworm(RecordType.DEWORM, DewormKind.INTERNAL),
-            recordDao.observeLatestDeworm(RecordType.DEWORM, DewormKind.EXTERNAL),
-            recordDao.observeNearestVaccineDue(RecordType.VACCINE),
-        ) { internal, external, vaccine ->
-            buildList {
-                internal?.nextDueDate?.let {
-                    add(DueCard("内驱", it, it - today, RecordType.DEWORM, internal.medicine))
-                }
-                external?.nextDueDate?.let {
-                    add(DueCard("外驱", it, it - today, RecordType.DEWORM, external.medicine))
-                }
-                vaccine?.nextDueDate?.let {
-                    add(DueCard("疫苗", it, it - today, RecordType.VACCINE, vaccine.vaccineName))
-                }
-            }.sortedBy { it.dueDay }
-        }
-    }
-
-    fun observeDaySummary(): Flow<DaySummary> {
-        val zone = ZoneId.systemDefault()
-        val today = LocalDate.now(zone)
-        val start = today.atStartOfDay(zone).toInstant().toEpochMilli()
-        val end = today.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
-
-        val water = recordDao.observeDayWaterMl(RecordType.WATER, start, end)
-        val waterCount = recordDao.observeDayWaterCount(RecordType.WATER, start, end)
-        val food = recordDao.observeDayFoodSummary(RecordType.FOOD, start, end)
-        val weight = recordDao.observeLatestOfType(RecordType.WEIGHT)
-
-        return combine(water, waterCount, food, weight) { waterMl, count, foodRows, latestWeight ->
-            val main = foodRows.firstOrNull { it.mealKind == MealKind.MAIN }
-            val snack = foodRows.firstOrNull { it.mealKind == MealKind.SNACK }
-            DaySummary(
-                waterMl = waterMl,
-                waterCount = count,
-                mainServings = main?.servings ?: 0.0,
-                mainGrams = main?.grams ?: 0,
-                snackServings = snack?.servings ?: 0.0,
-                snackGrams = snack?.grams ?: 0,
-                weightGrams = latestWeight?.weightGrams,
-                weightAt = latestWeight?.occurredAt,
-            )
-        }
-    }
-
-    fun observeDueSoon(): Flow<DueInfo?> {
-        val today = LocalDate.now(ZoneId.systemDefault()).toEpochDay()
-        val internal = recordDao.observeLatestDeworm(RecordType.DEWORM, DewormKind.INTERNAL)
-        val external = recordDao.observeLatestDeworm(RecordType.DEWORM, DewormKind.EXTERNAL)
-        val vaccine = recordDao.observeNearestVaccineDue(RecordType.VACCINE)
-
-        return combine(internal, external, vaccine) { i, e, v ->
-            val candidates = buildList {
-                i?.nextDueDate?.let { add(Triple("内驱", it, RecordType.DEWORM)) }
-                e?.nextDueDate?.let { add(Triple("外驱", it, RecordType.DEWORM)) }
-                v?.nextDueDate?.let { add(Triple("疫苗", it, RecordType.VACCINE)) }
-            }
-            candidates.minByOrNull { it.second }?.let { (label, dueDay, type) ->
-                val daysLeft = dueDay - today
-                if (daysLeft <= NOTIFY_DAYS_AHEAD) DueInfo(label, daysLeft, type) else null
+    fun observeDueCards(): Flow<List<DueCard>> =
+        observeToday().flatMapLatest { today ->
+            val todayDay = today.toEpochDay()
+            combine(
+                recordDao.observeLatestDeworm(RecordType.DEWORM, DewormKind.INTERNAL),
+                recordDao.observeLatestDeworm(RecordType.DEWORM, DewormKind.EXTERNAL),
+                recordDao.observeNearestVaccineDue(RecordType.VACCINE),
+            ) { internal, external, vaccine ->
+                buildList {
+                    internal?.nextDueDate?.let {
+                        add(DueCard("内驱", it, it - todayDay, RecordType.DEWORM, internal.medicine))
+                    }
+                    external?.nextDueDate?.let {
+                        add(DueCard("外驱", it, it - todayDay, RecordType.DEWORM, external.medicine))
+                    }
+                    vaccine?.nextDueDate?.let {
+                        add(DueCard("疫苗", it, it - todayDay, RecordType.VACCINE, vaccine.vaccineName))
+                    }
+                }.sortedBy { it.dueDay }
             }
         }
-    }
+
+    fun observeDaySummary(): Flow<DaySummary> =
+        observeToday().flatMapLatest { today ->
+            val zone = ZoneId.systemDefault()
+            val start = today.atStartOfDay(zone).toInstant().toEpochMilli()
+            val end = today.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
+
+            val water = recordDao.observeDayWaterMl(RecordType.WATER, start, end)
+            val waterCount = recordDao.observeDayWaterCount(RecordType.WATER, start, end)
+            val food = recordDao.observeDayFoodSummary(RecordType.FOOD, start, end)
+            val weight = recordDao.observeLatestOfType(RecordType.WEIGHT)
+
+            combine(water, waterCount, food, weight) { waterMl, count, foodRows, latestWeight ->
+                val main = foodRows.firstOrNull { it.mealKind == MealKind.MAIN }
+                val snack = foodRows.firstOrNull { it.mealKind == MealKind.SNACK }
+                DaySummary(
+                    waterMl = waterMl,
+                    waterCount = count,
+                    mainServings = main?.servings?.roundToInt() ?: 0,
+                    mainGrams = main?.grams ?: 0,
+                    snackServings = snack?.servings?.roundToInt() ?: 0,
+                    snackGrams = snack?.grams ?: 0,
+                    weightGrams = latestWeight?.weightGrams,
+                    weightAt = latestWeight?.occurredAt,
+                )
+            }
+        }
+
+    fun observeDueSoon(): Flow<DueInfo?> =
+        combine(observeToday(), observeNotifyDaysAhead()) { today, daysAhead -> today to daysAhead }
+            .flatMapLatest { (today, daysAhead) ->
+                combine(
+                    recordDao.observeLatestDeworm(RecordType.DEWORM, DewormKind.INTERNAL),
+                    recordDao.observeLatestDeworm(RecordType.DEWORM, DewormKind.EXTERNAL),
+                    recordDao.observeNearestVaccineDue(RecordType.VACCINE),
+                ) { i, e, v ->
+                    val candidates = buildList {
+                        i?.nextDueDate?.let { add(Triple("内驱", it, RecordType.DEWORM)) }
+                        e?.nextDueDate?.let { add(Triple("外驱", it, RecordType.DEWORM)) }
+                        v?.nextDueDate?.let { add(Triple("疫苗", it, RecordType.VACCINE)) }
+                    }
+                    candidates.minByOrNull { it.second }?.let { (label, dueDay, type) ->
+                        val daysLeft = dueDay - today.toEpochDay()
+                        if (daysLeft <= daysAhead) DueInfo(label, daysLeft, type) else null
+                    }
+                }
+            }
 
     fun observeServingGrams(): Flow<Int> =
         settingsDao.observeAll().map { rows ->
@@ -207,10 +239,10 @@ class RecordRepository(
 
     suspend fun lastSnackType(): String? = settingsDao.get(SettingsKeys.LAST_SNACK_TYPE)
 
-    suspend fun lastServings(): Double =
-        settingsDao.get(SettingsKeys.LAST_SERVINGS)?.toDoubleOrNull()?.coerceAtLeast(1.0)
-            ?: recordDao.latestOfType(RecordType.FOOD)?.servingCount?.coerceAtLeast(1.0)
-            ?: 1.0
+    suspend fun lastServings(): Int =
+        settingsDao.get(SettingsKeys.LAST_SERVINGS)?.toDoubleOrNull()?.roundToInt()?.coerceIn(1, 20)
+            ?: recordDao.latestOfType(RecordType.FOOD)?.servingCount?.roundToInt()?.coerceIn(1, 20)
+            ?: 1
 
     suspend fun lastWeightGrams(): Int? =
         settingsDao.get(SettingsKeys.LAST_WEIGHT_GRAMS)?.toIntOrNull()
@@ -322,17 +354,20 @@ class RecordRepository(
 
     suspend fun saveFood(
         mealKind: MealKind,
-        servings: Double,
+        servings: Int,
         gramsPerServing: Int,
         snackType: String?,
         occurredAt: Long,
         existing: RecordEntity? = null,
         rememberDefaults: Boolean = true,
     ): Long {
-        val total = (servings * gramsPerServing).roundToInt()
+        // 只允许整份 1–20；历史半份由 DB 打开时归一，不再写入小数
+        val wholeServings = servings.coerceIn(1, 20)
+        val grams = gramsPerServing.coerceIn(1, 200)
+        val total = wholeServings * grams
         if (rememberDefaults) {
-            settingsDao.put(SettingEntity(SettingsKeys.SERVING_GRAMS, gramsPerServing.toString()))
-            settingsDao.put(SettingEntity(SettingsKeys.LAST_SERVINGS, servings.toString()))
+            settingsDao.put(SettingEntity(SettingsKeys.SERVING_GRAMS, grams.toString()))
+            settingsDao.put(SettingEntity(SettingsKeys.LAST_SERVINGS, wholeServings.toString()))
         }
         if (mealKind == MealKind.SNACK && snackType != null) {
             settingsDao.put(SettingEntity(SettingsKeys.LAST_SNACK_TYPE, snackType))
@@ -340,8 +375,8 @@ class RecordRepository(
         val record = (existing ?: base(RecordType.FOOD, occurredAt)).copy(
             occurredAt = occurredAt,
             mealKind = mealKind,
-            servingCount = servings,
-            gramsPerServing = gramsPerServing,
+            servingCount = wholeServings.toDouble(),
+            gramsPerServing = grams,
             totalGrams = total,
             snackType = if (mealKind == MealKind.SNACK) snackType else null,
             updatedAt = now(),

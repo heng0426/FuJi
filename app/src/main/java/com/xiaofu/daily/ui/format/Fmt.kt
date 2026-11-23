@@ -42,11 +42,8 @@ object Fmt {
     /** 克 → 斤（1 位小数） */
     fun jin(grams: Int): String = String.format(Locale.CHINA, "%.1f", grams / 500.0)
 
-    /** 份数：整数不带小数点 */
-    fun servings(value: Double): String {
-        val rounded = Math.round(value * 10) / 10.0
-        return if (rounded % 1.0 == 0.0) rounded.toInt().toString() else String.format(Locale.CHINA, "%.1f", rounded)
-    }
+    /** 份数：仅整份，直接展示整数 */
+    fun servings(value: Int): String = value.toString()
 
     fun epochDayToDate(day: Long): LocalDate = LocalDate.ofEpochDay(day)
 

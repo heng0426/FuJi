@@ -149,20 +149,20 @@ fun WaterSheet(
 fun FoodSheet(
     initialKind: MealKind,
     initialGrams: Int,
-    initialServings: Double,
+    initialServings: Int,
     initialSnack: String?,
     editing: RecordEntity?,
     onSavePreset: (com.xiaofu.daily.data.FoodPreset, Int) -> Unit,
     onDismiss: () -> Unit,
-    onSave: (MealKind, Double, Int, String?) -> Unit,
+    onSave: (MealKind, Int, Int, String?) -> Unit,
 ) {
     val cs = MaterialTheme.colorScheme
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
     var servings by remember {
-        mutableStateOf(kotlin.math.ceil(editing?.servingCount ?: initialServings).coerceAtLeast(1.0))
+        mutableIntStateOf((editing?.servingCount?.roundToInt() ?: initialServings).coerceIn(1, 20))
     }
-    var grams by remember { mutableIntStateOf(editing?.gramsPerServing ?: initialGrams) }
+    var grams by remember { mutableIntStateOf((editing?.gramsPerServing ?: initialGrams).coerceIn(1, 200)) }
     var snackType by remember { mutableStateOf(editing?.snackType ?: initialSnack ?: SnackTypes.first()) }
     var presets by remember { mutableStateOf<List<com.xiaofu.daily.data.FoodPreset>>(emptyList()) }
     var showAddPreset by remember { mutableStateOf(false) }
@@ -173,7 +173,7 @@ fun FoodSheet(
     }
 
     val kind = editing?.mealKind ?: initialKind
-    val total = (servings * grams).roundToInt()
+    val total = servings * grams
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -230,8 +230,8 @@ fun FoodSheet(
                 label = "份数",
                 valueText = Fmt.servings(servings),
                 unit = "份",
-                onMinus = { if (servings > 1) servings -= 1.0 },
-                onPlus = { if (servings < 20) servings += 1.0 },
+                onMinus = { if (servings > 1) servings -= 1 },
+                onPlus = { if (servings < 20) servings += 1 },
                 minusEnabled = servings > 1,
                 plusEnabled = servings < 20,
             )

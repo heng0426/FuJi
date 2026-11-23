@@ -77,6 +77,17 @@ abstract class XiaoFuDatabase : RoomDatabase() {
                     )
                 }
             }
+
+            override fun onOpen(db: SupportSQLiteDatabase) {
+                // 份数只保留整份：历史 0.5 等小数值四舍五入（0.5 → 1），并夹取到 1–20。
+                // 列类型仍为 REAL（schema v1），不因数据归一触发结构迁移。
+                db.execSQL(
+                    "UPDATE records SET serving_count = MAX(1, MIN(20, CAST(ROUND(serving_count) AS INTEGER))) " +
+                        "WHERE type = 'FOOD' AND serving_count IS NOT NULL " +
+                        "AND (serving_count < 1 OR serving_count > 20 " +
+                        "OR serving_count != CAST(serving_count AS INTEGER))",
+                )
+            }
         }
 
         fun build(context: Context): XiaoFuDatabase =

@@ -21,6 +21,7 @@ import java.util.Locale
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
+import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -120,9 +121,30 @@ class BackupManager(
                 jsonText ?: throw BackupFormatException("备份包缺少 backup.json，不是有效的小福日常备份文件"),
             )
 
-            val missing = parsed.photos.count { !File(staging, it.fileName).isFile }
+            val dir = photoDir()
+            val names = buildSet {
+                parsed.photos.forEach { add(it.fileName) }
+                parsed.profile?.photoFile?.let { add(it) }
+            }
+            val missing = names.count { !File(staging, it).isFile }
 
-            // 2. 事务内替换式恢复
+            // 2. 先把照片落盘，再提交数据库：复制失败时数据库保持原状，
+            //    避免"记录已恢复但照片缺失"的半完成状态。
+            val existedBefore = names.filterTo(mutableSetOf()) { File(dir, it).exists() }
+            try {
+                names.forEach { name ->
+                    File(staging, name).takeIf { it.isFile }?.copyTo(File(dir, name), overwrite = true)
+                }
+            } catch (e: Exception) {
+                // 回滚本次新建的文件；被覆盖的同名文件无法还原（正常备份文件名唯一，碰撞概率极低）
+                names.filterNot { it in existedBefore }.forEach { name ->
+                    runCatching { File(dir, name).delete() }
+                }
+                throw e
+            }
+
+            // 3. 事务内替换式恢复
+            val currentProfile = db.profileDao().getProfile()
             db.withTransaction {
                 db.photoDao().deleteAll()
                 db.recordDao().deleteAll()
@@ -139,16 +161,20 @@ class BackupManager(
                 parsed.profile?.let { db.profileDao().upsert(it) }
             }
 
-            // 3. 提交成功后迁移照片文件（覆盖同名旧文件）
-            val dir = photoDir()
-            val names = buildSet {
+            // 4. 成功后清理不再被引用的旧照片（旧记录照片与历史孤儿文件）
+            val keep = buildSet {
                 parsed.photos.forEach { add(it.fileName) }
-                parsed.profile?.photoFile?.let { add(it) }
+                (parsed.profile?.photoFile ?: currentProfile?.photoFile)?.let { add(it) }
             }
-            names.forEach { name ->
-                File(staging, name).takeIf { it.isFile }?.copyTo(File(dir, name), overwrite = true)
+            dir.listFiles()?.forEach { file ->
+                if (file.isFile && file.name !in keep) runCatching { file.delete() }
             }
-            ImportStats(parsed.records.size, parsed.photos.size, missing)
+
+            ImportStats(
+                records = parsed.records.size,
+                photos = parsed.photos.count { File(dir, it.fileName).isFile },
+                missingPhotos = missing,
+            )
         } finally {
             staging.deleteRecursively()
         }
@@ -235,7 +261,8 @@ class BackupManager(
             updatedAt = o.getLong("updated_at"),
             amountMl = o.optIntOrNull("amount_ml"),
             mealKind = o.optEnum<MealKind>("meal_kind"),
-            servingCount = o.optDoubleOrNull("serving_count"),
+            // 份数只保留整份：旧备份中的 0.5 等小数按四舍五入归一（0.5 → 1）
+            servingCount = o.optDoubleOrNull("serving_count")?.roundToInt()?.coerceIn(1, 20)?.toDouble(),
             gramsPerServing = o.optIntOrNull("grams_per_serving"),
             totalGrams = o.optIntOrNull("total_grams"),
             snackType = o.optStringOrNull("snack_type"),
@@ -281,7 +308,9 @@ class BackupManager(
         birthdayDay = o.optLongOrNull("birthday_day"),
         breed = o.optStringOrNull("breed"),
         gender = o.optEnum<Gender>("gender"),
-        photoFile = o.optStringOrNull("photo_file"),
+        photoFile = o.optStringOrNull("photo_file")?.also { name ->
+            if (!PHOTO_NAME.matches(name)) throw BackupFormatException("头像文件名不合法：$name")
+        },
         createdAt = o.optLong("created_at", System.currentTimeMillis()),
         updatedAt = o.optLong("updated_at", System.currentTimeMillis()),
     )
@@ -319,7 +348,7 @@ class BackupManager(
         put("updated_at", updatedAt)
         putOpt("amount_ml", amountMl)
         putOpt("meal_kind", mealKind?.name)
-        putOpt("serving_count", servingCount)
+        putOpt("serving_count", servingCount?.roundToInt())
         putOpt("grams_per_serving", gramsPerServing)
         putOpt("total_grams", totalGrams)
         putOpt("snack_type", snackType)
@@ -398,8 +427,11 @@ class BackupManager(
         const val DIR_PHOTOS = "photos"
         private const val STAGING_DIR = "import_staging"
 
-        /** 照片文件名白名单：与 PhotoStore 生成规则一致，防 zip 路径穿越 */
-        private val PHOTO_NAME = Regex("""[A-Za-z0-9._-]+""")
+        /**
+         * 照片文件名白名单：与 PhotoStore 生成规则一致，防 zip 路径穿越。
+         * 首字符必须为字母/数字，排除 "."、".."、隐藏文件与前导点。
+         */
+        private val PHOTO_NAME = Regex("""[A-Za-z0-9][A-Za-z0-9._-]{0,127}""")
 
         fun suggestedFileName(): String =
             "小福日常备份-" + SimpleDateFormat("yyyyMMdd-HHmm", Locale.US).format(Date())

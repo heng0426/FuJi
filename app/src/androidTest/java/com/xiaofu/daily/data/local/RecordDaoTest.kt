@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.xiaofu.daily.data.RecordRepository
 import com.xiaofu.daily.data.local.dao.RecordDao
 import com.xiaofu.daily.data.local.entity.RecordEntity
 import com.xiaofu.daily.data.local.entity.RecordPhotoEntity
@@ -72,15 +73,15 @@ class RecordDaoTest {
 
     @Test
     fun foodSummaryGroupsByMealKind() = runBlocking {
-        recordDao.insert(food(MealKind.MAIN, 1.5, 15, 23, dayStart + 1_000))
-        recordDao.insert(food(MealKind.SNACK, 2.0, 10, 20, dayStart + 2_000, snackType = "冻干"))
+        recordDao.insert(food(MealKind.MAIN, 2, 15, 30, dayStart + 1_000))
+        recordDao.insert(food(MealKind.SNACK, 2, 10, 20, dayStart + 2_000, snackType = "冻干"))
 
         val summary = recordDao.observeDayFoodSummary(RecordType.FOOD, dayStart, dayEnd).first()
         assertEquals(2, summary.size)
 
         val main = summary.first { it.mealKind == MealKind.MAIN }
-        assertEquals(1.5, main.servings, 0.001)
-        assertEquals(23, main.grams)
+        assertEquals(2.0, main.servings, 0.001)
+        assertEquals(30, main.grams)
 
         val snack = summary.first { it.mealKind == MealKind.SNACK }
         assertEquals(2.0, snack.servings, 0.001)
@@ -161,6 +162,46 @@ class RecordDaoTest {
         assertEquals(DewormKind.EXTERNAL, due.first().dewormKind)
     }
 
+    @Test
+    fun saveFoodClampsToWholeServings() = runBlocking {
+        val repo = RecordRepository(db, ApplicationProvider.getApplicationContext())
+        val id = repo.saveFood(
+            mealKind = MealKind.MAIN,
+            servings = 25,
+            gramsPerServing = 500,
+            snackType = null,
+            occurredAt = dayStart + 1_000,
+            rememberDefaults = false,
+        )
+        val saved = requireNotNull(recordDao.getById(id))
+        assertEquals(20.0, saved.servingCount!!, 0.001)
+        assertEquals(200, saved.gramsPerServing)
+        assertEquals(4_000, saved.totalGrams)
+    }
+
+    @Test
+    fun openingDatabaseNormalizesHistoricalHalfServings() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val name = "normalize-test.db"
+        context.deleteDatabase(name)
+
+        var fileDb = Room.databaseBuilder(context, XiaoFuDatabase::class.java, name)
+            .addCallback(XiaoFuDatabase.seedCallback)
+            .build()
+        fileDb.recordDao().insert(
+            food(MealKind.MAIN, 1, 15, 15, dayStart + 1_000).copy(servingCount = 0.5),
+        )
+        fileDb.close()
+
+        fileDb = Room.databaseBuilder(context, XiaoFuDatabase::class.java, name)
+            .addCallback(XiaoFuDatabase.seedCallback)
+            .build()
+        val saved = fileDb.recordDao().getById(1)
+        assertEquals(1.0, saved!!.servingCount!!, 0.001)
+        fileDb.close()
+        context.deleteDatabase(name)
+    }
+
     private fun water(ml: Int, at: Long) = RecordEntity(
         type = RecordType.WATER,
         occurredAt = at,
@@ -171,7 +212,7 @@ class RecordDaoTest {
 
     private fun food(
         kind: MealKind,
-        servings: Double,
+        servings: Int,
         gramsPerServing: Int,
         totalGrams: Int,
         at: Long,
@@ -182,7 +223,7 @@ class RecordDaoTest {
         createdAt = at,
         updatedAt = at,
         mealKind = kind,
-        servingCount = servings,
+        servingCount = servings.toDouble(),
         gramsPerServing = gramsPerServing,
         totalGrams = totalGrams,
         snackType = snackType,

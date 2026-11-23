@@ -47,6 +47,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -92,6 +93,7 @@ import java.time.LocalTime
 import java.time.YearMonth
 import java.time.ZoneId
 import java.time.ZoneOffset
+import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 
 private data class CreateOption(
@@ -148,7 +150,7 @@ fun CalendarScreen(
     var foodKind by remember { mutableStateOf(MealKind.MAIN) }
     var lastWater by remember { mutableStateOf(60) }
     var serving by remember { mutableStateOf(15) }
-    var lastServings by remember { mutableStateOf(1.0) }
+    var lastServings by remember { mutableIntStateOf(1) }
     var lastSnack by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
@@ -368,14 +370,14 @@ fun CalendarScreen(
         FoodSheet(
             initialKind = foodKind,
             initialGrams = editing?.gramsPerServing ?: serving,
-            initialServings = editing?.servingCount ?: lastServings,
+            initialServings = editing?.servingCount?.roundToInt() ?: lastServings,
             initialSnack = editing?.snackType ?: lastSnack,
             editing = editing,
             onSavePreset = { preset, grams ->
                 scope.launch {
                     actions.saveFood(
                         kind = foodKind,
-                        servings = preset.servings.toDouble(),
+                        servings = preset.servings,
                         grams = grams,
                         snackType = null,
                         existing = null,

@@ -30,6 +30,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -73,6 +74,7 @@ import com.xiaofu.daily.ui.today.DetailSheet
 import com.xiaofu.daily.ui.today.FoodSheet
 import com.xiaofu.daily.ui.today.TodayViewModel
 import com.xiaofu.daily.ui.today.WaterSheet
+import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 
 private val typeLabels = mapOf(
@@ -97,8 +99,10 @@ fun RecordsScreen(
     val records by vm.records.collectAsState()
     val dueCards by vm.dueCards.collectAsState()
     val typeOrder by vm.typeOrder.collectAsState()
+    val hasMore by vm.hasMore.collectAsState()
     val latestOrder by rememberUpdatedState(typeOrder)
     val chipState = rememberLazyListState()
+    val listState = rememberLazyListState()
     var draggingType by remember { mutableStateOf<RecordType?>(null) }
     var dragOffset by remember { mutableFloatStateOf(0f) }
     var selecting by remember { mutableStateOf(false) }
@@ -114,7 +118,7 @@ fun RecordsScreen(
     var foodKind by remember { mutableStateOf(MealKind.MAIN) }
     var lastWater by remember { mutableStateOf(60) }
     var serving by remember { mutableStateOf(15) }
-    var lastServings by remember { mutableStateOf(1.0) }
+    var lastServings by remember { mutableIntStateOf(1) }
     var lastSnack by remember { mutableStateOf<String?>(null) }
     var weightView by remember { mutableIntStateOf(0) }
 
@@ -133,6 +137,18 @@ fun RecordsScreen(
             else -> emptyList()
         }
     }
+
+    val shouldLoadMore by remember {
+        derivedStateOf {
+            val info = listState.layoutInfo
+            val last = info.visibleItemsInfo.lastOrNull()?.index ?: -1
+            info.totalItemsCount > 0 && last >= info.totalItemsCount - 2
+        }
+    }
+    LaunchedEffect(shouldLoadMore, hasMore) {
+        if (shouldLoadMore && hasMore) vm.loadMore()
+    }
+    LaunchedEffect(filter) { listState.scrollToItem(0) }
 
     if (selecting) {
         BackHandler {
@@ -154,6 +170,7 @@ fun RecordsScreen(
             )
         }
         LazyColumn(
+            state = listState,
             modifier = Modifier.weight(1f),
             contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -305,6 +322,20 @@ fun RecordsScreen(
                     }
                 }
             }
+            if (hasMore) {
+                item(key = "loading") {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            "正在加载更早记录…",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = cs.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
         }
     }
     }
@@ -359,14 +390,14 @@ fun RecordsScreen(
         FoodSheet(
             initialKind = foodKind,
             initialGrams = editing?.gramsPerServing ?: serving,
-            initialServings = editing?.servingCount ?: lastServings,
+            initialServings = editing?.servingCount?.roundToInt() ?: lastServings,
             initialSnack = editing?.snackType ?: lastSnack,
             editing = editing,
             onSavePreset = { preset, grams ->
                 scope.launch {
                     actions.saveFood(
                         kind = foodKind,
-                        servings = preset.servings.toDouble(),
+                        servings = preset.servings,
                         grams = grams,
                         snackType = null,
                         existing = null,

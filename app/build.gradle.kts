@@ -88,6 +88,7 @@ dependencies {
     // 真机 DAO 集成测试（无模拟器环境，instrumentation 测试跑在真机上）
     androidTestImplementation(libs.junit)
     androidTestImplementation(libs.androidx.test.junit)
+    testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.kotlinx.coroutines.test)
 }

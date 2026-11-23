@@ -87,6 +87,7 @@ fun TodayScreen(
 ) {
     val summary by vm.summary.collectAsState()
     val due by vm.due.collectAsState()
+    val week by vm.week.collectAsState()
     val records by vm.records.collectAsState()
     val hasMore by vm.hasMore.collectAsState()
     val cs = MaterialTheme.colorScheme
@@ -184,6 +185,7 @@ fun TodayScreen(
                 onMore = { showMore = true },
             )
         }
+        item(key = "week") { WeekChartCard(week) }
 
         if (groups.isEmpty()) {
             item(key = "empty") { EmptyTimeline() }

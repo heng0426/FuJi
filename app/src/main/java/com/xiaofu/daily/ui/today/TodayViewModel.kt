@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -40,6 +41,15 @@ class TodayViewModel(private val repo: RecordRepository) : ViewModel() {
 
     val due: StateFlow<DueInfo?> = repo.observeDueSoon()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** 近 7 天喝水/进食柱状图 */
+    val week: StateFlow<WeekStats> = repo.observeRecentDays(7)
+        .map { (today, records) -> buildWeekStats(today, records) }
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5_000),
+            WeekStats.empty(java.time.LocalDate.now()),
+        )
 
     val tags: StateFlow<List<AnomalyTagEntity>> = repo.observeTags()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())

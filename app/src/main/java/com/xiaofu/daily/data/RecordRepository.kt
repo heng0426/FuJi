@@ -126,6 +126,15 @@ class RecordRepository(
     fun observeRange(startMs: Long, endMs: Long): Flow<List<RecordEntity>> =
         recordDao.observeByRange(startMs, endMs)
 
+    /** 近 N 天（含今天）的记录与"今天"日期；跨零点自动换窗口 */
+    fun observeRecentDays(days: Int): Flow<Pair<LocalDate, List<RecordEntity>>> =
+        observeToday().flatMapLatest { today ->
+            val zone = ZoneId.systemDefault()
+            val start = today.minusDays((days - 1).toLong()).atStartOfDay(zone).toInstant().toEpochMilli()
+            val end = today.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
+            recordDao.observeByRange(start, end).map { today to it }
+        }
+
     fun observeByType(type: RecordType, limit: Int = 300): Flow<List<RecordEntity>> =
         recordDao.observeByType(type, limit)
 

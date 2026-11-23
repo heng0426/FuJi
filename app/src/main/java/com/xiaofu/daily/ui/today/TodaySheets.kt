@@ -58,6 +58,8 @@ import com.xiaofu.daily.data.local.model.MealKind
 import com.xiaofu.daily.data.local.model.RecordType
 import com.xiaofu.daily.ui.components.BigNumberField
 import com.xiaofu.daily.ui.components.PillChip
+import com.xiaofu.daily.ui.components.PhotoViewerDialog
+import com.xiaofu.daily.ui.components.ViewerPhoto
 import com.xiaofu.daily.ui.components.PrimaryButton
 import com.xiaofu.daily.ui.components.SecondaryButton
 import com.xiaofu.daily.ui.components.SegmentedRow
@@ -456,6 +458,13 @@ fun DetailSheet(
     val cs = MaterialTheme.colorScheme
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val display = recordDisplay(record)
+    var viewerIndex by remember { mutableStateOf<Int?>(null) }
+    val photos by produceState(initialValue = emptyList<File>(), record.id) {
+        value = runCatching {
+            AppContainer.repository.photoNames(record.id)
+                .map { AppContainer.repository.photoFile(it) }
+        }.getOrDefault(emptyList())
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -492,7 +501,7 @@ fun DetailSheet(
                     DetailRow("分类", record.anomalyCategory ?: "—")
                     record.severity?.let { DetailRow("程度", it.label()) }
                     DetailRow("备注", record.note?.takeIf { it.isNotBlank() } ?: "无", multiline = true)
-                    RecordPhotoStrip(record.id)
+                    RecordPhotoStrip(photos) { viewerIndex = it }
                 }
 
                 RecordType.VET -> {
@@ -501,7 +510,7 @@ fun DetailSheet(
                     record.vetDiagnosis?.let { DetailRow("诊断", it, multiline = true) }
                     record.vetCostYuan?.let { DetailRow("费用", "¥$it") }
                     DetailRow("备注", record.note?.takeIf { it.isNotBlank() } ?: "无", multiline = true)
-                    RecordPhotoStrip(record.id)
+                    RecordPhotoStrip(photos) { viewerIndex = it }
                 }
 
                 else -> {
@@ -522,6 +531,31 @@ fun DetailSheet(
             }
         }
     }
+
+    viewerIndex?.let { index ->
+        PhotoViewerDialog(
+            photos = photos.map { ViewerPhoto(it, photoHint(record)) },
+            initialIndex = index,
+            onDismiss = { viewerIndex = null },
+        )
+    }
+}
+
+/** 预览底部的提示：异常=分类·程度·时间，就医=医院/诊断·医生·时间 */
+private fun photoHint(record: RecordEntity): String = when (record.type) {
+    RecordType.ANOMALY -> listOfNotNull(
+        record.anomalyCategory,
+        record.severity?.label(),
+        Fmt.detailTime(record.occurredAt),
+    ).joinToString(" · ")
+
+    RecordType.VET -> listOfNotNull(
+        record.vetHospital ?: record.vetDiagnosis,
+        record.vetDoctor?.let { "医生 $it" },
+        Fmt.detailTime(record.occurredAt),
+    ).joinToString(" · ")
+
+    else -> Fmt.detailTime(record.occurredAt)
 }
 
 @Composable
@@ -542,13 +576,8 @@ private fun DetailRow(label: String, value: String, multiline: Boolean = false) 
 }
 
 @Composable
-private fun RecordPhotoStrip(recordId: Long) {
+private fun RecordPhotoStrip(photos: List<File>, onPhotoClick: (Int) -> Unit) {
     val cs = MaterialTheme.colorScheme
-    val photos by produceState(initialValue = emptyList<File>(), recordId) {
-        value = runCatching {
-            AppContainer.repository.photoNames(recordId).map { AppContainer.repository.photoFile(it) }
-        }.getOrDefault(emptyList())
-    }
     Spacer(Modifier.height(8.dp))
     Text("照片", style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
     if (photos.isEmpty()) {
@@ -563,13 +592,15 @@ private fun RecordPhotoStrip(recordId: Long) {
             Modifier.fillMaxWidth().padding(top = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            photos.take(3).forEach { file -> RecordThumb(file) }
+            photos.take(3).forEachIndexed { index, file ->
+                RecordThumb(file) { onPhotoClick(index) }
+            }
         }
     }
 }
 
 @Composable
-private fun RecordThumb(file: File) {
+private fun RecordThumb(file: File, onClick: () -> Unit) {
     val cs = MaterialTheme.colorScheme
     val bitmap by produceState<ImageBitmap?>(initialValue = null, file.path) {
         value = withContext(Dispatchers.IO) {
@@ -583,10 +614,11 @@ private fun RecordThumb(file: File) {
         Modifier
             .size(72.dp)
             .clip(RoundedCornerShape(12.dp))
-            .background(cs.surfaceVariant),
+            .background(cs.surfaceVariant)
+            .clickable(onClick = onClick),
     ) {
         if (bitmap != null) {
-            Image(bitmap!!, contentDescription = "记录照片", modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+            Image(bitmap!!, contentDescription = "预览照片", modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
         }
     }
 }

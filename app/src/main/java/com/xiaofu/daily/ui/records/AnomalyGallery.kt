@@ -16,7 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -25,7 +25,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,8 +43,11 @@ import androidx.compose.ui.window.DialogProperties
 import com.xiaofu.daily.R
 import com.xiaofu.daily.data.AnomalyPhotoItem
 import com.xiaofu.daily.data.local.entity.RecordEntity
+import com.xiaofu.daily.ui.components.PhotoViewerDialog
 import com.xiaofu.daily.ui.components.RoundIconButton
+import com.xiaofu.daily.ui.components.ViewerPhoto
 import com.xiaofu.daily.ui.format.Fmt
+import com.xiaofu.daily.ui.today.label
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -57,6 +63,7 @@ fun AnomalyGalleryDialog(
     onOpenRecord: (RecordEntity) -> Unit,
 ) {
     val cs = MaterialTheme.colorScheme
+    var viewerIndex by remember { mutableStateOf<Int?>(null) }
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false),
@@ -79,7 +86,7 @@ fun AnomalyGalleryDialog(
                             color = cs.onSurface,
                         )
                         Text(
-                            if (photos == null) "加载中…" else "${photos.size} 张照片 · 按时间倒序",
+                            if (photos == null) "加载中…" else "${photos.size} 张照片 · 点按预览",
                             style = MaterialTheme.typography.labelSmall,
                             color = cs.onSurfaceVariant,
                         )
@@ -115,10 +122,23 @@ fun AnomalyGalleryDialog(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
-                        items(items = photos, key = { it.file.path }) { item ->
-                            GalleryTile(item) { onOpenRecord(item.record) }
+                        itemsIndexed(items = photos, key = { _, item -> item.file.path }) { index, item ->
+                            GalleryTile(item) { viewerIndex = index }
                         }
                     }
+                }
+
+                if (photos != null && viewerIndex != null) {
+                    val list = photos
+                    PhotoViewerDialog(
+                        photos = list.map { ViewerPhoto(it.file, anomalyHint(it.record)) },
+                        initialIndex = viewerIndex!!,
+                        onDismiss = { viewerIndex = null },
+                        onOpenRecord = { index ->
+                            viewerIndex = null
+                            onOpenRecord(list[index].record)
+                        },
+                    )
                 }
             }
         }
@@ -167,3 +187,9 @@ private fun GalleryTile(item: AnomalyPhotoItem, onClick: () -> Unit) {
         )
     }
 }
+
+private fun anomalyHint(record: RecordEntity): String = listOfNotNull(
+    record.anomalyCategory,
+    record.severity?.label(),
+    Fmt.detailTime(record.occurredAt),
+).joinToString(" · ")

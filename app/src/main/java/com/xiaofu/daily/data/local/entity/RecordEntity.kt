@@ -84,4 +84,15 @@ data class RecordEntity(
     val anomalyCategory: String? = null,
     @ColumnInfo(name = "severity")
     val severity: Severity? = null,
+
+    // ---- 就医 ----
+    @ColumnInfo(name = "vet_hospital")
+    val vetHospital: String? = null,
+    @ColumnInfo(name = "vet_doctor")
+    val vetDoctor: String? = null,
+    @ColumnInfo(name = "vet_diagnosis")
+    val vetDiagnosis: String? = null,
+    /** 费用（元），选填；不做小数，避免金额精度问题 */
+    @ColumnInfo(name = "vet_cost_yuan")
+    val vetCostYuan: Int? = null,
 )

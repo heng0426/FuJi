@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -40,6 +41,15 @@ class TodayViewModel(private val repo: RecordRepository) : ViewModel() {
 
     val due: StateFlow<DueInfo?> = repo.observeDueSoon()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** 近 7 天喝水/进食柱状图 */
+    val week: StateFlow<WeekStats> = repo.observeRecentDays(7)
+        .map { (today, records) -> buildWeekStats(today, records) }
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5_000),
+            WeekStats.empty(java.time.LocalDate.now()),
+        )
 
     val tags: StateFlow<List<AnomalyTagEntity>> = repo.observeTags()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -169,6 +179,28 @@ class TodayViewModel(private val repo: RecordRepository) : ViewModel() {
     )
 
     suspend fun photoNames(recordId: Long): List<String> = repo.photoNames(recordId)
+
+    suspend fun saveVet(
+        hospital: String?,
+        doctor: String?,
+        diagnosis: String?,
+        costYuan: Int?,
+        note: String?,
+        photos: List<Uri>,
+        existing: RecordEntity?,
+        keepPhotoNames: List<String>,
+        at: Long? = null,
+    ) = repo.saveVet(
+        hospital = hospital,
+        doctor = doctor,
+        diagnosis = diagnosis,
+        costYuan = costYuan,
+        note = note,
+        occurredAt = at ?: existing?.occurredAt ?: System.currentTimeMillis(),
+        newPhotoUris = photos,
+        existing = existing,
+        keepPhotoNames = keepPhotoNames,
+    )
 
     fun photoFile(name: String) = repo.photoFile(name)
 

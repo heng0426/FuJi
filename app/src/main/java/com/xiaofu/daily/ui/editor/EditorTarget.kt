@@ -2,7 +2,7 @@ package com.xiaofu.daily.ui.editor
 
 import com.xiaofu.daily.data.local.entity.RecordEntity
 
-/** 全屏录入/编辑路由（体重、驱虫、疫苗、异常四类） */
+/** 全屏录入/编辑路由（体重、驱虫、疫苗、异常、就医五类） */
 sealed interface EditorTarget {
     val record: RecordEntity?
     val occurredAtMs: Long?
@@ -23,6 +23,11 @@ sealed interface EditorTarget {
     ) : EditorTarget
 
     data class Anomaly(
+        override val record: RecordEntity? = null,
+        override val occurredAtMs: Long? = null,
+    ) : EditorTarget
+
+    data class Vet(
         override val record: RecordEntity? = null,
         override val occurredAtMs: Long? = null,
     ) : EditorTarget

@@ -87,6 +87,7 @@ fun TodayScreen(
 ) {
     val summary by vm.summary.collectAsState()
     val due by vm.due.collectAsState()
+    val week by vm.week.collectAsState()
     val records by vm.records.collectAsState()
     val hasMore by vm.hasMore.collectAsState()
     val cs = MaterialTheme.colorScheme
@@ -184,6 +185,7 @@ fun TodayScreen(
                 onMore = { showMore = true },
             )
         }
+        item(key = "week") { WeekChartCard(week) }
 
         if (groups.isEmpty()) {
             item(key = "empty") { EmptyTimeline() }
@@ -339,6 +341,7 @@ fun TodayScreen(
         DetailSheet(
             record = record,
             onDismiss = { detail = null },
+            onReopen = { detail = it },
             onEdit = {
                 detail = null
                 when (record.type) {
@@ -354,6 +357,7 @@ fun TodayScreen(
                     RecordType.WEIGHT -> onOpenEditor(EditorTarget.Weight(record))
                     RecordType.DEWORM -> onOpenEditor(EditorTarget.Deworm(record))
                     RecordType.VACCINE -> onOpenEditor(EditorTarget.Vaccine(record))
+                    RecordType.VET -> onOpenEditor(EditorTarget.Vet(record))
                     RecordType.ANOMALY -> onOpenEditor(EditorTarget.Anomaly(record))
                 }
             },

@@ -58,6 +58,10 @@ interface RecordDao {
     @Query("SELECT * FROM records WHERE type = :type ORDER BY occurred_at DESC LIMIT :limit")
     fun observeByType(type: RecordType, limit: Int): Flow<List<RecordEntity>>
 
+    /** 照片墙一次性读取：某类型全部记录 */
+    @Query("SELECT * FROM records WHERE type = :type ORDER BY occurred_at DESC")
+    suspend fun getByType(type: RecordType): List<RecordEntity>
+
     // ---- 首页概览聚合 ----
 
     /** 今日喝水合计（无记录返回 0） */

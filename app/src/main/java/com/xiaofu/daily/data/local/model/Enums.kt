@@ -8,6 +8,7 @@ enum class RecordType {
     DEWORM,
     VACCINE,
     ANOMALY,
+    VET,
 }
 
 /** 喂食类别：主粮 / 加餐 */

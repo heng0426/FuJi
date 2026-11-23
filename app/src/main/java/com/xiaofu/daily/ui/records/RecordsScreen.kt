@@ -84,6 +84,7 @@ private val typeLabels = mapOf(
     RecordType.DEWORM to "驱虫",
     RecordType.VACCINE to "疫苗",
     RecordType.ANOMALY to "异常",
+    RecordType.VET to "就诊",
 )
 
 @Composable
@@ -92,9 +93,12 @@ fun RecordsScreen(
     actions: TodayViewModel,
     onOpenEditor: (EditorTarget) -> Unit,
     onDeleteRecord: (RecordEntity) -> Unit,
+    openRecord: RecordEntity? = null,
+    onOpenRecordHandled: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val cs = MaterialTheme.colorScheme
+    val galleryHost = LocalGalleryHost.current
     val filter by vm.filter.collectAsState()
     val records by vm.records.collectAsState()
     val dueCards by vm.dueCards.collectAsState()
@@ -121,6 +125,14 @@ fun RecordsScreen(
     var lastServings by remember { mutableIntStateOf(1) }
     var lastSnack by remember { mutableStateOf<String?>(null) }
     var weightView by remember { mutableIntStateOf(0) }
+
+    // 从照片墙点「记录详情」跳转过来：直接打开对应记录
+    LaunchedEffect(openRecord) {
+        if (openRecord != null) {
+            detail = openRecord
+            onOpenRecordHandled()
+        }
+    }
 
     LaunchedEffect(Unit) {
         lastWater = actions.lastWaterMl()
@@ -182,6 +194,12 @@ fun RecordsScreen(
                     Text("记录", style = MaterialTheme.typography.headlineSmall, color = cs.onBackground)
                     Text("按类型查看历史", style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant, modifier = Modifier.padding(top = 2.dp))
                 }
+                RoundIconButton(
+                    R.drawable.ic_ms_image,
+                    onClick = { galleryHost?.show() },
+                    contentDescription = "异常照片墙",
+                )
+                Spacer(Modifier.size(4.dp))
                 RoundIconButton(R.drawable.ic_ms_search)
             }
         }
@@ -428,6 +446,7 @@ fun RecordsScreen(
         DetailSheet(
             record = record,
             onDismiss = { detail = null },
+            onReopen = { detail = it },
             onEdit = {
                 detail = null
                 when (record.type) {
@@ -443,6 +462,7 @@ fun RecordsScreen(
                     RecordType.WEIGHT -> onOpenEditor(EditorTarget.Weight(record))
                     RecordType.DEWORM -> onOpenEditor(EditorTarget.Deworm(record))
                     RecordType.VACCINE -> onOpenEditor(EditorTarget.Vaccine(record))
+                    RecordType.VET -> onOpenEditor(EditorTarget.Vet(record))
                     RecordType.ANOMALY -> onOpenEditor(EditorTarget.Anomaly(record))
                 }
             },

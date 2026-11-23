@@ -41,7 +41,7 @@ class BackupFormatException(message: String) : Exception(message)
  * JSON 导出/恢复（v1.1 P1）。
  *
  * 备份包为 ZIP：`backup.json` + `photos/<file_name>`。
- * JSON 字段名与数据库列名一致（snake_case），schema_version 当前为 1。
+ * JSON 字段名与数据库列名一致（snake_case），schema_version 当前为 2（可导入 1–2）。
  *
  * 导入为替换式恢复：records/record_photos 全部清空后按原 id 写回；
  * anomaly_tags / settings / profile 仅在备份包含对应段时替换，缺失则保留现状。
@@ -198,7 +198,8 @@ class BackupManager(
             throw BackupFormatException("backup.json 不是有效的 JSON")
         }
         val version = root.optInt("schema_version", -1)
-        if (version != SCHEMA_VERSION) {
+        // v1 备份可导入到 v2（新增字段可空）；更高的版本不认识
+        if (version !in 1..SCHEMA_VERSION) {
             throw BackupFormatException("备份格式版本不支持（$version），当前支持版本 $SCHEMA_VERSION")
         }
 
@@ -273,6 +274,10 @@ class BackupManager(
             vaccineName = o.optStringOrNull("vaccine_name"),
             anomalyCategory = o.optStringOrNull("anomaly_category"),
             severity = o.optEnum<Severity>("severity"),
+            vetHospital = o.optStringOrNull("vet_hospital"),
+            vetDoctor = o.optStringOrNull("vet_doctor"),
+            vetDiagnosis = o.optStringOrNull("vet_diagnosis"),
+            vetCostYuan = o.optIntOrNull("vet_cost_yuan"),
         )
     } catch (e: JSONException) {
         throw BackupFormatException("记录数据缺少必要字段（id=${o.optLong("id")}）")
@@ -359,6 +364,10 @@ class BackupManager(
         putOpt("vaccine_name", vaccineName)
         putOpt("anomaly_category", anomalyCategory)
         putOpt("severity", severity?.name)
+        putOpt("vet_hospital", vetHospital)
+        putOpt("vet_doctor", vetDoctor)
+        putOpt("vet_diagnosis", vetDiagnosis)
+        putOpt("vet_cost_yuan", vetCostYuan)
     }
 
     private fun RecordPhotoEntity.toJson() = JSONObject().apply {
@@ -422,7 +431,7 @@ class BackupManager(
         if (has(key) && !isNull(key)) getDouble(key) else null
 
     companion object {
-        const val SCHEMA_VERSION = 1
+        const val SCHEMA_VERSION = 2
         const val ENTRY_JSON = "backup.json"
         const val DIR_PHOTOS = "photos"
         private const val STAGING_DIR = "import_staging"

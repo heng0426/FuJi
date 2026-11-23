@@ -103,6 +103,9 @@ private val DefaultNameTags = mapOf(
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
+/** 照片墙条目：异常记录 + 磁盘文件 */
+data class AnomalyPhotoItem(val record: RecordEntity, val file: File)
+
 class RecordRepository(
     db: XiaoFuDatabase,
     context: Context,
@@ -125,6 +128,15 @@ class RecordRepository(
 
     fun observeRange(startMs: Long, endMs: Long): Flow<List<RecordEntity>> =
         recordDao.observeByRange(startMs, endMs)
+
+    /** 近 N 天（含今天）的记录与"今天"日期；跨零点自动换窗口 */
+    fun observeRecentDays(days: Int): Flow<Pair<LocalDate, List<RecordEntity>>> =
+        observeToday().flatMapLatest { today ->
+            val zone = ZoneId.systemDefault()
+            val start = today.minusDays((days - 1).toLong()).atStartOfDay(zone).toInstant().toEpochMilli()
+            val end = today.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
+            recordDao.observeByRange(start, end).map { today to it }
+        }
 
     fun observeByType(type: RecordType, limit: Int = 300): Flow<List<RecordEntity>> =
         recordDao.observeByType(type, limit)
@@ -485,6 +497,41 @@ class RecordRepository(
         return id
     }
 
+    /** 就医记录：医院/医生/诊断/费用选填，照片与异常共用照片表 */
+    suspend fun saveVet(
+        hospital: String?,
+        doctor: String?,
+        diagnosis: String?,
+        costYuan: Int?,
+        note: String?,
+        occurredAt: Long,
+        newPhotoUris: List<Uri> = emptyList(),
+        existing: RecordEntity? = null,
+        keepPhotoNames: List<String> = emptyList(),
+    ): Long {
+        val record = (existing ?: base(RecordType.VET, occurredAt)).copy(
+            occurredAt = occurredAt,
+            vetHospital = hospital?.trim()?.ifBlank { null },
+            vetDoctor = doctor?.trim()?.ifBlank { null },
+            vetDiagnosis = diagnosis?.trim()?.ifBlank { null },
+            vetCostYuan = costYuan,
+            note = note?.trim()?.ifBlank { null },
+            updatedAt = now(),
+        )
+        val id = if (existing == null) recordDao.insert(record) else {
+            recordDao.update(record)
+            existing.id
+        }
+        val names = keepPhotoNames + newPhotoUris.mapNotNull { photoStore.import(it) }
+        photoDao.deleteByRecordId(id)
+        if (names.isNotEmpty()) {
+            photoDao.insertAll(names.mapIndexed { index, name ->
+                RecordPhotoEntity(recordId = id, fileName = name, sortOrder = index)
+            })
+        }
+        return id
+    }
+
     suspend fun deleteTag(id: Long) {
         tagDao.deleteCustom(id)
     }
@@ -514,6 +561,20 @@ class RecordRepository(
         photoDao.observeByRecord(recordId).let { flow -> firstValue(flow).map { it.fileName } }
 
     fun photoFile(name: String): File = photoStore.file(name)
+
+    /** 异常照片墙：异常记录的照片按时间倒序展平，磁盘缺失的跳过 */
+    suspend fun anomalyPhotos(): List<AnomalyPhotoItem> = withContext(Dispatchers.IO) {
+        val records = recordDao.getByType(RecordType.ANOMALY)
+        if (records.isEmpty()) return@withContext emptyList()
+        val grouped = photoDao.getByRecordIds(records.map { it.id }).groupBy { it.recordId }
+        records.flatMap { record ->
+            grouped[record.id].orEmpty().mapNotNull { photo ->
+                photoFile(photo.fileName)
+                    .takeIf { it.isFile }
+                    ?.let { AnomalyPhotoItem(record, it) }
+            }
+        }
+    }
 
     suspend fun importPhoto(uri: Uri): String? = photoStore.import(uri)
 

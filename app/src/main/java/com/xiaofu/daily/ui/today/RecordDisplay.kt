@@ -82,6 +82,19 @@ fun recordDisplay(record: RecordEntity): RecordDisplay {
             value = listOfNotNull(record.anomalyCategory, record.severity?.label()).joinToString(" · "),
             subtitle = record.note,
         )
+
+        RecordType.VET -> RecordDisplay(
+            iconRes = style.iconRes,
+            fg = style.fg,
+            bg = style.bg,
+            title = "就诊",
+            value = record.vetHospital ?: record.vetDiagnosis ?: "兽医就诊",
+            subtitle = listOfNotNull(
+                record.vetDoctor?.let { "医生 $it" },
+                record.vetDiagnosis?.takeIf { record.vetHospital != null },
+                record.vetCostYuan?.let { "¥$it" },
+            ).joinToString(" · ").ifBlank { record.note },
+        )
     }
 }
 

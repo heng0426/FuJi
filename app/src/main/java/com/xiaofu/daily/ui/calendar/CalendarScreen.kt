@@ -109,6 +109,7 @@ private val createOptions = listOf(
     CreateOption("体重", RecordType.WEIGHT),
     CreateOption("驱虫", RecordType.DEWORM),
     CreateOption("疫苗", RecordType.VACCINE),
+    CreateOption("就诊", RecordType.VET),
     CreateOption("异常", RecordType.ANOMALY),
 )
 
@@ -339,6 +340,7 @@ fun CalendarScreen(
                     option.type == RecordType.WEIGHT -> onOpenEditor(EditorTarget.Weight(occurredAtMs = backfillAt))
                     option.type == RecordType.DEWORM -> onOpenEditor(EditorTarget.Deworm(occurredAtMs = backfillAt))
                     option.type == RecordType.VACCINE -> onOpenEditor(EditorTarget.Vaccine(occurredAtMs = backfillAt))
+                    option.type == RecordType.VET -> onOpenEditor(EditorTarget.Vet(occurredAtMs = backfillAt))
                     else -> onOpenEditor(EditorTarget.Anomaly(occurredAtMs = backfillAt))
                 }
             },
@@ -409,6 +411,7 @@ fun CalendarScreen(
         DetailSheet(
             record = record,
             onDismiss = { detail = null },
+            onReopen = { detail = it },
             onEdit = {
                 detail = null
                 when (record.type) {
@@ -424,6 +427,7 @@ fun CalendarScreen(
                     RecordType.WEIGHT -> onOpenEditor(EditorTarget.Weight(record))
                     RecordType.DEWORM -> onOpenEditor(EditorTarget.Deworm(record))
                     RecordType.VACCINE -> onOpenEditor(EditorTarget.Vaccine(record))
+                    RecordType.VET -> onOpenEditor(EditorTarget.Vet(record))
                     RecordType.ANOMALY -> onOpenEditor(EditorTarget.Anomaly(record))
                 }
             },

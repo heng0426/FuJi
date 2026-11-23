@@ -57,7 +57,9 @@ import com.xiaofu.daily.data.local.entity.RecordEntity
 import com.xiaofu.daily.data.local.model.MealKind
 import com.xiaofu.daily.data.local.model.RecordType
 import com.xiaofu.daily.ui.components.BigNumberField
+import com.xiaofu.daily.ui.components.LocalPhotoViewerHost
 import com.xiaofu.daily.ui.components.PillChip
+import com.xiaofu.daily.ui.components.ViewerPhoto
 import com.xiaofu.daily.ui.components.PrimaryButton
 import com.xiaofu.daily.ui.components.SecondaryButton
 import com.xiaofu.daily.ui.components.SegmentedRow
@@ -409,6 +411,9 @@ fun MoreSheet(onDismiss: () -> Unit, onPick: (EditorTarget) -> Unit) {
             MoreRow(R.drawable.ic_ms_vaccines, "疫苗", "接种记录与下次接种提醒", RecordType.VACCINE) {
                 onPick(EditorTarget.Vaccine())
             }
+            MoreRow(R.drawable.ic_ms_local_hospital, "就诊", "医院、诊断与费用", RecordType.VET) {
+                onPick(EditorTarget.Vet())
+            }
             MoreRow(R.drawable.ic_ms_warning, "异常", "呕吐、腹泻等异常情况", RecordType.ANOMALY, last = true) {
                 onPick(EditorTarget.Anomaly())
             }
@@ -449,10 +454,29 @@ fun DetailSheet(
     onDismiss: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
+    onReopen: (RecordEntity) -> Unit = {},
 ) {
     val cs = MaterialTheme.colorScheme
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val display = recordDisplay(record)
+    val viewerHost = LocalPhotoViewerHost.current
+    val photos by produceState(initialValue = emptyList<File>(), record.id) {
+        value = runCatching {
+            AppContainer.repository.photoNames(record.id)
+                .map { AppContainer.repository.photoFile(it) }
+        }.getOrDefault(emptyList())
+    }
+    // 预览挂在 App 根窗口上，先关掉底部弹窗，关闭预览后再恢复详情
+    val openViewer: (Int) -> Unit = { index ->
+        viewerHost?.let { host ->
+            host.show(
+                photos = photos.map { ViewerPhoto(it, photoHint(record)) },
+                initialIndex = index,
+                onClosed = { onReopen(record) },
+            )
+            onDismiss()
+        }
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -484,16 +508,29 @@ fun DetailSheet(
             }
             Spacer(Modifier.height(14.dp))
             DetailRow("时间", Fmt.detailTime(record.occurredAt))
-            if (record.type == RecordType.ANOMALY) {
-                DetailRow("分类", record.anomalyCategory ?: "—")
-                record.severity?.let { DetailRow("程度", it.label()) }
-                DetailRow("备注", record.note?.takeIf { it.isNotBlank() } ?: "无", multiline = true)
-                AnomalyPhotoStrip(record.id)
-            } else {
-                record.note?.takeIf { it.isNotBlank() }?.let { DetailRow("备注", it, multiline = true) }
-                if (record.type == RecordType.DEWORM || record.type == RecordType.VACCINE) {
-                    record.nextDueDate?.let {
-                        DetailRow(if (record.type == RecordType.VACCINE) "下次接种" else "下次到期", Fmt.fullDate(it))
+            when (record.type) {
+                RecordType.ANOMALY -> {
+                    DetailRow("分类", record.anomalyCategory ?: "—")
+                    record.severity?.let { DetailRow("程度", it.label()) }
+                    DetailRow("备注", record.note?.takeIf { it.isNotBlank() } ?: "无", multiline = true)
+                    RecordPhotoStrip(photos, openViewer)
+                }
+
+                RecordType.VET -> {
+                    record.vetHospital?.let { DetailRow("医院", it) }
+                    record.vetDoctor?.let { DetailRow("医生", it) }
+                    record.vetDiagnosis?.let { DetailRow("诊断", it, multiline = true) }
+                    record.vetCostYuan?.let { DetailRow("费用", "¥$it") }
+                    DetailRow("备注", record.note?.takeIf { it.isNotBlank() } ?: "无", multiline = true)
+                    RecordPhotoStrip(photos, openViewer)
+                }
+
+                else -> {
+                    record.note?.takeIf { it.isNotBlank() }?.let { DetailRow("备注", it, multiline = true) }
+                    if (record.type == RecordType.DEWORM || record.type == RecordType.VACCINE) {
+                        record.nextDueDate?.let {
+                            DetailRow(if (record.type == RecordType.VACCINE) "下次接种" else "下次到期", Fmt.fullDate(it))
+                        }
                     }
                 }
             }
@@ -506,6 +543,23 @@ fun DetailSheet(
             }
         }
     }
+}
+
+/** 预览底部的提示：异常=分类·程度·时间，就医=医院/诊断·医生·时间 */
+private fun photoHint(record: RecordEntity): String = when (record.type) {
+    RecordType.ANOMALY -> listOfNotNull(
+        record.anomalyCategory,
+        record.severity?.label(),
+        Fmt.detailTime(record.occurredAt),
+    ).joinToString(" · ")
+
+    RecordType.VET -> listOfNotNull(
+        record.vetHospital ?: record.vetDiagnosis,
+        record.vetDoctor?.let { "医生 $it" },
+        Fmt.detailTime(record.occurredAt),
+    ).joinToString(" · ")
+
+    else -> Fmt.detailTime(record.occurredAt)
 }
 
 @Composable
@@ -526,13 +580,8 @@ private fun DetailRow(label: String, value: String, multiline: Boolean = false) 
 }
 
 @Composable
-private fun AnomalyPhotoStrip(recordId: Long) {
+private fun RecordPhotoStrip(photos: List<File>, onPhotoClick: (Int) -> Unit) {
     val cs = MaterialTheme.colorScheme
-    val photos by produceState(initialValue = emptyList<File>(), recordId) {
-        value = runCatching {
-            AppContainer.repository.photoNames(recordId).map { AppContainer.repository.photoFile(it) }
-        }.getOrDefault(emptyList())
-    }
     Spacer(Modifier.height(8.dp))
     Text("照片", style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
     if (photos.isEmpty()) {
@@ -547,13 +596,15 @@ private fun AnomalyPhotoStrip(recordId: Long) {
             Modifier.fillMaxWidth().padding(top = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            photos.take(3).forEach { file -> AnomalyThumb(file) }
+            photos.take(3).forEachIndexed { index, file ->
+                RecordThumb(file) { onPhotoClick(index) }
+            }
         }
     }
 }
 
 @Composable
-private fun AnomalyThumb(file: File) {
+private fun RecordThumb(file: File, onClick: () -> Unit) {
     val cs = MaterialTheme.colorScheme
     val bitmap by produceState<ImageBitmap?>(initialValue = null, file.path) {
         value = withContext(Dispatchers.IO) {
@@ -567,10 +618,11 @@ private fun AnomalyThumb(file: File) {
         Modifier
             .size(72.dp)
             .clip(RoundedCornerShape(12.dp))
-            .background(cs.surfaceVariant),
+            .background(cs.surfaceVariant)
+            .clickable(onClick = onClick),
     ) {
         if (bitmap != null) {
-            Image(bitmap!!, contentDescription = "异常照片", modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+            Image(bitmap!!, contentDescription = "预览照片", modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
         }
     }
 }

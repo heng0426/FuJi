@@ -1,0 +1,368 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 2,
+    "identityHash": "cacc5a51ff4218b1c5e4897e0fddd9f9",
+    "entities": [
+      {
+        "tableName": "records",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `pet_id` INTEGER NOT NULL, `type` TEXT NOT NULL, `occurred_at` INTEGER NOT NULL, `note` TEXT, `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, `amount_ml` INTEGER, `meal_kind` TEXT, `serving_count` REAL, `grams_per_serving` INTEGER, `total_grams` INTEGER, `snack_type` TEXT, `weight_grams` INTEGER, `deworm_kind` TEXT, `medicine` TEXT, `next_due_date` INTEGER, `vaccine_name` TEXT, `anomaly_category` TEXT, `severity` TEXT, `vet_hospital` TEXT, `vet_doctor` TEXT, `vet_diagnosis` TEXT, `vet_cost_yuan` INTEGER)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "petId",
+            "columnName": "pet_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "type",
+            "columnName": "type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "occurredAt",
+            "columnName": "occurred_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "note",
+            "columnName": "note",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updated_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "amountMl",
+            "columnName": "amount_ml",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "mealKind",
+            "columnName": "meal_kind",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "servingCount",
+            "columnName": "serving_count",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "gramsPerServing",
+            "columnName": "grams_per_serving",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "totalGrams",
+            "columnName": "total_grams",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "snackType",
+            "columnName": "snack_type",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "weightGrams",
+            "columnName": "weight_grams",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "dewormKind",
+            "columnName": "deworm_kind",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "medicine",
+            "columnName": "medicine",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "nextDueDate",
+            "columnName": "next_due_date",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "vaccineName",
+            "columnName": "vaccine_name",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "anomalyCategory",
+            "columnName": "anomaly_category",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "severity",
+            "columnName": "severity",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "vetHospital",
+            "columnName": "vet_hospital",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "vetDoctor",
+            "columnName": "vet_doctor",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "vetDiagnosis",
+            "columnName": "vet_diagnosis",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "vetCostYuan",
+            "columnName": "vet_cost_yuan",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_records_occurred_at",
+            "unique": false,
+            "columnNames": [
+              "occurred_at"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_records_occurred_at` ON `${TABLE_NAME}` (`occurred_at`)"
+          },
+          {
+            "name": "index_records_type_occurred_at",
+            "unique": false,
+            "columnNames": [
+              "type",
+              "occurred_at"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_records_type_occurred_at` ON `${TABLE_NAME}` (`type`, `occurred_at`)"
+          },
+          {
+            "name": "index_records_next_due_date",
+            "unique": false,
+            "columnNames": [
+              "next_due_date"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_records_next_due_date` ON `${TABLE_NAME}` (`next_due_date`)"
+          }
+        ]
+      },
+      {
+        "tableName": "record_photos",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `record_id` INTEGER NOT NULL, `file_name` TEXT NOT NULL, `sort_order` INTEGER NOT NULL, FOREIGN KEY(`record_id`) REFERENCES `records`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "recordId",
+            "columnName": "record_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fileName",
+            "columnName": "file_name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sortOrder",
+            "columnName": "sort_order",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_record_photos_record_id",
+            "unique": false,
+            "columnNames": [
+              "record_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_record_photos_record_id` ON `${TABLE_NAME}` (`record_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "records",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "record_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "profile",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `name` TEXT NOT NULL, `birthday_day` INTEGER, `breed` TEXT, `gender` TEXT, `photo_file` TEXT, `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "birthdayDay",
+            "columnName": "birthday_day",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "breed",
+            "columnName": "breed",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "gender",
+            "columnName": "gender",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "photoFile",
+            "columnName": "photo_file",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updated_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "anomaly_tags",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `is_preset` INTEGER NOT NULL, `sort_order` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isPreset",
+            "columnName": "is_preset",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sortOrder",
+            "columnName": "sort_order",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_anomaly_tags_name",
+            "unique": true,
+            "columnNames": [
+              "name"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_anomaly_tags_name` ON `${TABLE_NAME}` (`name`)"
+          }
+        ]
+      },
+      {
+        "tableName": "settings",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`key` TEXT NOT NULL, `value` TEXT NOT NULL, PRIMARY KEY(`key`))",
+        "fields": [
+          {
+            "fieldPath": "key",
+            "columnName": "key",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "value",
+            "columnName": "value",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "key"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'cacc5a51ff4218b1c5e4897e0fddd9f9')"
+    ]
+  }
+}

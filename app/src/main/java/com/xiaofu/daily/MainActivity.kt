@@ -15,6 +15,7 @@ import com.xiaofu.daily.ui.theme.ThemeMode
 import com.xiaofu.daily.ui.theme.ThemePreference
 import androidx.core.view.WindowCompat
 import com.xiaofu.daily.ui.theme.XiaoFuTheme
+import com.xiaofu.daily.widget.WidgetRefreshScheduler
 import com.xiaofu.daily.widget.WidgetUpdater
 
 class MainActivity : ComponentActivity() {
@@ -44,6 +45,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        // 跨零点后准时刷新小组件；WorkManager 会在重启后保留任务
+        WidgetRefreshScheduler.scheduleMidnightRefresh(this)
         setContent {
             val mode = remember { ThemePreference.read(this) }
             val dark = when (mode) {

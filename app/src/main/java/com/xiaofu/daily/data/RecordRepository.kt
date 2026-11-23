@@ -103,6 +103,9 @@ private val DefaultNameTags = mapOf(
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
+/** 照片墙条目：异常记录 + 磁盘文件 */
+data class AnomalyPhotoItem(val record: RecordEntity, val file: File)
+
 class RecordRepository(
     db: XiaoFuDatabase,
     context: Context,
@@ -523,6 +526,20 @@ class RecordRepository(
         photoDao.observeByRecord(recordId).let { flow -> firstValue(flow).map { it.fileName } }
 
     fun photoFile(name: String): File = photoStore.file(name)
+
+    /** 异常照片墙：异常记录的照片按时间倒序展平，磁盘缺失的跳过 */
+    suspend fun anomalyPhotos(): List<AnomalyPhotoItem> = withContext(Dispatchers.IO) {
+        val records = recordDao.getByType(RecordType.ANOMALY)
+        if (records.isEmpty()) return@withContext emptyList()
+        val grouped = photoDao.getByRecordIds(records.map { it.id }).groupBy { it.recordId }
+        records.flatMap { record ->
+            grouped[record.id].orEmpty().mapNotNull { photo ->
+                photoFile(photo.fileName)
+                    .takeIf { it.isFile }
+                    ?.let { AnomalyPhotoItem(record, it) }
+            }
+        }
+    }
 
     suspend fun importPhoto(uri: Uri): String? = photoStore.import(uri)
 

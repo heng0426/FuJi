@@ -18,6 +18,10 @@ interface PhotoDao {
     @Query("SELECT * FROM record_photos WHERE record_id = :recordId ORDER BY sort_order ASC")
     fun observeByRecord(recordId: Long): Flow<List<RecordPhotoEntity>>
 
+    /** 照片墙批量读取：多条记录的照片，按记录与排序返回 */
+    @Query("SELECT * FROM record_photos WHERE record_id IN (:recordIds) ORDER BY record_id ASC, sort_order ASC")
+    suspend fun getByRecordIds(recordIds: List<Long>): List<RecordPhotoEntity>
+
     // ---- 备份/恢复 ----
 
     @Query("SELECT * FROM record_photos ORDER BY id ASC")

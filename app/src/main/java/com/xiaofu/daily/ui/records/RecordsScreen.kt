@@ -56,6 +56,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.xiaofu.daily.R
+import com.xiaofu.daily.data.AnomalyPhotoItem
 import com.xiaofu.daily.data.DueCard
 import com.xiaofu.daily.data.local.entity.RecordEntity
 import com.xiaofu.daily.data.local.model.MealKind
@@ -121,6 +122,12 @@ fun RecordsScreen(
     var lastServings by remember { mutableIntStateOf(1) }
     var lastSnack by remember { mutableStateOf<String?>(null) }
     var weightView by remember { mutableIntStateOf(0) }
+    var showGallery by remember { mutableStateOf(false) }
+    var galleryPhotos by remember { mutableStateOf<List<AnomalyPhotoItem>?>(null) }
+
+    LaunchedEffect(showGallery) {
+        if (showGallery) galleryPhotos = vm.anomalyPhotos()
+    }
 
     LaunchedEffect(Unit) {
         lastWater = actions.lastWaterMl()
@@ -182,6 +189,12 @@ fun RecordsScreen(
                     Text("记录", style = MaterialTheme.typography.headlineSmall, color = cs.onBackground)
                     Text("按类型查看历史", style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant, modifier = Modifier.padding(top = 2.dp))
                 }
+                RoundIconButton(
+                    R.drawable.ic_ms_image,
+                    onClick = { showGallery = true },
+                    contentDescription = "异常照片墙",
+                )
+                Spacer(Modifier.size(4.dp))
                 RoundIconButton(R.drawable.ic_ms_search)
             }
         }
@@ -420,6 +433,17 @@ fun RecordsScreen(
                     showFood = false
                     foodEditing = null
                 }
+            },
+        )
+    }
+
+    if (showGallery) {
+        AnomalyGalleryDialog(
+            photos = galleryPhotos,
+            onDismiss = { showGallery = false },
+            onOpenRecord = { record ->
+                showGallery = false
+                detail = record
             },
         )
     }

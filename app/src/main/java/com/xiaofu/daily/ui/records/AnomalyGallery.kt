@@ -1,6 +1,9 @@
 package com.xiaofu.daily.ui.records
 
 import android.graphics.BitmapFactory
+import android.graphics.drawable.ColorDrawable
+import android.view.View
+import android.view.Window
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -24,6 +27,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -35,11 +39,16 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import com.xiaofu.daily.R
 import com.xiaofu.daily.data.AnomalyPhotoItem
 import com.xiaofu.daily.data.local.entity.RecordEntity
@@ -47,6 +56,7 @@ import com.xiaofu.daily.ui.components.PhotoViewerDialog
 import com.xiaofu.daily.ui.components.RoundIconButton
 import com.xiaofu.daily.ui.components.ViewerPhoto
 import com.xiaofu.daily.ui.format.Fmt
+import com.xiaofu.daily.ui.theme.LocalAppDarkTheme
 import com.xiaofu.daily.ui.today.label
 import java.io.File
 import kotlinx.coroutines.Dispatchers
@@ -66,9 +76,13 @@ fun AnomalyGalleryDialog(
     var viewerIndex by remember { mutableStateOf<Int?>(null) }
     Dialog(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false,
+        ),
     ) {
         Surface(Modifier.fillMaxSize(), color = cs.background) {
+            GalleryWindowChrome()
             Column(Modifier.fillMaxSize().systemBarsPadding()) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(start = 12.dp, end = 20.dp, top = 8.dp, bottom = 8.dp),
@@ -193,3 +207,29 @@ private fun anomalyHint(record: RecordEntity): String = listOfNotNull(
     record.severity?.label(),
     Fmt.detailTime(record.occurredAt),
 ).joinToString(" · ")
+
+/** 照片墙是独立 Dialog 窗口：背景铺到系统栏、跟随主题切换状态栏图标明暗，避免上下色差 */
+@Composable
+private fun GalleryWindowChrome() {
+    val view = LocalView.current
+    val window = remember(view) { findGalleryWindow(view) } ?: return
+    val dark = LocalAppDarkTheme.current
+    SideEffect {
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.setDimAmount(0f)
+        window.setBackgroundDrawable(ColorDrawable(android.graphics.Color.TRANSPARENT))
+        val controller = WindowCompat.getInsetsController(window, view)
+        controller.show(WindowInsetsCompat.Type.statusBars())
+        controller.isAppearanceLightStatusBars = !dark
+        controller.isAppearanceLightNavigationBars = !dark
+    }
+}
+
+private fun findGalleryWindow(view: View): Window? {
+    var current: View? = view
+    while (current != null) {
+        if (current is DialogWindowProvider) return current.window
+        current = current.parent as? View
+    }
+    return null
+}

@@ -1,6 +1,10 @@
 package com.xiaofu.daily.ui.components
 
 import android.graphics.BitmapFactory
+import android.graphics.drawable.ColorDrawable
+import android.os.Build
+import android.view.View
+import android.view.Window
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -13,6 +17,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.displayCutoutPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -28,6 +33,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -47,11 +53,16 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import com.xiaofu.daily.R
 import java.io.File
 import kotlinx.coroutines.Dispatchers
@@ -86,8 +97,9 @@ fun PhotoViewerDialog(
         ) { photos.size }
         var zoomed by remember { mutableStateOf(false) }
         LaunchedEffect(pagerState.currentPage) { zoomed = false }
+        ViewerWindowChrome()
 
-        Box(Modifier.fillMaxSize().background(Color.Black)) {
+        Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.45f))) {
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.fillMaxSize(),
@@ -105,6 +117,7 @@ fun PhotoViewerDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .statusBarsPadding()
+                    .displayCutoutPadding()
                     .padding(horizontal = 6.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -130,36 +143,46 @@ fun PhotoViewerDialog(
             }
 
             val current = photos[pagerState.currentPage.coerceIn(0, photos.lastIndex)]
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .background(
-                        Brush.verticalGradient(
-                            listOf(Color.Transparent, Color.Black.copy(alpha = 0.78f)),
-                        ),
-                    )
-                    .navigationBarsPadding()
-                    .padding(start = 20.dp, end = 20.dp, top = 32.dp, bottom = 16.dp),
-            ) {
-                current.hint?.takeIf { it.isNotBlank() }?.let {
+            val hint = current.hint?.takeIf { it.isNotBlank() }
+            if (hint != null) {
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(Color.Transparent, Color.Black.copy(alpha = 0.55f)),
+                            ),
+                        )
+                        .navigationBarsPadding()
+                        .padding(start = 20.dp, end = 20.dp, top = 28.dp, bottom = 16.dp),
+                ) {
                     Text(
-                        it,
+                        hint,
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color.White,
                     )
                 }
-                Text(
-                    if (photos.size > 1) {
-                        "左右滑动切换 · 双指缩放 · 拖动查看 · 双击放大/还原"
-                    } else {
-                        "双指缩放 · 拖动查看 · 双击放大/还原"
-                    },
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color.White.copy(alpha = 0.7f),
-                    modifier = Modifier.padding(top = 4.dp),
-                )
             }
+        }
+    }
+}
+
+/** 预览窗口：隐藏状态栏、内容延伸到状态栏区域，背景做半透明模糊（API 31+） */
+@Composable
+private fun ViewerWindowChrome() {
+    val view = LocalView.current
+    val window = remember(view) { findDialogWindow(view) } ?: return
+    SideEffect {
+        window.setDimAmount(0.12f)
+        window.setBackgroundDrawable(ColorDrawable(android.graphics.Color.TRANSPARENT))
+        val controller = WindowCompat.getInsetsController(window, view)
+        controller.isAppearanceLightNavigationBars = false
+        controller.systemBarsBehavior =
+            WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        controller.hide(WindowInsetsCompat.Type.statusBars())
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            runCatching { window.setBackgroundBlurRadius(80) }
         }
     }
 }
@@ -262,6 +285,16 @@ private fun ZoomablePhoto(file: File, onZoomChanged: (Boolean) -> Unit) {
             else -> CircularProgressIndicator(color = Color.White)
         }
     }
+}
+
+/** 从 Dialog 内容视图向上找到承载窗口（Compose 的 DialogLayout 实现了 DialogWindowProvider） */
+private fun findDialogWindow(view: View): Window? {
+    var current: View? = view
+    while (current != null) {
+        if (current is DialogWindowProvider) return current.window
+        current = current.parent as? View
+    }
+    return null
 }
 
 /** 采样解码，长边不超过 maxSide，避免整张原图进内存 */

@@ -32,16 +32,20 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ripple
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -78,10 +82,12 @@ import com.xiaofu.daily.ui.today.DetailSheet
 import com.xiaofu.daily.ui.today.FoodSheet
 import com.xiaofu.daily.ui.today.TodayViewModel
 import com.xiaofu.daily.ui.today.WaterSheet
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.YearMonth
 import java.time.ZoneId
+import java.time.ZoneOffset
 import kotlinx.coroutines.launch
 
 private data class CreateOption(
@@ -99,6 +105,17 @@ private val createOptions = listOf(
     CreateOption("疫苗", RecordType.VACCINE),
     CreateOption("异常", RecordType.ANOMALY),
 )
+
+/** 跳转日期解析：按非数字分段提取，兼容 2026-11-23 / 2026/11/23 / 2026年11月23日 */
+private fun parseJumpDate(raw: String): LocalDate? {
+    val parts = raw.trim().split(Regex("\\D+")).filter { it.isNotBlank() }
+    if (parts.size != 3) return null
+    val numbers = parts.map { it.toIntOrNull() ?: return null }
+    val (year, month, day) = numbers
+    // 页面范围 2000-01 ~ 2199-12（锚点 2000-01，共 200 年）
+    if (year !in 2000..2199) return null
+    return runCatching { LocalDate.of(year, month, day) }.getOrNull()
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -221,7 +238,8 @@ fun CalendarScreen(
     }
 
     if (showJump) {
-        val parsed = runCatching { LocalDate.parse(jumpText.trim()) }.getOrNull()
+        val parsed = parseJumpDate(jumpText)
+        var showJumpPicker by remember { mutableStateOf(false) }
         AlertDialog(
             onDismissRequest = { showJump = false },
             containerColor = cs.surface,
@@ -229,20 +247,35 @@ fun CalendarScreen(
             title = { Text("跳转到日期", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = cs.onSurface) },
             text = {
                 Column {
-                    Text("手动输入日期（年-月-日）", style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
+                    Text(
+                        "支持 2026-11-23、2026/11/23、2026年11月23日",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = cs.onSurfaceVariant,
+                    )
                     TextFieldBox(
                         value = jumpText,
-                        onValueChange = { jumpText = it.take(10) },
+                        onValueChange = { jumpText = it.take(14) },
                         placeholder = "2026-11-23",
                     )
                     if (parsed == null && jumpText.isNotBlank()) {
                         Text(
-                            "格式应为 yyyy-MM-dd，例如 2026-11-23",
+                            "无法识别的日期，可切换到下方日历选择",
                             style = MaterialTheme.typography.labelSmall,
                             color = cs.error,
                             modifier = Modifier.padding(top = 6.dp),
                         )
                     }
+                    Text(
+                        "从日历选择日期",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = cs.primary,
+                        modifier = Modifier
+                            .padding(top = 6.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .clickable { showJumpPicker = true }
+                            .padding(horizontal = 4.dp, vertical = 6.dp),
+                    )
                 }
             },
             confirmButton = {
@@ -256,6 +289,30 @@ fun CalendarScreen(
             },
             dismissButton = { TextButton(onClick = { showJump = false }) { Text("取消", color = cs.onSurfaceVariant) } },
         )
+
+        if (showJumpPicker) {
+            val initialDate = parsed ?: selected
+            val state = rememberDatePickerState(
+                initialSelectedDateMillis = initialDate.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(),
+            )
+            DatePickerDialog(
+                onDismissRequest = { showJumpPicker = false },
+                confirmButton = {
+                    TextButton(onClick = {
+                        state.selectedDateMillis?.let { millis ->
+                            vm.select(Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate())
+                        }
+                        showJumpPicker = false
+                        showJump = false
+                    }) { Text("确定", color = cs.primary) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showJumpPicker = false }) { Text("取消", color = cs.onSurfaceVariant) }
+                },
+            ) {
+                DatePicker(state = state)
+            }
+        }
     }
 
     if (showCreate) {
@@ -391,7 +448,19 @@ private fun MonthCard(
         initialPage = (month.year - anchor.year) * 12 + (month.monthValue - anchor.monthValue),
         pageCount = { 12 * 200 },
     )
-    val visibleMonth = anchor.plusMonths(pagerState.currentPage.toLong())
+    // 标题月份随拖动连续变化：越过页面中线（±50%）即切换，与网格跟手动作同步；
+    // derivedStateOf 让重组只发生在月份值真正变化时
+    val visibleMonth = remember(anchor) {
+        derivedStateOf {
+            val fraction = pagerState.currentPageOffsetFraction
+            val shift = when {
+                fraction <= -0.5f -> 1L
+                fraction >= 0.5f -> -1L
+                else -> 0L
+            }
+            anchor.plusMonths(pagerState.currentPage + shift)
+        }
+    }.value
 
     LaunchedEffect(month) {
         val targetPage = (month.year - anchor.year) * 12 + (month.monthValue - anchor.monthValue)

@@ -452,6 +452,10 @@ fun AnomalyEditor(vm: TodayViewModel, record: RecordEntity?, initialOccurredAt: 
     ) {
         FormLabel("分类", badge = "必填")
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            // 历史记录的分类可能已从标签库删除：仍显示为选中 chip，避免编辑时“无分类”
+            if (category.isNotBlank() && tags.none { it.name == category }) {
+                PillChip(text = category, selected = true, onClick = {})
+            }
             tags.forEach { tag ->
                 PillChip(
                     text = tag.name,

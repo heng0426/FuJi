@@ -2,9 +2,9 @@
 
 单宠（橘猫「小福」）日常健康与生活记录 Android App。核心体验是「打开即可记、一眼看懂」：喝水、主粮/加餐、体重、驱虫、疫苗、异常、就医七类记录，配合同步汇总、日历回看、到期提醒、趋势图与异常照片墙。
 
-- **当前版本**：`1.1.0`（versionCode 11）
-- **交付形态**：`dist/小福日常-v1.1.0.apk`（自测签名，覆盖安装保留数据）
-- **状态**：1.1.0 已发布；`dev` 分支已含 P1 修复（跨零点刷新、到期天数设置、备份恢复原子性、记录页分页、份数整份化），待真机验收后发 1.1.1。P2 桌面小组件已在 `feature/p2-widget` 分支开发完成（4×2 组合 + 2×2 喝水/喂食），待手动验收。历史见 [`docs/任务清单-小福日常.md`](docs/任务清单-小福日常.md)
+- **当前版本**：`1.2.0`（versionCode 12）
+- **交付形态**：`dist/小福日常-v1.2.0.apk`（自测签名，覆盖安装保留数据）
+- **状态**：1.2.0 已构建（自用）。包含 P1 修复、桌面小组件（4×2 + 2×2）、近 7 天柱状图、异常照片墙与全屏预览、兽医就诊记录（数据库 v2）。历史见 [`docs/任务清单-小福日常.md`](docs/任务清单-小福日常.md)
 - **技术栈**：Kotlin · Jetpack Compose · Material 3 · Room · WorkManager
 - **平台**：Android 9+（minSdk 28），compileSdk / targetSdk 37
 
@@ -64,7 +64,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:ANDROID_HOME\platform-tools;$env:Path"
 
 .\gradlew.bat assembleDebug      # 调试包
 .\gradlew.bat assembleRelease    # 交付包
-adb install -r dist/小福日常-v1.1.0.apk
+adb install -r dist/小福日常-v1.2.0.apk
 ```
 
 签名：当前为自测签名，不可上架应用商店；覆盖安装（`adb install -r`）不会清空数据。
@@ -88,6 +88,7 @@ build/shots/         真机验收截图（本地，不随仓库分发）
 | [`docs/数据模型设计-阶段1.md`](docs/数据模型设计-阶段1.md) | 表结构、枚举、DAO、设置键与迁移 |
 | [`docs/任务清单-小福日常.md`](docs/任务清单-小福日常.md) | **当前进度：已完成 / 待进行 / 验收记录** |
 | [`docs/验收报告-0.9.0.md`](docs/验收报告-0.9.0.md) | 深色编辑表单、升级/异常路径 P0 验收结果 |
+| [`docs/发布说明-1.2.0.md`](docs/发布说明-1.2.0.md) | 1.2.0 发布范围、验证与安装说明 |
 | [`docs/发布说明-1.1.0.md`](docs/发布说明-1.1.0.md) | 1.1.0 发布范围、验证与安装说明 |
 | [`docs/发布说明-1.0.0.md`](docs/发布说明-1.0.0.md) | 1.0.0 发布范围、验证与安装说明 |
 | [`design/mockup.html`](design/mockup.html) | 可交互视觉稿 |

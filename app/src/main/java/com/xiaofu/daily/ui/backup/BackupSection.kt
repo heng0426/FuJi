@@ -40,6 +40,7 @@ import com.xiaofu.daily.R
 import com.xiaofu.daily.data.backup.BackupFormatException
 import com.xiaofu.daily.data.backup.BackupManager
 import com.xiaofu.daily.ui.components.CardSurface
+import com.xiaofu.daily.widget.WidgetUpdater
 import kotlinx.coroutines.launch
 import org.json.JSONException
 
@@ -86,6 +87,7 @@ fun BackupSection(onMessage: (String) -> Unit) {
                 onSuccess = { stats ->
                     val missing = if (stats.missingPhotos > 0) "（${stats.missingPhotos} 张照片文件缺失）" else ""
                     onMessage("已恢复 ${stats.records} 条记录、${stats.photos} 张照片$missing")
+                    WidgetUpdater.refreshAllAsync(context)
                 },
                 onFailure = { e ->
                     onMessage("恢复失败：${e.userMessage()}")

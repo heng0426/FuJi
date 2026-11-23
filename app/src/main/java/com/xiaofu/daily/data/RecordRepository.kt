@@ -13,6 +13,7 @@ import com.xiaofu.daily.data.local.model.DewormKind
 import com.xiaofu.daily.data.local.model.MealKind
 import com.xiaofu.daily.data.local.model.RecordType
 import com.xiaofu.daily.data.local.model.Severity
+import com.xiaofu.daily.widget.WidgetUpdater
 import java.io.File
 import java.io.FileOutputStream
 import java.time.LocalDate
@@ -112,6 +113,10 @@ class RecordRepository(
     private val settingsDao = db.settingsDao()
     private val tagDao = db.anomalyTagDao()
     private val photoStore = PhotoStore(context.applicationContext)
+    private val appContext = context.applicationContext
+
+    /** 记录/档案变化后通知桌面小组件（合并短时间内的多次请求） */
+    private fun requestWidgetRefresh() = WidgetUpdater.refreshAllAsync(appContext)
 
     // ---------- 查询 ----------
 
@@ -227,8 +232,10 @@ class RecordRepository(
 
     fun observeProfile(): Flow<com.xiaofu.daily.data.local.entity.ProfileEntity?> = profileDao.observeProfile()
 
-    suspend fun updateProfile(profile: com.xiaofu.daily.data.local.entity.ProfileEntity) =
+    suspend fun updateProfile(profile: com.xiaofu.daily.data.local.entity.ProfileEntity) {
         profileDao.upsert(profile.copy(updatedAt = System.currentTimeMillis()))
+        requestWidgetRefresh()
+    }
 
     fun observeSettings(): Flow<List<SettingEntity>> = settingsDao.observeAll()
 
@@ -344,12 +351,14 @@ class RecordRepository(
 
     suspend fun saveWater(ml: Int, occurredAt: Long, existing: RecordEntity? = null): Long {
         settingsDao.put(SettingEntity(SettingsKeys.LAST_WATER_ML, ml.toString()))
-        return if (existing == null) {
+        val id = if (existing == null) {
             recordDao.insert(base(RecordType.WATER, occurredAt).copy(amountMl = ml))
         } else {
             recordDao.update(existing.copy(amountMl = ml, occurredAt = occurredAt, updatedAt = now()))
             existing.id
         }
+        requestWidgetRefresh()
+        return id
     }
 
     suspend fun saveFood(
@@ -381,10 +390,12 @@ class RecordRepository(
             snackType = if (mealKind == MealKind.SNACK) snackType else null,
             updatedAt = now(),
         )
-        return if (existing == null) recordDao.insert(record) else {
+        val id = if (existing == null) recordDao.insert(record) else {
             recordDao.update(record)
             record.id
         }
+        requestWidgetRefresh()
+        return id
     }
 
     suspend fun saveWeight(grams: Int, occurredAt: Long, note: String?, existing: RecordEntity? = null): Long {
@@ -512,6 +523,7 @@ class RecordRepository(
         val record = recordDao.getById(id) ?: return null
         val photos = firstValue(photoDao.observeByRecord(id))
         recordDao.deleteById(id)
+        requestWidgetRefresh()
         return RecordSnapshot(record, photos)
     }
 
@@ -525,6 +537,7 @@ class RecordRepository(
                 },
             )
         }
+        requestWidgetRefresh()
     }
 
     private suspend fun <T> firstValue(flow: Flow<T>): T = flow.first()

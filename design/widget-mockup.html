@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>小福日常 · 桌面小组件设计稿 v0.3</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/material-symbols@0.28.0/rounded.css">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --page:#F1EBE3;--page-ink:#2B2018;--page-ink2:#7B6A5B;--page-line:#E3D8CB;
+    --brand:#F09C63;--brand-strong:#B5501A;--cream:#FFF8F3;
+  }
+  body{background:var(--page);color:var(--page-ink);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Noto Sans SC","Microsoft YaHei",sans-serif;padding:44px 32px 72px;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1440px;margin:0 auto}
+  .head{display:flex;justify-content:space-between;align-items:flex-end;gap:32px;flex-wrap:wrap;padding-bottom:22px;border-bottom:1px solid var(--page-line);margin-bottom:30px}
+  .brand{display:flex;align-items:center;gap:14px}
+  .brand .mark{width:46px;height:46px;border-radius:15px;background:var(--brand);display:grid;place-items:center;color:#3A1E0A;box-shadow:0 6px 16px rgba(180,100,40,.25)}
+  .brand .mark .ms{font-size:26px}
+  h1{font-size:25px;font-weight:600;letter-spacing:-.02em;line-height:1.2}
+  .head p{font-size:12.5px;color:var(--page-ink2);margin-top:5px;line-height:1.6}
+  .meta{display:flex;gap:24px;flex-wrap:wrap}
+  .pal{display:flex;flex-direction:column;gap:6px;align-items:center}
+  .pal i{width:30px;height:30px;border-radius:10px;border:1px solid rgba(0,0,0,.07);display:block}
+  .pal span{font-size:10.5px;color:var(--page-ink2);letter-spacing:.02em}
+  .ms{font-family:"Material Symbols Rounded";font-weight:400;font-style:normal;font-size:20px;line-height:1;letter-spacing:normal;display:inline-block;font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24;user-select:none}
+
+  .decision{display:grid;grid-template-columns:1.35fr 1fr;gap:26px;background:#FFFDF9;border:1px solid var(--page-line);border-radius:22px;padding:24px 26px;margin-bottom:38px}
+  .eyebrow{font-size:10.5px;font-weight:600;letter-spacing:.12em;color:var(--brand-strong);text-transform:uppercase}
+  .decision h2{font-size:20px;font-weight:600;letter-spacing:-.02em;margin-top:8px;line-height:1.35}
+  .decision p{font-size:12.5px;line-height:1.75;color:#5E4C3D;margin-top:8px}
+  .points{display:flex;flex-direction:column;gap:12px;justify-content:center}
+  .point{display:flex;gap:11px;align-items:flex-start;font-size:12px;line-height:1.55;color:#5E4C3D}
+  .point .pi{width:26px;height:26px;border-radius:9px;background:#FFEBDD;color:#B5501A;display:grid;place-items:center;flex:none}
+  .point .pi .ms{font-size:16px}
+  .point b{display:block;font-size:12.5px;color:#2B2018;font-weight:600;margin-bottom:1px}
+
+  section.block{margin-bottom:42px}
+  .sec-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+  .sec-head .num{font-size:11px;font-weight:600;color:#A8845F;background:#EADFCF;border-radius:6px;padding:2px 7px;letter-spacing:.06em}
+  .sec-head h2{font-size:19px;font-weight:600;letter-spacing:-.02em}
+  .sec-head .hint{margin-left:auto;font-size:10.5px;color:#8A7361;background:#EDE4D8;border:1px solid #E0D3C2;border-radius:999px;padding:3px 10px}
+  .lead{font-size:12.5px;line-height:1.75;color:var(--page-ink2);max-width:940px;margin-bottom:18px}
+
+  .frames{display:flex;flex-wrap:wrap;gap:34px 30px}
+  .frame{width:360px;flex:none}
+  .cap{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:500;color:#5C4A3B;margin-bottom:11px}
+  .cap .tag{margin-left:auto;font-size:10px;font-weight:400;color:#8A7361;background:#EDE4D8;border:1px solid #E0D3C2;border-radius:999px;padding:2px 9px}
+
+  .phone{width:360px;height:640px;border-radius:40px;overflow:hidden;position:relative;border:1px solid rgba(60,40,24,.12);box-shadow:0 20px 46px rgba(70,45,22,.16),0 2px 6px rgba(70,45,22,.06)}
+  .phone.light{--wall1:#F3EADF;--wall2:#E3D2BE;--status:#3A2A1C;--app-bg:rgba(255,255,255,.74);--app-label:#3E2E21;--dock:rgba(255,255,255,.46)}
+  .phone.dark{--wall1:#1C1714;--wall2:#0E0C0B;--status:#E8DCD2;--app-bg:rgba(255,255,255,.10);--app-label:#D8CCC2;--dock:rgba(255,255,255,.08)}
+  .wall{position:absolute;inset:0;background:linear-gradient(155deg,var(--wall1),var(--wall2))}
+  .wall:after{content:"";position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.16) 1px,transparent 1px);background-size:18px 18px;opacity:.5}
+  .statusbar{position:relative;height:30px;display:flex;align-items:center;justify-content:space-between;padding:0 22px;font-size:11.5px;color:var(--status);font-variant-numeric:tabular-nums}
+  .statusbar .r{display:flex;align-items:center;gap:4px}
+  .statusbar .ms{font-size:14px}
+  .home{position:relative;padding:12px 16px;display:flex;flex-direction:column;gap:20px}
+  .widget-slot{display:flex;justify-content:center}
+  .app-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px 12px;padding:0 6px}
+  .app{display:flex;flex-direction:column;align-items:center;gap:5px;font-size:9.5px;color:var(--app-label);white-space:nowrap}
+  .app .ic{width:52px;height:52px;border-radius:15px;background:var(--app-bg);display:grid;place-items:center;border:1px solid rgba(255,255,255,.25);box-shadow:0 4px 12px rgba(50,30,10,.08)}
+  .app .ic .ms{font-size:24px;color:#B5501A}
+  .app .ic.water .ms{color:#3E7CB1}
+  .app .ic.cal .ms{color:#6F55A0}
+  .app .ic.list .ms{color:#5E6E4E}
+  .dock{position:absolute;left:16px;right:16px;bottom:14px;height:62px;border-radius:22px;background:var(--dock);display:flex;align-items:center;justify-content:space-around;border:1px solid rgba(255,255,255,.22);backdrop-filter:blur(6px)}
+  .dock .di{width:44px;height:44px;border-radius:13px;background:var(--app-bg);display:grid;place-items:center}
+  .dock .di .ms{font-size:21px;color:#B5501A}
+  .dock .di.b .ms{color:#3E7CB1}
+  .dock .di.c .ms{color:#2C7366}
+
+  .widget{
+    --surface:#FFFFFF;--surface-2:#FBEDE3;--text:#221A14;--text-2:#6E5A4B;
+    --outline:#F0E2D6;--primary:#F09C63;--on-primary:#3A1E0A;--primary-strong:#B5501A;
+    --water:#3E7CB1;--water-bg:#E8F1F8;--food:#B5501A;--food-bg:#FDEBDD;
+    --anomaly:#B3261E;--anomaly-bg:#FBE9E7;
+    position:relative;background:var(--surface);border:1px solid var(--outline);
+    box-shadow:0 10px 26px rgba(60,40,24,.12),0 1px 3px rgba(60,40,24,.06);
+    color:var(--text);overflow:hidden;flex:none;
+  }
+  .widget.dark{
+    --surface:#211A16;--surface-2:#2C2320;--text:#F1E4DA;--text-2:#C9B4A5;
+    --outline:#3A2E27;--primary:#FFB77E;--on-primary:#4A2306;--primary-strong:#FFB77E;
+    --water:#6FB6F0;--water-bg:#13283C;--food:#FF9D57;--food-bg:#3B2112;
+    --anomaly:#FF9A93;--anomaly-bg:#3D1B19;
+    box-shadow:0 12px 28px rgba(0,0,0,.38),0 1px 3px rgba(0,0,0,.25);
+  }
+  .w-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex:none;min-width:0}
+  .w-id{display:flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;line-height:14px;white-space:nowrap}
+  .w-id .ms{font-size:14px;color:var(--primary-strong)}
+  .w-meta{font-size:10px;line-height:14px;color:var(--text-2);white-space:nowrap;display:flex;align-items:center;gap:3px}
+  .w-meta .ms{font-size:12px}
+  .w-meta b{font-weight:600;color:var(--text);font-variant-numeric:tabular-nums}
+  .w-fb{display:none;align-items:center;gap:4px;font-size:10px;line-height:14px;font-weight:500;color:var(--primary-strong);white-space:nowrap;min-width:0}
+  .w-fb .ms{font-size:13px}
+  .w-fb .undo{font-family:inherit;font-size:10px;font-weight:600;color:var(--primary-strong);background:none;border:0;padding:0 0 0 1px;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+  .w-fb .undo:hover{opacity:.8}
+  .widget.saved .w-meta,.widget.error .w-meta{display:none}
+  .widget.saved .w-fb{display:flex}
+  .widget.error .w-fb{display:flex;color:var(--anomaly)}
+
+  .widget.w4{width:296px;height:132px;border-radius:24px;padding:14px;display:flex;flex-direction:column;gap:8px}
+  .w4 .w-head{height:16px}
+  .w4 .w-body{flex:1;display:flex;min-height:0}
+  .w-sum{width:128px;flex:none;display:flex;flex-direction:column;justify-content:center;gap:1px;min-width:0}
+  .w-lab{font-size:10.5px;line-height:13px;color:var(--text-2)}
+  .w-num{font-size:28px;line-height:30px;font-weight:600;letter-spacing:-.035em;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .w-num em{font-style:normal;font-size:10.5px;line-height:13px;font-weight:500;color:var(--text-2);letter-spacing:0;margin-left:3px}
+  .w-food{display:flex;align-items:center;gap:4px;font-size:10.5px;line-height:14px;color:var(--text-2);white-space:nowrap;margin-top:2px}
+  .w-food .ms{font-size:12px;color:var(--food)}
+  .w-food b{font-weight:600;color:var(--text);font-variant-numeric:tabular-nums}
+  .w-last{font-size:10px;line-height:12px;color:var(--text-2);opacity:.86;white-space:nowrap;margin-top:2px}
+  .w-div{width:1px;background:var(--outline);margin:0 9px;flex:none}
+  .w-acts{flex:1;display:flex;gap:4px;min-width:0}
+  .w-btn{
+    flex:1;height:100%;min-height:48px;border-radius:14px;border:1px solid transparent;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+    font-family:inherit;cursor:pointer;padding:0;transition:transform .12s ease,filter .12s ease,background .12s ease;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .w-btn .ms{font-size:18px}
+  .w-btn b{font-size:11.5px;line-height:13px;font-weight:600}
+  .w-btn small{font-size:10px;line-height:12px;font-weight:500;opacity:.82;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .w-btn.water{background:var(--primary);color:var(--on-primary)}
+  .w-btn.water .ms{color:var(--on-primary)}
+  .w-btn.food{background:var(--surface);border-color:var(--outline);color:var(--text)}
+  .w-btn.food .ms{color:var(--food)}
+  .w-btn:hover{filter:brightness(1.02)}
+  .w-btn:active,.w-btn.is-pressed{transform:scale(.97);filter:brightness(.94)}
+  .w-btn:focus-visible{outline:2px solid var(--primary-strong);outline-offset:2px}
+
+  .widget.w2s{width:148px;height:132px;border-radius:24px;padding:11px;display:flex;flex-direction:column;gap:4px;cursor:pointer}
+  .w2s .w-head{height:14px}
+  .w2s .w-id{font-size:11px;line-height:14px}
+  .w2s .w-meta{font-size:9.5px;line-height:14px}
+  .w2s .w-sum2{flex:1;display:flex;flex-direction:column;justify-content:center;gap:0;min-width:0}
+  .w2s .w-num2{font-size:24px;line-height:27px;font-weight:600;letter-spacing:-.04em;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .w2s .w-num2 em{font-style:normal;font-size:10.5px;line-height:13px;font-weight:500;color:var(--text-2);letter-spacing:0;margin-left:3px}
+  .w2s.feed .w-num2{font-size:22px;line-height:26px;letter-spacing:-.035em}
+  .w2s .w-cta{
+    width:100%;height:48px;border-radius:14px;border:1px solid transparent;display:flex;align-items:center;justify-content:center;gap:6px;
+    font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;transition:transform .12s ease,filter .12s ease;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .w2s .w-cta .ms{font-size:18px}
+  .w2s.water-only .w-cta{background:var(--water-bg);color:var(--water);border-color:rgba(62,124,177,.18)}
+  .w2s.feed .w-cta{background:var(--food-bg);color:var(--food);border-color:rgba(181,80,26,.16)}
+  .w2s .w-cta:hover{filter:brightness(1.02)}
+  .w2s .w-cta:active{transform:scale(.98);filter:brightness(.96)}
+  .w2s .w-cta:focus-visible{outline:2px solid var(--primary-strong);outline-offset:2px}
+  .widget.w2s.saved .w-id,.widget.w2s.saved .w-meta{display:none}
+  .widget.w2s.saved .w-fb{display:flex}
+
+  .w-edit{position:absolute;inset:0;z-index:6;background:var(--surface);border-radius:inherit;display:flex;flex-direction:column;padding:14px;gap:8px}
+  .w-edit-head{height:16px;display:flex;align-items:center;justify-content:space-between;gap:6px;flex:none;min-width:0}
+  .w-edit-title{font-size:11.5px;line-height:16px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .w-edit-body{flex:1;display:flex;gap:8px;min-height:0}
+  .w-edit-main{flex:1;display:flex;flex-direction:column;justify-content:center;gap:2px;min-width:0}
+  .w-step{display:flex;align-items:center;gap:4px}
+  .w-step-btn{width:40px;height:40px;border-radius:12px;border:1px solid var(--outline);background:var(--surface);color:var(--text);display:grid;place-items:center;font-size:20px;line-height:1;font-family:inherit;cursor:pointer;flex:none;padding:0}
+  .w-step-btn:active{transform:scale(.96);filter:brightness(.96)}
+  .w-step-num{font-size:28px;line-height:30px;font-weight:600;letter-spacing:-.04em;font-variant-numeric:tabular-nums;white-space:nowrap;min-width:62px;text-align:center}
+  .w-step-num em{font-style:normal;font-size:10px;font-weight:500;color:var(--text-2);margin-left:2px;letter-spacing:0}
+  .w-edit-sub{font-size:9.5px;line-height:12px;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-left:2px}
+  .w-edit-actions{width:64px;display:flex;flex-direction:column;gap:4px;flex:none}
+  .w-edit-cancel-btn,.w-edit-ok{height:38px;border-radius:11px;border:1px solid var(--outline);background:var(--surface);color:var(--text);font-family:inherit;font-size:11.5px;font-weight:600;cursor:pointer;padding:0}
+  .w-edit-ok{background:var(--primary);border-color:transparent;color:var(--on-primary)}
+  .w-edit-cancel-btn:active,.w-edit-ok:active{transform:scale(.97);filter:brightness(.96)}
+  .w2s .w-edit{padding:8px;gap:2px}
+  .w2s .w-edit-head{height:14px}
+  .w2s .w-edit-title{font-size:10.5px;line-height:14px}
+  .w2s .w-edit-body{flex-direction:column;gap:2px}
+  .w2s .w-edit-main{gap:0}
+  .w2s .w-step{gap:2px;justify-content:center}
+  .w2s .w-step-btn{width:40px;height:40px;border-radius:11px;font-size:19px}
+  .w2s .w-step-num{font-size:22px;line-height:24px;min-width:42px}
+  .w2s .w-edit-sub{font-size:9.5px;line-height:12px;margin-left:0;text-align:center}
+  .w2s .w-edit-actions{width:100%;flex-direction:row;gap:6px}
+  .w2s .w-edit-cancel-btn,.w2s .w-edit-ok{flex:1;height:40px;font-size:12px}
+
+  .mini-row{display:flex;flex-wrap:wrap;gap:22px;align-items:stretch}
+  .mini-card{width:236px;height:236px;border-radius:28px;position:relative;overflow:hidden;border:1px solid rgba(60,40,24,.12);box-shadow:0 14px 32px rgba(70,45,22,.13);display:flex;align-items:center;justify-content:center;flex:none}
+  .mini-card.light{background:linear-gradient(155deg,#F3EADF,#E3D2BE)}
+  .mini-card.dark{background:linear-gradient(155deg,#1C1714,#0E0C0B);border-color:rgba(255,255,255,.06);box-shadow:0 14px 32px rgba(0,0,0,.32)}
+  .mini-card:after{content:"";position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.16) 1px,transparent 1px);background-size:18px 18px;opacity:.5;pointer-events:none}
+  .mini-card .widget{position:relative;z-index:1}
+  .mini-notes{flex:1;min-width:280px;max-width:480px;display:flex;flex-direction:column;justify-content:center;gap:11px;font-size:12px;line-height:1.7;color:#5E4C3D}
+  .mini-notes b{color:#2B2018;font-weight:600}
+  .note-line{display:flex;gap:8px;align-items:flex-start}
+  .note-line .ms{font-size:15px;color:#A8845F;margin-top:2px;flex:none}
+
+  .states{display:flex;flex-wrap:wrap;gap:22px;align-items:flex-start}
+  .state{width:296px;flex:none}
+  .state-label{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:500;color:#5C4A3B;margin-bottom:9px}
+  .state-label .dot{width:7px;height:7px;border-radius:999px;background:#C9B39C}
+  .state-label .dot.on{background:#B5501A}
+  .state-note{font-size:10.5px;line-height:1.6;color:#8A7361;margin-top:8px}
+  .error-note{display:flex;align-items:flex-start;gap:9px;background:#FBE9E7;border:1px solid #F2C9C4;border-radius:14px;padding:11px 14px;font-size:11.5px;line-height:1.65;color:#7A2A24;margin-top:18px;max-width:920px}
+  .error-note .ms{font-size:16px;color:#B3261E;flex:none;margin-top:1px}
+
+  .edit-row{display:flex;flex-wrap:wrap;gap:22px;align-items:flex-start}
+  .edit-card{width:296px;flex:none}
+  .edit-card.small{width:184px}
+  .edit-label{font-size:12px;font-weight:500;color:#5C4A3B;margin-bottom:9px;display:flex;align-items:center;gap:7px}
+  .edit-label .tag{margin-left:auto;font-size:10px;font-weight:400;color:#8A7361}
+  .edit-stage{width:296px;height:164px;border-radius:20px;background:#F7F0E7;border:1px solid #E8DCCD;display:flex;align-items:center;justify-content:center}
+  .edit-stage.small{width:184px;height:164px}
+  .edit-note{font-size:10.5px;line-height:1.6;color:#8A7361;margin-top:8px}
+
+  .spec-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  .spec-card{background:#FFFDF9;border:1px solid var(--page-line);border-radius:18px;padding:18px 20px}
+  .spec-card h3{font-size:13px;font-weight:600;color:#3B2A1D;margin-bottom:10px;display:flex;align-items:center;gap:7px}
+  .spec-card h3 .ms{font-size:16px;color:#A8845F}
+  table{width:100%;border-collapse:collapse;font-size:11.5px;line-height:1.55}
+  td{padding:6px 0;border-top:1px solid #EEE3D7;vertical-align:top;color:#4E3D2F}
+  tr:first-child td{border-top:0;padding-top:0}
+  td:first-child{width:38%;color:#8A7361;padding-right:12px;white-space:nowrap}
+  td b{font-weight:600;color:#2B2018}
+  .swatch{display:inline-block;width:10px;height:10px;border-radius:3px;vertical-align:-1px;margin-right:4px;border:1px solid rgba(0,0,0,.08)}
+
+  .notes{display:grid;grid-template-columns:1.15fr 1fr;gap:26px}
+  .notes h3{font-size:13px;font-weight:600;color:#3B2A1D;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+  .notes h3 .ms{font-size:16px;color:#A8845F}
+  .notes ol,.notes ul{padding-left:18px;font-size:12px;line-height:1.85;color:#5E4C3D}
+  .notes li{margin-bottom:4px}
+  .notes b{color:#2B2018}
+  .checklist{background:#FFFDF9;border:1px solid var(--page-line);border-radius:18px;padding:18px 20px}
+  .checklist .q{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-top:1px solid #EEE3D7;font-size:12px;line-height:1.6;color:#4E3D2F}
+  .checklist .q:first-of-type{border-top:0;padding-top:0}
+  .checklist .q .n{width:20px;height:20px;border-radius:7px;background:#FFEBDD;color:#B5501A;font-size:10.5px;font-weight:600;display:grid;place-items:center;flex:none;margin-top:1px}
+  .checklist .q b{color:#2B2018}
+  .checklist .q .rec{display:block;font-size:10.5px;color:#8A7361;margin-top:2px}
+
+  .foot{max-width:1440px;margin:42px auto 0;padding-top:20px;border-top:1px solid var(--page-line);font-size:11.5px;color:var(--page-ink2);line-height:1.8}
+  .foot b{font-weight:600;color:#6B503B}
+
+  @media (max-width:1120px){.decision{grid-template-columns:1fr}.notes{grid-template-columns:1fr}.spec-grid{grid-template-columns:1fr}}
+  @media (max-width:900px){body{padding:28px 16px 48px}.frames{gap:26px 18px}.states{gap:18px}.mini-notes{max-width:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="head">
+    <div class="brand">
+      <div class="mark"><span class="ms">pets</span></div>
+      <div>
+        <h1>小福日常 · 桌面小组件</h1>
+        <p>设计稿 v0.3 · 2026-11-23 · 组合 + 独立喝水/喂食 · 卡片内确认用量，不弹窗、不跳 App<br><b>实现说明（验收第 9 轮）</b>：已去掉撤销与「已记」提示；写入后直接显示更新后的「上次 xx」；2×2 数字再放大、标签并入头部；4×2 分隔线左移、按钮加宽并与 2×2 同色。</p>
+      </div>
+    </div>
+    <div class="meta">
+      <div class="pal"><i style="background:#F09C63"></i><span>主色</span></div>
+      <div class="pal"><i style="background:#B5501A"></i><span>强调</span></div>
+      <div class="pal"><i style="background:#FFF8F3"></i><span>奶油底</span></div>
+      <div class="pal"><i style="background:#221A14"></i><span>墨</span></div>
+      <div class="pal"><i style="background:#151110"></i><span>深色底</span></div>
+      <div class="pal"><i style="background:#3E7CB1"></i><span>水蓝</span></div>
+    </div>
+  </header>
+
+  <div class="decision">
+    <div>
+      <span class="eyebrow">本轮调整</span>
+      <h2>不弹窗：确认控件直接长在小组件上</h2>
+      <p>保留 4×2 组合，新增「只记喝水」「只记喂食」两个 2×2 独立组件。点按按钮后，卡片原地切换为确认状态：在卡片内用 −/+ 调整喝水量或喂食份数，点「记下来」才写入；点「取消」恢复原样。整个过程不打开 App、不弹窗、不离开桌面。</p>
+    </div>
+    <div class="points">
+      <div class="point"><div class="pi"><span class="ms">dashboard</span></div><div><b>1 个组合</b>4×2 同屏看喝水与主粮，两个按钮分别进入喝水/喂食确认态。</div></div>
+      <div class="point"><div class="pi"><span class="ms">crop_square</span></div><div><b>2 个独立</b>2×2 喝水组件、2×2 喂食组件，单独摆放，只承载一件事。</div></div>
+      <div class="point"><div class="pi"><span class="ms">touch_app</span></div><div><b>原地确认</b>确认态覆盖同一张卡片，−/+ 调量，确认/取消都在卡片上完成。</div></div>
+    </div>
+  </div>
+
+  <section class="block">
+    <div class="sec-head"><span class="num">01</span><h2>4×2 · 组合组件</h2><span class="hint">296 × 132 dp</span></div>
+    <p class="lead">左侧今日概览，右侧双键。按钮显示上次的量（60 ml / 3 份 · 30 克）；点按后不跳转，整张卡片切换为对应确认态，取消后回到这个界面。</p>
+    <div class="frames">
+
+      <div class="frame">
+        <div class="cap">浅色 · 桌面示意<span class="tag">4×2</span></div>
+        <div class="phone light">
+          <div class="wall"></div>
+          <div class="statusbar"><span>9:41</span><span class="r"><span class="ms">signal_cellular_alt</span><span class="ms">wifi</span><span class="ms">battery_full</span></span></div>
+          <div class="home">
+            <div class="widget-slot">
+              <div class="widget w4 light" data-widget data-water="780" data-food="4" data-grams="48" data-water-step="60" data-food-step="3" data-grams-step="10">
+                <div class="w-head">
+                  <div class="w-id"><span class="ms">pets</span><span>小福</span></div>
+                  <div class="w-meta">点按后确认</div>
+                  <div class="w-fb"><span class="ms">check_circle</span><span class="fb-text">已记 60 ml</span><button class="undo" type="button" data-undo>撤销</button></div>
+                </div>
+                <div class="w-body">
+                  <div class="w-sum">
+                    <div class="w-lab">今日喝水</div>
+                    <div class="w-num"><span data-water>780</span><em>ml</em></div>
+                    <div class="w-food"><span class="ms">restaurant</span>主粮 <b data-food>4</b> 份 · <b data-grams>48</b> 克</div>
+                    <div class="w-last">上次 08:12 · 喝水</div>
+                  </div>
+                  <div class="w-div"></div>
+                  <div class="w-acts">
+                    <button class="w-btn water" type="button" data-action="water" aria-label="在卡片内确认喝水，默认 60 毫升"><span class="ms">water_drop</span><b>喝水</b><small>60 ml</small></button>
+                    <button class="w-btn food" type="button" data-action="food" aria-label="在卡片内确认喂食，默认 3 份 30 克"><span class="ms">restaurant</span><b>喂食</b><small>3 份 · 30 克</small></button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="app-grid">
+              <div class="app"><div class="ic water"><span class="ms">water_drop</span></div><span>喝水</span></div>
+              <div class="app"><div class="ic"><span class="ms">restaurant</span></div><span>喂食</span></div>
+              <div class="app"><div class="ic cal"><span class="ms">calendar_month</span></div><span>日历</span></div>
+              <div class="app"><div class="ic list"><span class="ms">list</span></div><span>记录</span></div>
+            </div>
+          </div>
+          <div class="dock"><div class="di b"><span class="ms">pets</span></div><div class="di"><span class="ms">monitor_weight</span></div><div class="di c"><span class="ms">vaccines</span></div><div class="di"><span class="ms">settings</span></div></div>
+        </div>
+      </div>
+
+      <div class="frame">
+        <div class="cap">深色 · 桌面示意<span class="tag">4×2</span></div>
+        <div class="phone dark">
+          <div class="wall"></div>
+          <div class="statusbar"><span>9:41</span><span class="r"><span class="ms">signal_cellular_alt</span><span class="ms">wifi</span><span class="ms">battery_full</span></span></div>
+          <div class="home">
+            <div class="widget-slot">
+              <div class="widget w4 dark" data-widget data-water="780" data-food="4" data-grams="48" data-water-step="60" data-food-step="3" data-grams-step="10">
+                <div class="w-head">
+                  <div class="w-id"><span class="ms">pets</span><span>小福</span></div>
+                  <div class="w-meta">点按后确认</div>
+                  <div class="w-fb"><span class="ms">check_circle</span><span class="fb-text">已记 60 ml</span><button class="undo" type="button" data-undo>撤销</button></div>
+                </div>
+                <div class="w-body">
+                  <div class="w-sum">
+                    <div class="w-lab">今日喝水</div>
+                    <div class="w-num"><span data-water>780</span><em>ml</em></div>
+                    <div class="w-food"><span class="ms">restaurant</span>主粮 <b data-food>4</b> 份 · <b data-grams>48</b> 克</div>
+                    <div class="w-last">上次 08:12 · 喝水</div>
+                  </div>
+                  <div class="w-div"></div>
+                  <div class="w-acts">
+                    <button class="w-btn water" type="button" data-action="water" aria-label="在卡片内确认喝水，默认 60 毫升"><span class="ms">water_drop</span><b>喝水</b><small>60 ml</small></button>
+                    <button class="w-btn food" type="button" data-action="food" aria-label="在卡片内确认喂食，默认 3 份 30 克"><span class="ms">restaurant</span><b>喂食</b><small>3 份 · 30 克</small></button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="app-grid">
+              <div class="app"><div class="ic water"><span class="ms">water_drop</span></div><span>喝水</span></div>
+              <div class="app"><div class="ic"><span class="ms">restaurant</span></div><span>喂食</span></div>
+              <div class="app"><div class="ic cal"><span class="ms">calendar_month</span></div><span>日历</span></div>
+              <div class="app"><div class="ic list"><span class="ms">list</span></div><span>记录</span></div>
+            </div>
+          </div>
+          <div class="dock"><div class="di b"><span class="ms">pets</span></div><div class="di"><span class="ms">monitor_weight</span></div><div class="di c"><span class="ms">vaccines</span></div><div class="di"><span class="ms">settings</span></div></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="sec-head"><span class="num">02</span><h2>两个独立组件 · 2×2</h2><span class="hint">各 148 × 132 dp</span></div>
+    <p class="lead">喝水组件只关心今日 ml，喂食组件只关心今日主粮份数与克数。两者结构一致：顶部宠物名 + 上次值，中间大数字，底部 48dp 主按钮；点按钮在卡片内切换确认态。</p>
+    <div class="mini-row">
+      <div class="mini-card light">
+        <div class="widget w2s water-only light" data-widget data-water="780" data-water-step="60">
+          <div class="w-head">
+            <div class="w-id"><span class="ms">pets</span><span>小福</span></div>
+            <div class="w-meta" data-last>上次 60 ml</div>
+            <div class="w-fb"><span class="ms">check_circle</span><span class="fb-text">已记 60 ml</span><button class="undo" type="button" data-undo>撤销</button></div>
+          </div>
+          <div class="w-sum2">
+            <div class="w-lab">今日喝水</div>
+            <div class="w-num2"><span data-water>780</span><em>ml</em></div>
+          </div>
+          <button class="w-cta" type="button" data-action="water" aria-label="在卡片内确认喝水，默认 60 毫升"><span class="ms">water_drop</span>记喝水</button>
+        </div>
+      </div>
+      <div class="mini-card dark">
+        <div class="widget w2s water-only dark" data-widget data-water="780" data-water-step="60">
+          <div class="w-head">
+            <div class="w-id"><span class="ms">pets</span><span>小福</span></div>
+            <div class="w-meta" data-last>上次 60 ml</div>
+            <div class="w-fb"><span class="ms">check_circle</span><span class="fb-text">已记 60 ml</span><button class="undo" type="button" data-undo>撤销</button></div>
+          </div>
+          <div class="w-sum2">
+            <div class="w-lab">今日喝水</div>
+            <div class="w-num2"><span data-water>780</span><em>ml</em></div>
+          </div>
+          <button class="w-cta" type="button" data-action="water" aria-label="在卡片内确认喝水，默认 60 毫升"><span class="ms">water_drop</span>记喝水</button>
+        </div>
+      </div>
+      <div class="mini-card light">
+        <div class="widget w2s feed light" data-widget data-food="4" data-grams="48" data-food-step="3" data-grams-step="10">
+          <div class="w-head">
+            <div class="w-id"><span class="ms">pets</span><span>小福</span></div>
+            <div class="w-meta" data-last>上次 3 份</div>
+            <div class="w-fb"><span class="ms">check_circle</span><span class="fb-text">已记 3 份 · 30 克</span><button class="undo" type="button" data-undo>撤销</button></div>
+          </div>
+          <div class="w-sum2">
+            <div class="w-lab">今日主粮</div>
+            <div class="w-num2"><span data-food>4</span> 份 <em>· <span data-grams>48</span> 克</em></div>
+          </div>
+          <button class="w-cta" type="button" data-action="food" aria-label="在卡片内确认喂食，默认 3 份 30 克"><span class="ms">restaurant</span>记喂食</button>
+        </div>
+      </div>
+      <div class="mini-card dark">
+        <div class="widget w2s feed dark" data-widget data-food="4" data-grams="48" data-food-step="3" data-grams-step="10">
+          <div class="w-head">
+            <div class="w-id"><span class="ms">pets</span><span>小福</span></div>
+            <div class="w-meta" data-last>上次 3 份</div>
+            <div class="w-fb"><span class="ms">check_circle</span><span class="fb-text">已记 3 份 · 30 克</span><button class="undo" type="button" data-undo>撤销</button></div>
+          </div>
+          <div class="w-sum2">
+            <div class="w-lab">今日主粮</div>
+            <div class="w-num2"><span data-food>4</span> 份 <em>· <span data-grams>48</span> 克</em></div>
+          </div>
+          <button class="w-cta" type="button" data-action="food" aria-label="在卡片内确认喂食，默认 3 份 30 克"><span class="ms">restaurant</span>记喂食</button>
+        </div>
+      </div>
+      <div class="mini-notes">
+        <div class="note-line"><span class="ms">water_drop</span><div><b>喝水组件</b><br>今日 ml 是主角；顶部「上次 60 ml」提示本次预填值。按钮浅水蓝底 + 水蓝字，和喂食组件一眼区分。</div></div>
+        <div class="note-line"><span class="ms">restaurant</span><div><b>喂食组件</b><br>今日主粮「4 份 · 48 克」；顶部「上次 3 份」对应确认态预填的份数。按钮浅橘底 + 强调橘字。</div></div>
+        <div class="note-line"><span class="ms">touch_app</span><div><b>不弹窗</b><br>点按钮或卡片主体，整张卡切换为确认态；取消后回到当前汇总，不产生记录。</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="sec-head"><span class="num">03</span><h2>内联确认态</h2><span class="hint">同一张卡，原地切换</span></div>
+    <p class="lead">确认态覆盖整张卡片：标题、−/+ 步进、取消/确认都在卡片内。喝水每次 ±10 ml；喂食每次 ±1 份，克/份沿用上次设置并实时显示总克数。没有弹窗、没有 Activity、没有跳转。</p>
+    <div class="edit-row">
+      <div class="edit-card">
+        <div class="edit-label">4×2 · 喝水确认<span class="tag">60 ml 可调</span></div>
+        <div class="edit-stage">
+          <div class="widget w4 light">
+            <div class="w-edit">
+              <div class="w-edit-head"><span class="w-edit-title">喝水 · 这次多少</span></div>
+              <div class="w-edit-body">
+                <div class="w-edit-main">
+                  <div class="w-step"><button class="w-step-btn" type="button" aria-label="减少 10 毫升">−</button><span class="w-step-num">60<em>ml</em></span><button class="w-step-btn" type="button" aria-label="增加 10 毫升">+</button></div>
+                  <div class="w-edit-sub">当前 60 ml · 每次 ±10 ml</div>
+                </div>
+                <div class="w-edit-actions"><button class="w-edit-cancel-btn" type="button">取消</button><button class="w-edit-ok" type="button">记下来</button></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="edit-note">步进按钮 40dp；确认/取消 64×38dp，右侧纵向排列。</div>
+      </div>
+
+      <div class="edit-card">
+        <div class="edit-label">4×2 · 喂食确认<span class="tag">份数可调</span></div>
+        <div class="edit-stage">
+          <div class="widget w4 light">
+            <div class="w-edit">
+              <div class="w-edit-head"><span class="w-edit-title">喂食 · 份数</span></div>
+              <div class="w-edit-body">
+                <div class="w-edit-main">
+                  <div class="w-step"><button class="w-step-btn" type="button" aria-label="减少份数">−</button><span class="w-step-num">3<em>份</em></span><button class="w-step-btn" type="button" aria-label="增加份数">+</button></div>
+                  <div class="w-edit-sub">10 克/份 · 共 30 克</div>
+                </div>
+                <div class="w-edit-actions"><button class="w-edit-cancel-btn" type="button">取消</button><button class="w-edit-ok" type="button">保存</button></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="edit-note">份数 1–20；克/份沿用上次值，总克数随份数实时变化。</div>
+      </div>
+
+      <div class="edit-card small">
+        <div class="edit-label">2×2 · 喝水确认</div>
+        <div class="edit-stage small">
+          <div class="widget w2s water-only light">
+            <div class="w-edit">
+              <div class="w-edit-head"><span class="w-edit-title">喝水</span></div>
+              <div class="w-edit-main">
+                <div class="w-step"><button class="w-step-btn" type="button" aria-label="减少 10 毫升">−</button><span class="w-step-num">60<em>ml</em></span><button class="w-step-btn" type="button" aria-label="增加 10 毫升">+</button></div>
+                <div class="w-edit-sub">每次 ±10 ml</div>
+              </div>
+              <div class="w-edit-actions"><button class="w-edit-cancel-btn" type="button">取消</button><button class="w-edit-ok" type="button">记下来</button></div>
+            </div>
+          </div>
+        </div>
+        <div class="edit-note">2×2 内步进 40dp；确认/取消 40dp 高。</div>
+      </div>
+
+      <div class="edit-card small">
+        <div class="edit-label">2×2 · 喂食确认</div>
+        <div class="edit-stage small">
+          <div class="widget w2s feed light">
+            <div class="w-edit">
+              <div class="w-edit-head"><span class="w-edit-title">喂食</span></div>
+              <div class="w-edit-main">
+                <div class="w-step"><button class="w-step-btn" type="button" aria-label="减少份数">−</button><span class="w-step-num">3<em>份</em></span><button class="w-step-btn" type="button" aria-label="增加份数">+</button></div>
+                <div class="w-edit-sub">10 克/份 · 共 30 克</div>
+              </div>
+              <div class="w-edit-actions"><button class="w-edit-cancel-btn" type="button">取消</button><button class="w-edit-ok" type="button">保存</button></div>
+            </div>
+          </div>
+        </div>
+        <div class="edit-note">2×2 只调份数；要改克/份请进 App「喂食」弹窗。</div>
+      </div>
+    </div>
+    <div class="note-line" style="margin-top:16px;max-width:940px"><span class="ms">touch_app</span><div><b>交互路径</b>：待机卡片 → 点「喝水 / 喂食 / 记喝水 / 记喂食」→ 同一张卡切换确认态 → −/+ 调量 → 「记下来 / 保存」写入 → 卡片回到汇总并显示 4 秒「已记 · 撤销」。点「取消」原样返回，不写库。</div></div>
+  </section>
+
+  <section class="block">
+    <div class="sec-head"><span class="num">04</span><h2>写入后的卡片状态</h2><span class="hint">成功 / 失败</span></div>
+    <p class="lead">确认后先回到汇总，再显示「已记 · 撤销」4 秒；失败显示「记录失败 · 重试」，不写脏数据，也不关闭卡片。<br><b>注</b>：实现已按验收反馈去掉「已记」与撤销，写入后直接回到汇总并显示更新后的「上次 xx」；本节保留为设计过程记录。</p>
+    <div class="states">
+      <div class="state">
+        <div class="state-label"><span class="dot"></span>默认</div>
+        <div class="widget w4 light">
+          <div class="w-head"><div class="w-id"><span class="ms">pets</span><span>小福</span></div><div class="w-meta">点按后确认</div><div class="w-fb"><span class="ms">check_circle</span><span class="fb-text"></span><button class="undo" type="button">撤销</button></div></div>
+          <div class="w-body"><div class="w-sum"><div class="w-lab">今日喝水</div><div class="w-num">780<em>ml</em></div><div class="w-food"><span class="ms">restaurant</span>主粮 <b>4</b> 份 · <b>48</b> 克</div><div class="w-last">上次 08:12 · 喝水</div></div><div class="w-div"></div><div class="w-acts"><button class="w-btn water" type="button"><span class="ms">water_drop</span><b>喝水</b><small>60 ml</small></button><button class="w-btn food" type="button"><span class="ms">restaurant</span><b>喂食</b><small>3 份 · 30 克</small></button></div></div>
+        </div>
+        <div class="state-note">头部「点按后确认」明确不会直接写入。</div>
+      </div>
+      <div class="state">
+        <div class="state-label"><span class="dot"></span>按下</div>
+        <div class="widget w4 light">
+          <div class="w-head"><div class="w-id"><span class="ms">pets</span><span>小福</span></div><div class="w-meta">点按后确认</div><div class="w-fb"><span class="ms">check_circle</span><span class="fb-text"></span><button class="undo" type="button">撤销</button></div></div>
+          <div class="w-body"><div class="w-sum"><div class="w-lab">今日喝水</div><div class="w-num">780<em>ml</em></div><div class="w-food"><span class="ms">restaurant</span>主粮 <b>4</b> 份 · <b>48</b> 克</div><div class="w-last">上次 08:12 · 喝水</div></div><div class="w-div"></div><div class="w-acts"><button class="w-btn water is-pressed" type="button"><span class="ms">water_drop</span><b>喝水</b><small>60 ml</small></button><button class="w-btn food" type="button"><span class="ms">restaurant</span><b>喂食</b><small>3 份 · 30 克</small></button></div></div>
+        </div>
+        <div class="state-note">按下缩放 0.97、亮度 0.94；松手后切换确认态。</div>
+      </div>
+      <div class="state">
+        <div class="state-label"><span class="dot on"></span>确认后 · 已记录</div>
+        <div class="widget w4 light saved">
+          <div class="w-head"><div class="w-id"><span class="ms">pets</span><span>小福</span></div><div class="w-meta">点按后确认</div><div class="w-fb"><span class="ms">check_circle</span><span class="fb-text">已记 60 ml</span><button class="undo" type="button">撤销</button></div></div>
+          <div class="w-body"><div class="w-sum"><div class="w-lab">今日喝水</div><div class="w-num">840<em>ml</em></div><div class="w-food"><span class="ms">restaurant</span>主粮 <b>4</b> 份 · <b>48</b> 克</div><div class="w-last">刚刚 · 喝水</div></div><div class="w-div"></div><div class="w-acts"><button class="w-btn water" type="button"><span class="ms">water_drop</span><b>喝水</b><small>60 ml</small></button><button class="w-btn food" type="button"><span class="ms">restaurant</span><b>喂食</b><small>3 份 · 30 克</small></button></div></div>
+        </div>
+        <div class="state-note">汇总 +60 ml；头部反馈 4 秒，撤销回滚到 780 ml。</div>
+      </div>
+    </div>
+    <div class="error-note"><span class="ms">error</span><div><b>失败态</b>：确认后写入失败时，头部显示「记录失败 · 重试」，用 <b>#B3261E</b>；卡片保持汇总，不写脏数据。再次点按钮重新进入确认态即可重试。</div></div>
+  </section>
+
+  <section class="block">
+    <div class="sec-head"><span class="num">05</span><h2>规格与令牌</h2><span class="hint">按 dp / sp 标注</span></div>
+    <div class="spec-grid">
+      <div class="spec-card">
+        <h3><span class="ms">straighten</span>尺寸与布局</h3>
+        <table>
+          <tr><td>4×2 组合</td><td><b>296 × 132 dp</b> · 内边距 14 · 概览 128 · 双键 <b>57 × 80</b></td></tr>
+          <tr><td>2×2 独立</td><td><b>148 × 132 dp</b> · 内边距 11 · 头部 14 · 主按钮 <b>126 × 48</b></td></tr>
+          <tr><td>4×2 确认态</td><td>内边距 14 · 头部 16 · 主体 80 · 步进 <b>40 × 40</b> · 确认/取消 <b>64 × 38</b></td></tr>
+          <tr><td>2×2 确认态</td><td>内边距 8 · 头部 14 · 步进 <b>40 × 40</b> · 确认/取消 <b>40 高</b> · 等宽</td></tr>
+          <tr><td>步进值</td><td>喝水 ±10 ml；喂食 ±1 份；克/份沿用上次值</td></tr>
+          <tr><td>系统圆角</td><td>卡片 24dp；Android 12+ 跟随系统小组件圆角</td></tr>
+        </table>
+      </div>
+      <div class="spec-card">
+        <h3><span class="ms">palette</span>颜色</h3>
+        <table>
+          <tr><td>卡片底</td><td><span class="swatch" style="background:#FFFFFF"></span>#FFFFFF / <span class="swatch" style="background:#211A16"></span>#211A16</td></tr>
+          <tr><td>主文本</td><td><span class="swatch" style="background:#221A14"></span>#221A14 / <span class="swatch" style="background:#F1E4DA"></span>#F1E4DA</td></tr>
+          <tr><td>喝水 CTA</td><td><span class="swatch" style="background:#E8F1F8"></span>#E8F1F8 + <span class="swatch" style="background:#3E7CB1"></span>#3E7CB1 字</td></tr>
+          <tr><td>喂食 CTA</td><td><span class="swatch" style="background:#FDEBDD"></span>#FDEBDD + <span class="swatch" style="background:#B5501A"></span>#B5501A 字</td></tr>
+          <tr><td>确认按钮</td><td><span class="swatch" style="background:#F09C63"></span>#F09C63 + <span class="swatch" style="background:#3A1E0A"></span>#3A1E0A 字</td></tr>
+          <tr><td>失败</td><td><span class="swatch" style="background:#B3261E"></span>#B3261E / <span class="swatch" style="background:#FF9A93"></span>#FF9A93</td></tr>
+        </table>
+      </div>
+      <div class="spec-card">
+        <h3><span class="ms">text_fields</span>文字</h3>
+        <table>
+          <tr><td>宠物名</td><td>11.5sp / 14 · SemiBold</td></tr>
+          <tr><td>概览数字</td><td>28sp / 30 · SemiBold · tabular（组合）</td></tr>
+          <tr><td>独立数字</td><td>24sp / 27 · SemiBold · tabular；喂食 22sp</td></tr>
+          <tr><td>确认态数字</td><td>28sp（4×2）/ 22sp（2×2）· SemiBold · tabular</td></tr>
+          <tr><td>确认态标题</td><td>11.5sp（4×2）/ 10.5sp（2×2）· SemiBold</td></tr>
+          <tr><td>辅助文案</td><td>9.5sp / 12 · Regular</td></tr>
+        </table>
+      </div>
+      <div class="spec-card">
+        <h3><span class="ms">accessibility_new</span>无障碍与触控</h3>
+        <table>
+          <tr><td>确认态语义</td><td>「喝水，当前 60 毫升，减少 10 / 增加 10 / 取消 / 记下来」</td></tr>
+          <tr><td>喂食语义</td><td>「喂食，当前 3 份，每份 10 克，共 30 克」</td></tr>
+          <tr><td>触控目标</td><td>步进 40dp；确认/取消 38–40dp（小组件约束）；主按钮 48dp</td></tr>
+          <tr><td>对比度</td><td>正文 ≥ 4.5:1；大数字 ≥ 3:1</td></tr>
+          <tr><td>动态字体</td><td>1.3× 不裁切；更大字号切换简化布局（隐藏辅助文案）</td></tr>
+          <tr><td>焦点 / 状态</td><td>按钮有可见按压态；确认态标题说明当前动作</td></tr>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="sec-head"><span class="num">06</span><h2>行为与技术约束</h2><span class="hint">实现前确认</span></div>
+    <div class="notes">
+      <div>
+        <h3><span class="ms">touch_app</span>卡片内状态机</h3>
+        <ol>
+          <li><b>待机</b>：显示今日汇总与两个按钮；按钮上显示上次值。</li>
+          <li><b>点按</b>：RemoteViews 原地切换为确认态；记录当前 widgetId、类型、草稿值到 SharedPreferences。</li>
+          <li><b>− / +</b>：广播更新草稿值并刷新 RemoteViews；喝水 5–500 ml（步进 10），喂食 1–20 份（步进 1），实时显示总克数。</li>
+          <li><b>确认</b>：`goAsync` + IO 调用现有仓储 `saveWater` / `saveFood`；成功后回待机并显示「已记 · 撤销」；失败显示「记录失败 · 重试」。</li>
+          <li><b>取消</b>：清除草稿，回待机；不写库。</li>
+          <li><b>撤销</b>：保留最近一次小组件写入的记录 id，删除并回滚汇总；4 秒后隐藏入口。</li>
+        </ol>
+      </div>
+      <div>
+        <h3><span class="ms">build</span>实现约束</h3>
+        <ul>
+          <li>优先 <b>RemoteViews</b>（零新增依赖，避开 Glance 与当前 Compose/Kotlin 版本矩阵的兼容风险）。</li>
+          <li><b>三个 provider</b>：4×2 组合、2×2 喝水、2×2 喂食；或一个 provider + 按 widgetId/type 选择布局。建议先做三个独立 provider。</li>
+          <li><b>状态</b>：每个 widgetId 在 SharedPreferences 保存 `mode`（idle/water-edit/food-edit/saved/error）、草稿 ml/份数、克/份、lastRecordId、savedAt；进程重启后可恢复。</li>
+          <li><b>点击</b>：所有 −/+/确认/取消用 `PendingIntent.getBroadcast` + 显式 Intent + <b>FLAG_IMMUTABLE</b>；不要用 Activity 弹窗。</li>
+          <li><b>布局切换</b>：RemoteViews 用两套布局（idle / edit）或同一布局内 `ViewFlipper`/`setViewVisibility`；建议两套布局，避免复杂可见性。</li>
+          <li><b>写入</b>：广播接收器 `goAsync` + 协程，10 秒内完成；确认后刷新所有实例。</li>
+          <li><b>反馈计时</b>：无 Snackbar；AlarmManager 清除 saved 状态，或保留到下一次刷新。4 秒为设计目标，允许 1–2 秒误差。</li>
+          <li><b>颜色</b>：RemoteViews 不能直接用 Compose 常量；把品牌色补为 <b>res/values/colors.xml</b>，避免色值漂移。</li>
+          <li><b>主题</b>：建议跟随 App 的「外观」设置（读 SharedPreferences），而不是仅跟随系统；需确认。</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="checklist" style="margin-top:20px">
+      <h3 style="font-size:13px;font-weight:600;color:#3B2A1D;margin-bottom:10px;display:flex;align-items:center;gap:7px"><span class="ms" style="font-size:16px;color:#A8845F">fact_check</span>待确认（按推荐值可默认通过）</h3>
+      <div class="q"><span class="n">1</span><div><b>独立组件尺寸</b>：喝水/喂食各做 2×2，是否还需要 2×1 或 4×1？<span class="rec">推荐：先做两个 2×2；4×1 后续按桌面空间再加。</span></div></div>
+      <div class="q"><span class="n">2</span><div><b>喂食克/份</b>：确认态只调份数，克/份沿用上次值（当前稿）；还是也要在卡片内调克/份？<span class="rec">推荐：卡片内只调份数；克/份进 App 改，避免 2×2 塞入两组步进。</span></div></div>
+      <div class="q"><span class="n">3</span><div><b>组合组件保留</b>：4×2 组合是否继续保留？<span class="rec">推荐：保留；独立组件面向只放一个入口的桌面。</span></div></div>
+      <div class="q"><span class="n">4</span><div><b>独立组件按钮配色</b>：喝水浅蓝、喂食浅橘（当前稿），还是都用主色橘？<span class="rec">推荐：独立组件用各自语义色，组合组件保留橘色主按钮。</span></div></div>
+      <div class="q"><span class="n">5</span><div><b>撤销时长</b>：确认后反馈 4 秒，撤销后台保留 10 秒？<span class="rec">推荐：视觉 4 秒；后台 10 秒。</span></div></div>
+      <div class="q"><span class="n">6</span><div><b>到期提醒 / 加餐</b>：首版是否加入？<span class="rec">推荐：都不加；先保证喝水/喂食卡片内确认链路。</span></div></div>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <b>说明</b>：① 本稿为可点击的 HTML 视觉稿：点任意组件按钮会在卡片内切换确认态，−/+ 调量、确认写入、取消返回；② 所有尺寸按 dp/sp 标注，桌面示意为 360dp 宽；实际小组件尺寸随启动器网格变化；③ 图标来自 Material Symbols Rounded，安卓端以同名 vector drawable 引入；④ 颜色取自现有 UI 规范，未新增品牌色；⑤ 确认后再进入 Android 小组件实现，本阶段不改应用代码。
+  </footer>
+</div>
+
+<script>
+  (function () {
+    var timers = new WeakMap();
+
+    function setText(root, selector, value) {
+      root.querySelectorAll(selector).forEach(function (el) { el.textContent = value; });
+    }
+
+    function render(widget) {
+      if (widget.dataset.water !== undefined) setText(widget, '[data-water]', widget.dataset.water);
+      if (widget.dataset.food !== undefined) setText(widget, '[data-food]', widget.dataset.food);
+      if (widget.dataset.grams !== undefined) setText(widget, '[data-grams]', widget.dataset.grams);
+    }
+
+    function showFeedback(widget, text) {
+      widget.classList.remove('error');
+      widget.classList.add('saved');
+      var fb = widget.querySelector('.w-fb .fb-text');
+      if (fb) fb.textContent = text;
+      var old = timers.get(widget);
+      if (old) clearTimeout(old);
+      timers.set(widget, setTimeout(function () {
+        widget.classList.remove('saved');
+        if (fb) fb.textContent = '';
+      }, 4000));
+    }
+
+    function clearFeedback(widget) {
+      widget.classList.remove('saved');
+      var fb = widget.querySelector('.w-fb .fb-text');
+      if (fb) fb.textContent = '';
+      var old = timers.get(widget);
+      if (old) clearTimeout(old);
+    }
+
+    function removeEdit(widget) {
+      var layer = widget.querySelector('.w-edit');
+      if (layer) layer.remove();
+      widget.classList.remove('editing');
+    }
+
+    function openEdit(widget, type) {
+      removeEdit(widget);
+      var small = widget.classList.contains('w2s');
+      var isWater = type === 'water';
+      var draft = isWater
+        ? (parseInt(widget.dataset.waterStep || '60', 10) || 60)
+        : (parseInt(widget.dataset.foodStep || '3', 10) || 3);
+      var grams = parseInt(widget.dataset.gramsStep || '10', 10) || 10;
+      var title = small
+        ? (isWater ? '喝水' : '喂食')
+        : (isWater ? '喝水 · 这次多少' : '喂食 · 份数');
+      var sub = isWater
+        ? (small ? '每次 ±10 ml' : '当前 ' + draft + ' ml · 每次 ±10 ml')
+        : (small ? grams + ' 克/份 · 共 ' + (draft * grams) + ' 克' : grams + ' 克/份 · 共 ' + (draft * grams) + ' 克');
+
+      var layer = document.createElement('div');
+      layer.className = 'w-edit';
+      layer.innerHTML =
+        '<div class="w-edit-head"><span class="w-edit-title">' + title + '</span></div>' +
+        '<div class="w-edit-body">' +
+          '<div class="w-edit-main">' +
+            '<div class="w-step">' +
+              '<button class="w-step-btn" type="button" data-draft-minus aria-label="减少">−</button>' +
+              '<span class="w-step-num"><b data-draft>' + draft + '</b><em>' + (isWater ? 'ml' : '份') + '</em></span>' +
+              '<button class="w-step-btn" type="button" data-draft-plus aria-label="增加">+</button>' +
+            '</div>' +
+            '<div class="w-edit-sub" data-edit-sub>' + sub + '</div>' +
+          '</div>' +
+          '<div class="w-edit-actions">' +
+            '<button class="w-edit-cancel-btn" type="button" data-edit-cancel>取消</button>' +
+            '<button class="w-edit-ok" type="button" data-edit-confirm>' + (isWater ? '记下来' : '保存') + '</button>' +
+          '</div>' +
+        '</div>';
+
+      widget.appendChild(layer);
+      widget.classList.add('editing');
+
+      function renderDraft() {
+        var draftEl = layer.querySelector('[data-draft]');
+        var subEl = layer.querySelector('[data-edit-sub]');
+        if (draftEl) draftEl.textContent = String(draft);
+        if (subEl) {
+          subEl.textContent = isWater
+            ? (small ? '每次 ±10 ml' : '当前 ' + draft + ' ml · 每次 ±10 ml')
+            : (small ? grams + ' 克/份 · 共 ' + (draft * grams) + ' 克' : grams + ' 克/份 · 共 ' + (draft * grams) + ' 克');
+        }
+      }
+
+      layer.querySelector('[data-draft-minus]').addEventListener('click', function () {
+        draft = isWater ? Math.max(5, draft - 10) : Math.max(1, draft - 1);
+        renderDraft();
+      });
+      layer.querySelector('[data-draft-plus]').addEventListener('click', function () {
+        draft = isWater ? Math.min(500, draft + 10) : Math.min(20, draft + 1);
+        renderDraft();
+      });
+      layer.querySelector('[data-edit-cancel]').addEventListener('click', function () {
+        removeEdit(widget);
+      });
+      layer.querySelector('[data-edit-confirm]').addEventListener('click', function () {
+        if (isWater) applyWater(widget, draft); else applyFeed(widget, draft, grams);
+      });
+    }
+
+    function applyWater(widget, value) {
+      var last = widget.querySelector('[data-last]');
+      widget._prev = {
+        water: widget.dataset.water,
+        waterStep: widget.dataset.waterStep,
+        last: last ? last.textContent : null
+      };
+      widget.dataset.water = String((parseInt(widget.dataset.water || '0', 10) || 0) + value);
+      widget.dataset.waterStep = String(value);
+      render(widget);
+      var small = widget.querySelector('[data-action="water"] small');
+      if (small) small.textContent = value + ' ml';
+      if (last) last.textContent = '上次 ' + value + ' ml';
+      showFeedback(widget, '已记 ' + value + ' ml');
+      removeEdit(widget);
+    }
+
+    function applyFeed(widget, servings, grams) {
+      var total = servings * grams;
+      var last = widget.querySelector('[data-last]');
+      widget._prev = {
+        food: widget.dataset.food,
+        grams: widget.dataset.grams,
+        foodStep: widget.dataset.foodStep,
+        gramsStep: widget.dataset.gramsStep,
+        last: last ? last.textContent : null
+      };
+      widget.dataset.food = String((parseInt(widget.dataset.food || '0', 10) || 0) + servings);
+      widget.dataset.grams = String((parseInt(widget.dataset.grams || '0', 10) || 0) + total);
+      widget.dataset.foodStep = String(servings);
+      widget.dataset.gramsStep = String(grams);
+      render(widget);
+      var small = widget.querySelector('[data-action="food"] small');
+      if (small) small.textContent = servings + ' 份 · ' + total + ' 克';
+      if (last) last.textContent = '上次 ' + servings + ' 份';
+      showFeedback(widget, '已记 ' + servings + ' 份 · ' + total + ' 克');
+      removeEdit(widget);
+    }
+
+    function undo(widget) {
+      if (!widget._prev) return;
+      var prev = widget._prev;
+      if (prev.water !== undefined) widget.dataset.water = prev.water;
+      if (prev.waterStep !== undefined) widget.dataset.waterStep = prev.waterStep;
+      if (prev.food !== undefined) widget.dataset.food = prev.food;
+      if (prev.grams !== undefined) widget.dataset.grams = prev.grams;
+      if (prev.foodStep !== undefined) widget.dataset.foodStep = prev.foodStep;
+      if (prev.gramsStep !== undefined) widget.dataset.gramsStep = prev.gramsStep;
+      var last = widget.querySelector('[data-last]');
+      if (last && prev.last !== null) last.textContent = prev.last;
+      var waterSmall = widget.querySelector('[data-action="water"] small');
+      if (waterSmall && widget.dataset.waterStep) waterSmall.textContent = widget.dataset.waterStep + ' ml';
+      var foodSmall = widget.querySelector('[data-action="food"] small');
+      if (foodSmall && widget.dataset.foodStep) foodSmall.textContent = widget.dataset.foodStep + ' 份 · ' + (parseInt(widget.dataset.foodStep, 10) * parseInt(widget.dataset.gramsStep, 10)) + ' 克';
+      render(widget);
+      clearFeedback(widget);
+      widget._prev = null;
+    }
+
+    document.querySelectorAll('[data-widget]').forEach(function (widget) {
+      widget.querySelectorAll('[data-action]').forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+          e.stopPropagation();
+          openEdit(widget, btn.getAttribute('data-action'));
+        });
+      });
+      widget.querySelectorAll('[data-undo]').forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+          e.stopPropagation();
+          undo(widget);
+        });
+      });
+    });
+
+    document.querySelectorAll('.w2s[data-widget]').forEach(function (widget) {
+      widget.addEventListener('click', function (e) {
+        if (e.target.closest('[data-action],[data-undo],.w-edit')) return;
+        openEdit(widget, widget.classList.contains('water-only') ? 'water' : 'food');
+      });
+    });
+  })();
+</script>
+</body>
+</html>

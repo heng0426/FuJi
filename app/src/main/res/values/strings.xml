@@ -9,4 +9,18 @@
     <string name="tab_profile">我的</string>
 
     <string name="placeholder_hint">此页面将在后续阶段实现</string>
+
+    <!-- 桌面小组件 -->
+    <string name="widget_combined_name">小福 · 喝水喂食</string>
+    <string name="widget_water_name">小福 · 喝水</string>
+    <string name="widget_feed_name">小福 · 喂食</string>
+    <string name="widget_combined_desc">查看今日喝水与主粮，点按后在卡片内确认用量</string>
+    <string name="widget_water_desc">查看今日喝水，点按后在卡片内确认毫升数</string>
+    <string name="widget_feed_desc">查看今日主粮，点按后在卡片内确认份数</string>
+    <string name="widget_default_pet">小福</string>
+    <string name="widget_confirm_water">记下来</string>
+    <string name="widget_confirm_food">保存</string>
+    <string name="widget_cancel">取消</string>
+    <string name="widget_failed">记录失败 · 重试</string>
+    <string name="widget_water_step_tip">每次 ±10 ml</string>
 </resources>

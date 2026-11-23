@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>小福日常 · 视觉稿 v1</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/material-symbols@0.28.0/rounded.css">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --page:#F1EBE3;--page-ink:#2B2018;--page-ink2:#7B6A5B;--page-line:#E3D8CB;
+  }
+  body{background:var(--page);color:var(--page-ink);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Noto Sans SC","Microsoft YaHei",sans-serif;padding:44px 32px 72px;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1540px;margin:0 auto}
+  .head{display:flex;justify-content:space-between;align-items:flex-end;gap:32px;flex-wrap:wrap;padding-bottom:22px;border-bottom:1px solid var(--page-line);margin-bottom:34px}
+  .brand{display:flex;align-items:center;gap:14px}
+  .brand .mark{width:46px;height:46px;border-radius:15px;background:#F09C63;display:grid;place-items:center;color:#3A1E0A;box-shadow:0 6px 16px rgba(180,100,40,.25)}
+  .brand .mark .ms{font-size:26px}
+  h1{font-size:25px;font-weight:600;letter-spacing:-.02em;line-height:1.2}
+  .head p{font-size:12.5px;color:var(--page-ink2);margin-top:5px;line-height:1.6}
+  .meta{display:flex;gap:26px;flex-wrap:wrap}
+  .pal{display:flex;flex-direction:column;gap:6px;align-items:center}
+  .pal i{width:30px;height:30px;border-radius:10px;border:1px solid rgba(0,0,0,.07);display:block}
+  .pal span{font-size:10.5px;color:var(--page-ink2);letter-spacing:.02em}
+  .frames{display:flex;flex-wrap:wrap;gap:40px 32px}
+  .frame{width:360px;flex:none}
+  .cap{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;color:#5C4A3B;margin-bottom:12px}
+  .cap .idx{font-size:11px;font-weight:600;color:#A8845F;background:#EADFCF;border-radius:6px;padding:2px 6px;letter-spacing:.04em}
+  .cap .tag{margin-left:auto;font-size:10.5px;font-weight:400;color:#8A7361;background:#EDE4D8;border:1px solid #E0D3C2;border-radius:999px;padding:2px 9px}
+  .phone{width:360px;height:780px;border-radius:36px;overflow:hidden;position:relative;display:flex;flex-direction:column;background:var(--bg);color:var(--text);border:1px solid rgba(60,40,24,.10);box-shadow:0 20px 46px rgba(70,45,22,.16),0 2px 6px rgba(70,45,22,.06)}
+  .phone.light{
+    --bg:#FFF8F3;--surface:#FFFFFF;--surface-2:#FBEDE3;--text:#221A14;--text-2:#6E5A4B;
+    --outline:#F0E2D6;--outline-2:#DCC7B6;--primary:#F09C63;--on-primary:#3A1E0A;--primary-strong:#B5501A;
+    --container:#FFEBDD;--on-container:#4A2408;
+    --water:#3E7CB1;--water-bg:#E8F1F8;--food:#B5501A;--food-bg:#FDEBDD;--snack:#9A6B2F;--snack-bg:#FBF0DE;
+    --weight:#5E6E4E;--weight-bg:#EEF2E6;--deworm:#6F55A0;--deworm-bg:#F0EBFA;--vaccine:#2C7366;--vaccine-bg:#E4F2EF;
+    --anomaly:#B3261E;--anomaly-bg:#FBE9E7;--due-bg:#FFF1DF;--due-line:#F6DDBC;
+  }
+  .phone.dark{
+    --bg:#151110;--surface:#211A16;--surface-2:#2C2320;--text:#F1E4DA;--text-2:#C9B4A5;
+    --outline:#3A2E27;--outline-2:#4A3B32;--primary:#FFB77E;--on-primary:#4A2306;--primary-strong:#FFB77E;
+    --container:#4A2C12;--on-container:#FFDCC2;
+    --water:#8FB9DC;--water-bg:#1D2B36;--food:#FFB77E;--food-bg:#3A2415;--snack:#E3BE84;--snack-bg:#33281A;
+    --weight:#B7C6A4;--weight-bg:#252B1F;--deworm:#C4B2E6;--deworm-bg:#2A2436;--vaccine:#96CFC2;--vaccine-bg:#1C2B28;
+    --anomaly:#F2B8B5;--anomaly-bg:#3A211F;--due-bg:#33220F;--due-line:#553516;
+  }
+  .ms{font-family:"Material Symbols Rounded";font-weight:400;font-style:normal;font-size:20px;line-height:1;letter-spacing:normal;display:inline-block;font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24;user-select:none}
+  .ms.fill{font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24}
+  .sb{height:32px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 24px;font-size:12px;color:var(--text-2)}
+  .sb .r{display:flex;align-items:center;gap:4px}
+  .sb .ms{font-size:14px}
+  .content{flex:1;overflow:hidden;padding:2px 20px 20px;display:flex;flex-direction:column;gap:12px}
+  .topbar{display:flex;align-items:center;justify-content:space-between;flex:none}
+  .topbar h2{font-size:24px;font-weight:600;letter-spacing:-.02em;line-height:1.2}
+  .topbar .sub{font-size:12px;color:var(--text-2);margin-top:3px}
+  .iconbtn{width:40px;height:40px;border-radius:999px;background:var(--surface);border:1px solid var(--outline);display:grid;place-items:center;position:relative;color:var(--text)}
+  .iconbtn .ms{font-size:20px}
+  .iconbtn .dot{position:absolute;top:9px;right:10px;width:7px;height:7px;border-radius:999px;background:#D9542B;border:2px solid var(--surface)}
+  .card{background:var(--surface);border:1px solid var(--outline);border-radius:20px;padding:18px}
+  .ov{display:flex;gap:16px;align-items:stretch}
+  .ov-l{flex:0 0 108px;display:flex;flex-direction:column;gap:5px}
+  .lab{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text-2)}
+  .dot-ic{width:22px;height:22px;border-radius:999px;display:grid;place-items:center;flex:none}
+  .dot-ic .ms{font-size:14px}
+  .big{font-size:34px;font-weight:600;letter-spacing:-.03em;line-height:1.1;font-variant-numeric:tabular-nums}
+  .big .u{font-size:12.5px;font-weight:500;color:var(--text-2);margin-left:4px;letter-spacing:0}
+  .tiny{font-size:11px;color:var(--text-2)}
+  .vr{width:1px;background:var(--outline);flex:none}
+  .ov-r{flex:1;display:flex;flex-direction:column;gap:10px;justify-content:center;min-width:0}
+  .row{display:flex;align-items:center;gap:9px;min-width:0}
+  .row .txt{flex:1;min-width:0}
+  .row .k{font-size:11px;color:var(--text-2);line-height:1.3}
+  .row .v{font-size:13px;font-weight:500;margin-top:1px;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .row .v .muted{font-weight:400;color:var(--text-2);font-size:11px;margin-left:4px}
+  .row .chev{font-size:17px;color:var(--text-2);opacity:.75}
+  .t-water{background:var(--water-bg);color:var(--water)}
+  .t-food{background:var(--food-bg);color:var(--food)}
+  .t-snack{background:var(--snack-bg);color:var(--snack)}
+  .t-weight{background:var(--weight-bg);color:var(--weight)}
+  .t-deworm{background:var(--deworm-bg);color:var(--deworm)}
+  .t-vaccine{background:var(--vaccine-bg);color:var(--vaccine)}
+  .t-anomaly{background:var(--anomaly-bg);color:var(--anomaly)}
+  .due{display:flex;align-items:center;gap:10px;background:var(--due-bg);border:1px solid var(--due-line);border-radius:14px;padding:9px 12px;font-size:12.5px;color:var(--text)}
+  .due b{font-weight:600}
+  .due .chev{margin-left:auto;font-size:18px;color:var(--text-2)}
+  .quick{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;flex:none}
+  .q{height:72px;border-radius:18px;background:var(--surface);border:1px solid var(--outline);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;font-size:11.5px;color:var(--text)}
+  .q .ms{font-size:22px;color:var(--primary-strong)}
+  .q.primary{background:var(--primary);border-color:transparent;color:var(--on-primary);font-weight:600}
+  .q.primary .ms{color:var(--on-primary)}
+  .shead{display:flex;align-items:baseline;justify-content:space-between;font-size:12px;color:var(--text-2);flex:none}
+  .tl{display:flex;flex-direction:column;flex:none}
+  .tli{display:flex;align-items:center;gap:12px;padding:8px 0;min-height:52px}
+  .tli + .tli{border-top:1px dashed var(--outline)}
+  .tic{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;flex:none}
+  .tic .ms{font-size:18px}
+  .tmain{flex:1;min-width:0}
+  .tt{font-size:13.5px;font-weight:500;line-height:1.35}
+  .tt .tv{font-weight:600;margin-left:5px}
+  .tsub{font-size:11px;color:var(--text-2);margin-top:2px;line-height:1.35}
+  .time{font-size:11px;color:var(--text-2);font-variant-numeric:tabular-nums;flex:none}
+  .scrollhint{display:flex;align-items:center;justify-content:center;gap:3px;font-size:10.5px;color:var(--text-2);opacity:.75;padding:4px 0}
+  .scrollhint .ms{font-size:14px}
+  .nav{height:66px;flex:none;border-top:1px solid var(--outline);background:var(--surface);display:flex;align-items:center;padding:0 6px 4px}
+  .nv{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10.5px;color:var(--text-2)}
+  .nv .pill{width:52px;height:28px;border-radius:999px;display:grid;place-items:center}
+  .nv .ms{font-size:20px}
+  .nv.on{color:var(--primary-strong);font-weight:600}
+  .nv.on .pill{background:var(--container);color:var(--on-container)}
+  /* 日历 */
+  .cal-head{display:flex;align-items:center;justify-content:space-between;font-size:14px;font-weight:600}
+  .cal-head .ms{font-size:20px;color:var(--text-2)}
+  .week{display:grid;grid-template-columns:repeat(7,1fr);font-size:10.5px;color:var(--text-2);text-align:center;margin:12px 0 6px}
+  .days{display:grid;grid-template-columns:repeat(7,1fr);row-gap:2px;text-align:center}
+  .day{height:38px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:12.5px}
+  .day .num{width:31px;height:31px;border-radius:999px;display:grid;place-items:center;font-variant-numeric:tabular-nums}
+  .day.dim{opacity:.35}
+  .day.sel .num{background:var(--primary);color:var(--on-primary);font-weight:600}
+  .day.due .num{box-shadow:inset 0 0 0 1.5px #C98A3E}
+  .day.today .num{box-shadow:inset 0 0 0 1.5px var(--primary)}
+  .dots{display:flex;gap:3px;height:4px}
+  .dots i{width:4px;height:4px;border-radius:999px;background:var(--text-2);opacity:.45}
+  .dots i.red{background:var(--anomaly);opacity:.9}
+  .legend{display:flex;gap:14px;font-size:10.5px;color:var(--text-2);margin-top:10px;padding-top:10px;border-top:1px solid var(--outline)}
+  .legend span{display:flex;align-items:center;gap:5px}
+  .legend b{width:6px;height:6px;border-radius:999px;display:inline-block}
+  /* 记录 */
+  .chipsrow{display:flex;gap:8px;overflow:hidden;flex:none}
+  .chip{height:33px;padding:0 14px;border-radius:999px;border:1px solid var(--outline);background:var(--surface);font-size:12px;color:var(--text-2);display:flex;align-items:center;white-space:nowrap;flex:none}
+  .chip.on{background:var(--container);border-color:transparent;color:var(--on-container);font-weight:600}
+  .stat{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--outline);border-radius:16px;padding:12px 14px;font-size:12.5px}
+  .stat .k{font-size:11px;color:var(--text-2);margin-bottom:2px}
+  .stat .v{font-weight:500}
+  .stat .v b{font-weight:600}
+  .stat .chev{margin-left:auto;font-size:18px;color:var(--text-2)}
+  /* 我的 */
+  .prof{display:flex;align-items:center;gap:14px}
+  .avatar{width:56px;height:56px;border-radius:20px;background:var(--container);color:var(--on-container);display:grid;place-items:center;flex:none}
+  .avatar .ms{font-size:30px}
+  .prof .name{font-size:18px;font-weight:600}
+  .prof .meta2{font-size:11.5px;color:var(--text-2);margin-top:3px}
+  .prof .edit{margin-left:auto;font-size:12px;font-weight:500;color:var(--primary-strong);border:1px solid var(--outline);border-radius:999px;padding:5px 12px}
+  .setlist{display:flex;flex-direction:column}
+  .setrow{display:flex;align-items:center;gap:12px;padding:12px 0;font-size:13px}
+  .setrow + .setrow{border-top:1px solid var(--outline)}
+  .setrow .sic{width:32px;height:32px;border-radius:10px;background:var(--surface-2);color:var(--text-2);display:grid;place-items:center;flex:none}
+  .setrow .sic .ms{font-size:17px}
+  .setrow .val{margin-left:auto;font-size:12px;color:var(--text-2)}
+  .setrow .chev{font-size:17px;color:var(--text-2);opacity:.7}
+  .note{margin-top:2px;font-size:10.5px;color:var(--text-2);line-height:1.5}
+  /* 表单 */
+  .formlabel{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-2);flex:none}
+  .formlabel .req{font-size:10px;color:var(--anomaly);background:var(--anomaly-bg);border-radius:4px;padding:1px 5px}
+  .formlabel .opt{font-size:10px;opacity:.75}
+  .tagcloud{display:flex;flex-wrap:wrap;gap:8px;flex:none}
+  .chip.add{border-style:dashed;color:var(--primary-strong);gap:3px}
+  .chip.add .ms{font-size:15px}
+  .formrow{display:flex;align-items:center;justify-content:space-between;background:var(--surface);border:1px solid var(--outline);border-radius:14px;padding:12px 14px;font-size:13px;flex:none}
+  .formrow .val{font-size:12.5px;color:var(--text-2);display:flex;align-items:center;gap:3px}
+  .formrow .val .ms{font-size:16px}
+  .photos{display:flex;gap:10px;flex:none}
+  .photo{width:72px;height:72px;border-radius:14px;background:var(--surface-2);border:1px solid var(--outline);display:grid;place-items:center;color:var(--text-2)}
+  .photo .ms{font-size:22px;opacity:.65}
+  .photo.add{border-style:dashed;color:var(--primary-strong)}
+  .photo.add .ms{opacity:1}
+  .textarea{background:var(--surface);border:1px solid var(--outline);border-radius:14px;padding:12px 14px;font-size:12.5px;line-height:1.6;color:var(--text);min-height:74px;flex:none}
+  /* 弹窗 */
+  .scrim{position:absolute;inset:0;background:rgba(28,18,10,.36);backdrop-filter:blur(1px)}
+  .dim{opacity:.34;filter:saturate(.85)}
+  .sheet{position:absolute;left:0;right:0;bottom:0;background:var(--surface);border-radius:26px 26px 0 0;padding:10px 20px 20px;border-top:1px solid var(--outline);box-shadow:0 -14px 40px rgba(40,24,12,.18)}
+  .handle{width:36px;height:4px;border-radius:999px;background:var(--outline-2);margin:0 auto 14px}
+  .sheet h3{font-size:17px;font-weight:600;letter-spacing:-.01em}
+  .sheet .hint{font-size:11.5px;color:var(--text-2);margin-top:4px}
+  .inputbig{display:flex;align-items:baseline;justify-content:center;gap:7px;background:var(--surface-2);border:1px solid var(--outline);border-radius:16px;padding:16px;margin:14px 0 12px}
+  .inputbig .num{font-size:44px;font-weight:600;letter-spacing:-.03em;line-height:1;font-variant-numeric:tabular-nums}
+  .inputbig .unit{font-size:13px;color:var(--text-2);font-weight:500}
+  .chips{display:flex;gap:8px;flex-wrap:wrap}
+  .btnrow{display:flex;gap:10px;margin-top:16px}
+  .btn{flex:1;height:50px;border-radius:16px;border:1px solid var(--outline);background:var(--surface);font-size:14px;font-weight:500;color:var(--text);display:flex;align-items:center;justify-content:center}
+  .btn.primary{background:var(--primary);border-color:transparent;color:var(--on-primary);font-weight:600}
+  .seg{display:flex;background:var(--surface-2);border-radius:14px;padding:4px;margin-top:14px}
+  .seg div{flex:1;text-align:center;font-size:13px;font-weight:500;padding:8px 0;border-radius:11px;color:var(--text-2)}
+  .seg .on{background:var(--surface);color:var(--text);box-shadow:0 1px 3px rgba(50,30,10,.10)}
+  .stepper{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--outline)}
+  .stepper .sk{font-size:13px;color:var(--text)}
+  .stepctl{display:flex;align-items:center;gap:12px}
+  .stepbtn{width:34px;height:34px;border-radius:11px;border:1px solid var(--outline);background:var(--surface);display:grid;place-items:center;color:var(--text)}
+  .stepbtn .ms{font-size:17px}
+  .stepval{font-size:20px;font-weight:600;min-width:62px;text-align:center;font-variant-numeric:tabular-nums}
+  .stepval .u{font-size:11px;font-weight:500;color:var(--text-2);margin-left:2px}
+  .total{display:flex;align-items:center;justify-content:space-between;background:var(--container);color:var(--on-container);border-radius:14px;padding:12px 14px;margin-top:14px}
+  .total .tk{font-size:11.5px;opacity:.85}
+  .total .tv2{font-size:20px;font-weight:600;font-variant-numeric:tabular-nums}
+  .foot{max-width:1540px;margin:44px auto 0;padding-top:20px;border-top:1px solid var(--page-line);font-size:11.5px;color:var(--page-ink2);line-height:1.8}
+  .foot b{font-weight:600;color:#6B503B}
+  @media (max-width:900px){body{padding:28px 16px 48px}.frames{gap:32px 20px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="head">
+    <div class="brand">
+      <div class="mark"><span class="ms fill">pets</span></div>
+      <div>
+        <h1>小福日常 · 视觉稿 v1.2</h1>
+        <p>静态视觉稿，用于确认信息层级、配色、字号与组件形态；交互与状态以当前 APK（v1.0.0）及 docs/任务清单为准。<br>图标：Material Symbols Rounded（Apache 2.0）· 主题：橘白 / 跟随系统·浅色·深色</p>
+      </div>
+    </div>
+    <div class="meta">
+      <div class="pal"><i style="background:#F09C63"></i><span>主色</span></div>
+      <div class="pal"><i style="background:#B5501A"></i><span>强调</span></div>
+      <div class="pal"><i style="background:#FFF8F3"></i><span>奶油底</span></div>
+      <div class="pal"><i style="background:#221A14"></i><span>墨</span></div>
+      <div class="pal"><i style="background:#151110"></i><span>深色底</span></div>
+      <div class="pal"><i style="background:#FBE9E7"></i><span>异常</span></div>
+    </div>
+  </header>
+
+  <main class="frames">
+
+    <!-- 01 今日 浅色 -->
+    <section class="frame" id="f1">
+      <div class="cap"><span class="idx">01</span>今日 · 浅色<span class="tag">主界面</span></div>
+      <div class="phone light">
+        <div class="sb"><span>09:41</span><span class="r"><span class="ms">signal_cellular_alt</span><span class="ms">wifi</span><span class="ms">battery_full</span></span></div>
+        <div class="content">
+          <div class="topbar">
+            <div><h2>今天</h2><div class="sub">11月22日 · 周日</div></div>
+            <div class="iconbtn"><span class="ms">notifications</span><i class="dot"></i></div>
+          </div>
+          <div class="card ov">
+            <div class="ov-l">
+              <div class="lab"><span class="dot-ic t-water"><span class="ms">water_drop</span></span>今日喝水</div>
+              <div class="big">260<span class="u">ml</span></div>
+              <div class="tiny">2 次记录</div>
+            </div>
+            <div class="vr"></div>
+            <div class="ov-r">
+              <div class="row"><span class="dot-ic t-food"><span class="ms">restaurant</span></span><div class="txt"><div class="k">主粮</div><div class="v">2 份 · 30 克</div></div></div>
+              <div class="row"><span class="dot-ic t-snack"><span class="ms">cookie</span></span><div class="txt"><div class="k">加餐</div><div class="v">1 份 · 10 克</div></div></div>
+              <div class="row"><span class="dot-ic t-weight"><span class="ms">monitor_weight</span></span><div class="txt"><div class="k">最近体重</div><div class="v">8.6 斤<span class="muted">3天前</span></div></div><span class="ms chev">chevron_right</span></div>
+            </div>
+          </div>
+          <div class="due"><span class="dot-ic t-deworm"><span class="ms">pest_control</span></span><span>外驱还有 <b>2 天</b> 到期</span><span class="ms chev">chevron_right</span></div>
+          <div class="quick">
+            <div class="q primary"><span class="ms">water_drop</span><span>喝水</span></div>
+            <div class="q"><span class="ms">restaurant</span><span>喂食</span></div>
+            <div class="q"><span class="ms">cookie</span><span>加餐</span></div>
+            <div class="q"><span class="ms">add</span><span>更多</span></div>
+          </div>
+          <div class="shead"><span>今天 · 4 条</span><span></span></div>
+          <div class="tl">
+            <div class="tli"><span class="tic t-water"><span class="ms">water_drop</span></span><div class="tmain"><div class="tt">喝水 <span class="tv">60 ml</span></div><div class="tsub">早起第一杯</div></div><span class="time">08:12</span></div>
+            <div class="tli"><span class="tic t-food"><span class="ms">restaurant</span></span><div class="tmain"><div class="tt">主粮 <span class="tv">1 份 · 15 克</span></div><div class="tsub">早餐</div></div><span class="time">07:40</span></div>
+            <div class="tli"><span class="tic t-snack"><span class="ms">cookie</span></span><div class="tmain"><div class="tt">加餐 <span class="tv">冻干 1 份 · 10 克</span></div></div><span class="time">07:05</span></div>
+            <div class="tli"><span class="tic t-water"><span class="ms">water_drop</span></span><div class="tmain"><div class="tt">喝水 <span class="tv">200 ml</span></div></div><span class="time">06:50</span></div>
+          </div>
+          <div class="scrollhint"><span class="ms">expand_more</span>上滑查看更早记录</div>
+        </div>
+        <div class="nav">
+          <div class="nv on"><span class="pill"><span class="ms fill">home</span></span><span>今日</span></div>
+          <div class="nv"><span class="pill"><span class="ms">calendar_month</span></span><span>日历</span></div>
+          <div class="nv"><span class="pill"><span class="ms">list</span></span><span>记录</span></div>
+          <div class="nv"><span class="pill"><span class="ms">person</span></span><span>我的</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 02 今日 深色 -->
+    <section class="frame" id="f2">
+      <div class="cap"><span class="idx">02</span>今日 · 深色<span class="tag">深色模式</span></div>
+      <div class="phone dark">
+        <div class="sb"><span>21:08</span><span class="r"><span class="ms">signal_cellular_alt</span><span class="ms">wifi</span><span class="ms">battery_full</span></span></div>
+        <div class="content">
+          <div class="topbar">
+            <div><h2>今天</h2><div class="sub">11月22日 · 周日</div></div>
+            <div class="iconbtn"><span class="ms">notifications</span><i class="dot"></i></div>
+          </div>
+          <div class="card ov">
+            <div class="ov-l">
+              <div class="lab"><span class="dot-ic t-water"><span class="ms">water_drop</span></span>今日喝水</div>
+              <div class="big">260<span class="u">ml</span></div>
+              <div class="tiny">2 次记录</div>
+            </div>
+            <div class="vr"></div>
+            <div class="ov-r">
+              <div class="row"><span class="dot-ic t-food"><span class="ms">restaurant</span></span><div class="txt"><div class="k">主粮</div><div class="v">2 份 · 30 克</div></div></div>
+              <div class="row"><span class="dot-ic t-snack"><span class="ms">cookie</span></span><div class="txt"><div class="k">加餐</div><div class="v">1 份 · 10 克</div></div></div>
+              <div class="row"><span class="dot-ic t-weight"><span class="ms">monitor_weight</span></span><div class="txt"><div class="k">最近体重</div><div class="v">8.6 斤<span class="muted">3天前</span></div></div><span class="ms chev">chevron_right</span></div>
+            </div>
+          </div>
+          <div class="due"><span class="dot-ic t-deworm"><span class="ms">pest_control</span></span><span>外驱还有 <b>2 天</b> 到期</span><span class="ms chev">chevron_right</span></div>
+          <div class="quick">
+            <div class="q primary"><span class="ms">water_drop</span><span>喝水</span></div>
+            <div class="q"><span class="ms">restaurant</span><span>喂食</span></div>
+            <div class="q"><span class="ms">cookie</span><span>加餐</span></div>
+            <div class="q"><span class="ms">add</span><span>更多</span></div>
+          </div>
+          <div class="shead"><span>今天 · 4 条</span><span></span></div>
+          <div class="tl">
+            <div class="tli"><span class="tic t-water"><span class="ms">water_drop</span></span><div class="tmain"><div class="tt">喝水 <span class="tv">60 ml</span></div><div class="tsub">早起第一杯</div></div><span class="time">08:12</span></div>
+            <div class="tli"><span class="tic t-food"><span class="ms">restaurant</span></span><div class="tmain"><div class="tt">主粮 <span class="tv">1 份 · 15 克</span></div><div class="tsub">早餐</div></div><span class="time">07:40</span></div>
+            <div class="tli"><span class="tic t-snack"><span class="ms">cookie</span></span><div class="tmain"><div class="tt">加餐 <span class="tv">冻干 1 份 · 10 克</span></div></div><span class="time">07:05</span></div>
+            <div class="tli"><span class="tic t-water"><span class="ms">water_drop</span></span><div class="tmain"><div class="tt">喝水 <span class="tv">200 ml</span></div></div><span class="time">06:50</span></div>
+          </div>
+          <div class="scrollhint"><span class="ms">expand_more</span>上滑查看更早记录</div>
+        </div>
+        <div class="nav">
+          <div class="nv on"><span class="pill"><span class="ms fill">home</span></span><span>今日</span></div>
+          <div class="nv"><span class="pill"><span class="ms">calendar_month</span></span><span>日历</span></div>
+          <div class="nv"><span class="pill"><span class="ms">list</span></span><span>记录</span></div>
+          <div class="nv"><span class="pill"><span class="ms">person</span></span><span>我的</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 03 日历 -->
+    <section class="frame" id="f3">
+      <div class="cap"><span class="idx">03</span>日历 · 浅色<span class="tag">按日期回看</span></div>
+      <div class="phone light">
+        <div class="sb"><span>09:41</span><span class="r"><span class="ms">signal_cellular_alt</span><span class="ms">wifi</span><span class="ms">battery_full</span></span></div>
+        <div class="content">
+          <div class="topbar">
+            <div><h2>日历</h2><div class="sub">按日期回看与补记</div></div>
+            <div class="iconbtn"><span class="ms">today</span></div>
+          </div>
+          <div class="card" style="padding:16px 14px">
+            <div class="cal-head"><span class="ms">chevron_left</span><span>2026年11月</span><span class="ms">chevron_right</span></div>
+            <div class="week"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div>
+            <div class="days">
+              <div class="day dim"><span class="num">25</span></div>
+              <div class="day dim"><span class="num">26</span></div>
+              <div class="day dim"><span class="num">27</span></div>
+              <div class="day dim"><span class="num">28</span></div>
+              <div class="day dim"><span class="num">29</span></div>
+              <div class="day dim"><span class="num">30</span></div>
+              <div class="day dim"><span class="num">31</span></div>
+
+              <div class="day"><span class="num">1</span><span class="dots"><i></i></span></div>
+              <div class="day"><span class="num">2</span></div>
+              <div class="day"><span class="num">3</span><span class="dots"><i></i></span></div>
+              <div class="day"><span class="num">4</span></div>
+              <div class="day"><span class="num">5</span><span class="dots"><i></i></span></div>
+              <div class="day"><span class="num">6</span></div>
+              <div class="day"><span class="num">7</span></div>
+
+              <div class="day"><span class="num">8</span><span class="dots"><i></i></span></div>
+              <div class="day"><span class="num">9</span></div>
+              <div class="day"><span class="num">10</span></div>
+              <div class="day"><span class="num">11</span></div>
+              <div class="day"><span class="num">12</span><span class="dots"><i></i></span></div>
+              <div class="day"><span class="num">13</span></div>
+              <div class="day"><span class="num">14</span></div>
+
+              <div class="day"><span class="num">15</span><span class="dots"><i></i></span></div>
+              <div class="day"><span class="num">16</span></div>
+              <div class="day"><span class="num">17</span></div>
+              <div class="day"><span class="num">18</span><span class="dots"><i></i></span></div>
+              <div class="day"><span class="num">19</span></div>
+              <div class="day"><span class="num">20</span><span class="dots"><i class="red"></i></span></div>
+              <div class="day"><span class="num">21</span><span class="dots"><i></i></span></div>
+
+              <div class="day sel"><span class="num">22</span><span class="dots"><i></i><i class="red"></i></span></div>
+              <div class="day"><span class="num">23</span></div>
+              <div class="day due"><span class="num">24</span></div>
+              <div class="day"><span class="num">25</span></div>
+              <div class="day"><span class="num">26</span><span class="dots"><i></i></span></div>
+              <div class="day"><span class="num">27</span></div>
+              <div class="day due"><span class="num">28</span></div>
+
+              <div class="day"><span class="num">29</span></div>
+              <div class="day"><span class="num">30</span></div>
+              <div class="day dim"><span class="num">1</span></div>
+              <div class="day dim"><span class="num">2</span></div>
+              <div class="day dim"><span class="num">3</span></div>
+              <div class="day dim"><span class="num">4</span></div>
+              <div class="day dim"><span class="num">5</span></div>
+            </div>
+            <div class="legend">
+              <span><b style="background:#A08B7C;opacity:.5"></b>有记录</span>
+              <span><b style="background:#B3261E"></b>异常</span>
+              <span><b style="background:#C98A3E"></b>驱虫/疫苗到期</span>
+            </div>
+          </div>
+          <div class="shead"><span>11月22日 · 今天</span><span>共 4 条</span></div>
+          <div class="tl">
+            <div class="tli"><span class="tic t-water"><span class="ms">water_drop</span></span><div class="tmain"><div class="tt">喝水 <span class="tv">60 ml</span></div></div><span class="time">08:12</span></div>
+            <div class="tli"><span class="tic t-food"><span class="ms">restaurant</span></span><div class="tmain"><div class="tt">主粮 <span class="tv">1 份 · 15 克</span></div></div><span class="time">07:40</span></div>
+            <div class="tli"><span class="tic t-water"><span class="ms">water_drop</span></span><div class="tmain"><div class="tt">喝水 <span class="tv">200 ml</span></div></div><span class="time">06:50</span></div>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:center;gap:6px;height:42px;border:1px dashed var(--outline-2);border-radius:14px;font-size:12.5px;color:var(--primary-strong);font-weight:500;flex:none"><span class="ms" style="font-size:17px">add</span>补记这一天的记录</div>
+        </div>
+        <div class="nav">
+          <div class="nv"><span class="pill"><span class="ms">home</span></span><span>今日</span></div>
+          <div class="nv on"><span class="pill"><span class="ms fill">calendar_month</span></span><span>日历</span></div>
+          <div class="nv"><span class="pill"><span class="ms">list</span></span><span>记录</span></div>
+          <div class="nv"><span class="pill"><span class="ms">person</span></span><span>我的</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 04 记录 -->
+    <section class="frame" id="f4">
+      <div class="cap"><span class="idx">04</span>记录 · 浅色<span class="tag">按类型筛选</span></div>
+      <div class="phone light">
+        <div class="sb"><span>09:41</span><span class="r"><span class="ms">signal_cellular_alt</span><span class="ms">wifi</span><span class="ms">battery_full</span></span></div>
+        <div class="content">
+          <div class="topbar">
+            <div><h2>记录</h2><div class="sub">按类型查看历史</div></div>
+            <div class="iconbtn"><span class="ms">search</span></div>
+          </div>
+          <div class="chipsrow">
+            <div class="chip on">全部</div><div class="chip">喝水</div><div class="chip">喂食</div><div class="chip">体重</div><div class="chip">驱虫</div><div class="chip">疫苗</div><div class="chip">异常</div>
+          </div>
+          <div class="stat"><span class="dot-ic t-deworm"><span class="ms">pest_control</span></span><div><div class="k">外驱 · 下次 11月24日</div><div class="v">还有 <b>2 天</b> 到期</div></div><span class="ms chev">chevron_right</span></div>
+          <div class="stat"><span class="dot-ic t-vaccine"><span class="ms">vaccines</span></span><div><div class="k">疫苗 · 下次 2027年3月10日</div><div class="v">狂犬疫苗 · 年度加强</div></div><span class="ms chev">chevron_right</span></div>
+          <div class="shead"><span>11月22日</span><span>4 条</span></div>
+          <div class="tl">
+            <div class="tli"><span class="tic t-water"><span class="ms">water_drop</span></span><div class="tmain"><div class="tt">喝水 <span class="tv">60 ml</span></div><div class="tsub">08:12</div></div><span class="time">60 ml</span></div>
+            <div class="tli"><span class="tic t-food"><span class="ms">restaurant</span></span><div class="tmain"><div class="tt">主粮 <span class="tv">1 份 · 15 克</span></div><div class="tsub">07:40 · 早餐</div></div><span class="time">15 克</span></div>
+            <div class="tli"><span class="tic t-snack"><span class="ms">cookie</span></span><div class="tmain"><div class="tt">加餐 <span class="tv">冻干 1 份 · 10 克</span></div><div class="tsub">07:05</div></div><span class="time">10 克</span></div>
+            <div class="tli"><span class="tic t-water"><span class="ms">water_drop</span></span><div class="tmain"><div class="tt">喝水 <span class="tv">200 ml</span></div><div class="tsub">06:50</div></div><span class="time">200 ml</span></div>
+          </div>
+          <div class="shead"><span>11月21日</span><span>2 条</span></div>
+          <div class="tl">
+            <div class="tli"><span class="tic t-weight"><span class="ms">monitor_weight</span></span><div class="tmain"><div class="tt">体重 <span class="tv">8.6 斤</span></div><div class="tsub">21:30 · 晚间称重</div></div><span class="time">8.6 斤</span></div>
+            <div class="tli"><span class="tic t-anomaly"><span class="ms">warning</span></span><div class="tmain"><div class="tt">异常 <span class="tv">呕吐 · 轻度</span></div><div class="tsub">20:10 · 已观察</div></div><span class="time">1 条</span></div>
+          </div>
+        </div>
+        <div class="nav">
+          <div class="nv"><span class="pill"><span class="ms">home</span></span><span>今日</span></div>
+          <div class="nv"><span class="pill"><span class="ms">calendar_month</span></span><span>日历</span></div>
+          <div class="nv on"><span class="pill"><span class="ms fill">list</span></span><span>记录</span></div>
+          <div class="nv"><span class="pill"><span class="ms">person</span></span><span>我的</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 05 我的 -->
+    <section class="frame" id="f5">
+      <div class="cap"><span class="idx">05</span>我的 · 浅色<span class="tag">档案与设置</span></div>
+      <div class="phone light">
+        <div class="sb"><span>09:41</span><span class="r"><span class="ms">signal_cellular_alt</span><span class="ms">wifi</span><span class="ms">battery_full</span></span></div>
+        <div class="content">
+          <div class="topbar">
+            <div><h2>我的</h2><div class="sub">小福的档案与偏好</div></div>
+            <div class="iconbtn"><span class="ms">settings</span></div>
+          </div>
+          <div class="card prof">
+            <div class="avatar"><span class="ms fill">pets</span></div>
+            <div><div class="name">小福</div><div class="meta2">橘猫 · 1 岁 8 个月 · 男孩</div></div>
+            <div class="edit">编辑</div>
+          </div>
+          <div class="card" style="padding:6px 18px">
+            <div class="setlist">
+              <div class="setrow"><span class="sic"><span class="ms">restaurant</span></span>喂养 · 每份克重<span class="val">15 克</span><span class="ms chev">chevron_right</span></div>
+              <div class="setrow"><span class="sic"><span class="ms">pest_control</span></span>驱虫周期<span class="val">内 90 天 / 外 30 天</span><span class="ms chev">chevron_right</span></div>
+              <div class="setrow"><span class="sic"><span class="ms">notifications</span></span>提醒<span class="val">已开启 · 提前 3 天 09:00</span><span class="ms chev">chevron_right</span></div>
+              <div class="setrow"><span class="sic"><span class="ms">dark_mode</span></span>外观<span class="val">跟随系统</span><span class="ms chev">chevron_right</span></div>
+              <div class="setrow"><span class="sic"><span class="ms">info</span></span>关于<span class="val">版本 1.0.0</span><span class="ms chev">chevron_right</span></div>
+            </div>
+          </div>
+          <div class="card" style="padding:16px 18px;background:var(--surface-2);border-style:dashed">
+            <div style="font-size:12px;font-weight:600;margin-bottom:4px">数据都在本机</div>
+            <div class="note">当前版本仅本地存储，不上传云端；导出备份将在 v1.1 提供。</div>
+          </div>
+          <div style="flex:1"></div>
+        </div>
+        <div class="nav">
+          <div class="nv"><span class="pill"><span class="ms">home</span></span><span>今日</span></div>
+          <div class="nv"><span class="pill"><span class="ms">calendar_month</span></span><span>日历</span></div>
+          <div class="nv"><span class="pill"><span class="ms">list</span></span><span>记录</span></div>
+          <div class="nv on"><span class="pill"><span class="ms fill">person</span></span><span>我的</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 06 喝水弹窗 -->
+    <section class="frame" id="f6">
+      <div class="cap"><span class="idx">06</span>喝水弹窗<span class="tag">预填上次值</span></div>
+      <div class="phone light">
+        <div class="sb"><span>09:41</span><span class="r"><span class="ms">signal_cellular_alt</span><span class="ms">wifi</span><span class="ms">battery_full</span></span></div>
+        <div class="content dim">
+          <div class="topbar">
+            <div><h2>今天</h2><div class="sub">11月22日 · 周日</div></div>
+            <div class="iconbtn"><span class="ms">notifications</span><i class="dot"></i></div>
+          </div>
+          <div class="card ov">
+            <div class="ov-l">
+              <div class="lab"><span class="dot-ic t-water"><span class="ms">water_drop</span></span>今日喝水</div>
+              <div class="big">260<span class="u">ml</span></div>
+              <div class="tiny">2 次记录</div>
+            </div>
+            <div class="vr"></div>
+            <div class="ov-r">
+              <div class="row"><span class="dot-ic t-food"><span class="ms">restaurant</span></span><div class="txt"><div class="k">主粮</div><div class="v">2 份 · 30 克</div></div></div>
+              <div class="row"><span class="dot-ic t-snack"><span class="ms">cookie</span></span><div class="txt"><div class="k">加餐</div><div class="v">1 份 · 10 克</div></div></div>
+            </div>
+          </div>
+          <div class="due"><span class="dot-ic t-deworm"><span class="ms">pest_control</span></span><span>外驱还有 <b>2 天</b> 到期</span><span class="ms chev">chevron_right</span></div>
+          <div class="quick">
+            <div class="q primary"><span class="ms">water_drop</span><span>喝水</span></div>
+            <div class="q"><span class="ms">restaurant</span><span>喂食</span></div>
+            <div class="q"><span class="ms">cookie</span><span>加餐</span></div>
+            <div class="q"><span class="ms">add</span><span>更多</span></div>
+          </div>
+        </div>
+        <div class="scrim"></div>
+        <div class="sheet">
+          <div class="handle"></div>
+          <h3>记喝水</h3>
+          <div class="hint">上次 60 ml，已为你填好；直接确认即可</div>
+          <div class="inputbig"><span class="num">60</span><span class="unit">ml</span></div>
+          <div class="chips"><div class="chip">50</div><div class="chip">100</div><div class="chip">150</div><div class="chip">200</div></div>
+          <div class="btnrow"><div class="btn">取消</div><div class="btn primary">记下来</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 07 喂食弹窗 -->
+    <section class="frame" id="f7">
+      <div class="cap"><span class="idx">07</span>喂食弹窗<span class="tag">长按打开</span></div>
+      <div class="phone light">
+        <div class="sb"><span>09:41</span><span class="r"><span class="ms">signal_cellular_alt</span><span class="ms">wifi</span><span class="ms">battery_full</span></span></div>
+        <div class="content dim">
+          <div class="topbar">
+            <div><h2>今天</h2><div class="sub">11月22日 · 周日</div></div>
+            <div class="iconbtn"><span class="ms">notifications</span><i class="dot"></i></div>
+          </div>
+          <div class="card ov">
+            <div class="ov-l">
+              <div class="lab"><span class="dot-ic t-water"><span class="ms">water_drop</span></span>今日喝水</div>
+              <div class="big">260<span class="u">ml</span></div>
+              <div class="tiny">2 次记录</div>
+            </div>
+            <div class="vr"></div>
+            <div class="ov-r">
+              <div class="row"><span class="dot-ic t-food"><span class="ms">restaurant</span></span><div class="txt"><div class="k">主粮</div><div class="v">2 份 · 30 克</div></div></div>
+              <div class="row"><span class="dot-ic t-snack"><span class="ms">cookie</span></span><div class="txt"><div class="k">加餐</div><div class="v">1 份 · 10 克</div></div></div>
+            </div>
+          </div>
+          <div class="quick">
+            <div class="q primary"><span class="ms">water_drop</span><span>喝水</span></div>
+            <div class="q"><span class="ms">restaurant</span><span>喂食</span></div>
+            <div class="q"><span class="ms">cookie</span><span>加餐</span></div>
+            <div class="q"><span class="ms">add</span><span>更多</span></div>
+          </div>
+        </div>
+        <div class="scrim"></div>
+        <div class="sheet">
+          <div class="handle"></div>
+          <h3>记喂食</h3>
+          <div class="hint">单击「喂食」= 1 份主粮；长按可调份数与克重</div>
+          <div class="seg"><div class="on">主粮</div><div>加餐</div></div>
+          <div class="stepper">
+            <span class="sk">份数</span>
+            <div class="stepctl"><span class="stepbtn"><span class="ms">remove</span></span><span class="stepval">1.5<span class="u">份</span></span><span class="stepbtn"><span class="ms">add</span></span></div>
+          </div>
+          <div class="stepper" style="border-bottom:none">
+            <span class="sk">每份克重</span>
+            <div class="stepctl"><span class="stepbtn"><span class="ms">remove</span></span><span class="stepval">15<span class="u">克</span></span><span class="stepbtn"><span class="ms">add</span></span></div>
+          </div>
+          <div class="total"><div><div class="tk">主粮 · 1.5 份 × 15 克</div><div class="tv2">本次共 23 克</div></div><span class="ms" style="font-size:22px">restaurant</span></div>
+          <div class="btnrow"><div class="btn">取消</div><div class="btn primary">保存</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 08 异常录入 -->
+    <section class="frame">
+      <div class="cap"><span class="idx">08</span>异常录入 · 浅色<span class="tag">分类可自定义</span></div>
+      <div class="phone light">
+        <div class="sb"><span>09:41</span><span class="r"><span class="ms">signal_cellular_alt</span><span class="ms">wifi</span><span class="ms">battery_full</span></span></div>
+        <div class="content">
+          <div class="topbar">
+            <div style="display:flex;align-items:center;gap:10px"><span class="ms" style="font-size:22px;color:var(--text-2)">arrow_back</span><h2 style="font-size:20px">记录异常</h2></div>
+            
+          </div>
+          <div class="formlabel">分类<span class="req">必填</span></div>
+          <div class="tagcloud">
+            <div class="chip on">呕吐</div>
+            <div class="chip">腹泻</div>
+            <div class="chip">精神不佳</div>
+            <div class="chip">食欲不振</div>
+            <div class="chip">咳嗽</div>
+            <div class="chip">外伤</div>
+            <div class="chip">体温异常</div>
+            <div class="chip add"><span class="ms">add</span>自定义</div>
+          </div>
+          <div class="formlabel">严重程度<span class="opt">选填</span></div>
+          <div class="seg" style="margin-top:0"><div>轻</div><div class="on">中</div><div>重</div></div>
+          <div class="formrow"><span>时间</span><span class="val">今天 20:10<span class="ms">chevron_right</span></span></div>
+          <div class="formlabel">照片<span class="opt">最多 3 张</span></div>
+          <div class="photos">
+            <div class="photo"><span class="ms">image</span></div>
+            <div class="photo"><span class="ms">image</span></div>
+            <div class="photo add"><span class="ms">add</span></div>
+          </div>
+          <div class="formlabel">备注<span class="opt">选填</span></div>
+          <div class="textarea">之后精神正常，已观察；晚上正常进食。</div>
+          <div style="flex:1"></div>
+          <div class="btn primary" style="flex:none">保存记录</div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="foot">
+    <b>说明</b>：① 本稿为静态视觉稿，交互（弹窗动效、Snackbar 撤销、长按反馈）将在实现阶段落地；② 大数字使用等宽数字（tabular），避免累加时跳动；③ 六类记录的颜色与图标为固定映射，日历标记、时间线、筛选共用；④ 图标均来自 Material Symbols Rounded，后续安卓端以同名 vector drawable 引入，确保真机与视觉稿一致。
+  </footer>
+</div>
+</body>
+</html>

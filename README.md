@@ -2,9 +2,9 @@
 
 单宠（橘猫「小福」）日常健康与生活记录 Android App。核心体验是「打开即可记、一眼看懂」：喝水、主粮/加餐、体重、驱虫、疫苗、异常六类记录，配合同步汇总、日历回看、到期提醒与趋势图。
 
-- **当前版本**：`0.9.0`（versionCode 9）
-- **交付形态**：`dist/小福日常-v0.9.0.apk`（自测签名，覆盖安装保留数据）
-- **状态**：核心功能完成，已按 7 轮真机反馈迭代；剩余事项见 [`docs/任务清单-小福日常.md`](docs/任务清单-小福日常.md)
+- **当前版本**：`1.0.0`（versionCode 10）
+- **交付形态**：`dist/小福日常-v1.0.0.apk`（自测签名，覆盖安装保留数据）
+- **状态**：1.0.0 已发布，核心功能与 P0 验收完成；后续事项见 [`docs/任务清单-小福日常.md`](docs/任务清单-小福日常.md)
 - **技术栈**：Kotlin · Jetpack Compose · Material 3 · Room · WorkManager
 - **平台**：Android 9+（minSdk 28），compileSdk / targetSdk 37
 
@@ -52,7 +52,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:ANDROID_HOME\platform-tools;$env:Path"
 
 .\gradlew.bat assembleDebug      # 调试包
 .\gradlew.bat assembleRelease    # 交付包
-adb install -r dist/小福日常-v0.9.0.apk
+adb install -r dist/小福日常-v1.0.0.apk
 ```
 
 签名：当前为自测签名，不可上架应用商店；覆盖安装（`adb install -r`）不会清空数据。
@@ -76,6 +76,7 @@ build/shots/         真机验收截图（本地，不随仓库分发）
 | [`docs/数据模型设计-阶段1.md`](docs/数据模型设计-阶段1.md) | 表结构、枚举、DAO、设置键与迁移 |
 | [`docs/任务清单-小福日常.md`](docs/任务清单-小福日常.md) | **当前进度：已完成 / 待进行 / 验收记录** |
 | [`docs/验收报告-0.9.0.md`](docs/验收报告-0.9.0.md) | 深色编辑表单、升级/异常路径 P0 验收结果 |
+| [`docs/发布说明-1.0.0.md`](docs/发布说明-1.0.0.md) | 1.0.0 发布范围、验证与安装说明 |
 | [`design/mockup.html`](design/mockup.html) | 可交互视觉稿 |
 
 ## 最近提交

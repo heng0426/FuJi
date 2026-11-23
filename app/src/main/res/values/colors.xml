@@ -2,4 +2,24 @@
 <resources>
     <color name="window_background">#FFF8F3</color>
     <color name="ic_launcher_background">#E8853D</color>
+
+    <!-- 桌面小组件令牌（docs/UI设计规范-小福日常.md；浅/深各一套，渲染时按 App 外观选择） -->
+    <color name="w_text">#221A14</color>
+    <color name="w_text_dark">#F1E4DA</color>
+    <color name="w_text2">#6E5A4B</color>
+    <color name="w_text2_dark">#C9B4A5</color>
+    <color name="w_outline">#F0E2D6</color>
+    <color name="w_outline_dark">#3A2E27</color>
+    <color name="w_accent">#B5501A</color>
+    <color name="w_accent_dark">#FFB77E</color>
+    <color name="w_primary">#F09C63</color>
+    <color name="w_primary_dark">#FFB77E</color>
+    <color name="w_on_primary">#3A1E0A</color>
+    <color name="w_on_primary_dark">#4A2306</color>
+    <color name="w_water">#3E7CB1</color>
+    <color name="w_water_dark">#6FB6F0</color>
+    <color name="w_food">#B5501A</color>
+    <color name="w_food_dark">#FF9D57</color>
+    <color name="w_error">#B3261E</color>
+    <color name="w_error_dark">#FF9A93</color>
 </resources>

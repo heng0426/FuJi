@@ -15,6 +15,7 @@ import com.xiaofu.daily.ui.theme.ThemeMode
 import com.xiaofu.daily.ui.theme.ThemePreference
 import androidx.core.view.WindowCompat
 import com.xiaofu.daily.ui.theme.XiaoFuTheme
+import com.xiaofu.daily.widget.WidgetUpdater
 
 class MainActivity : ComponentActivity() {
 
@@ -32,6 +33,12 @@ class MainActivity : ComponentActivity() {
         }
         config.uiMode = (config.uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or nightMode
         super.attachBaseContext(newBase.createConfigurationContext(config))
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // App 内写入记录或改档案后，回到桌面时小组件与最新数据一致
+        WidgetUpdater.refreshAllAsync(this)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

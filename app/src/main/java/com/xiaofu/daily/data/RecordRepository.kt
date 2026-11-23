@@ -497,6 +497,41 @@ class RecordRepository(
         return id
     }
 
+    /** 就医记录：医院/医生/诊断/费用选填，照片与异常共用照片表 */
+    suspend fun saveVet(
+        hospital: String?,
+        doctor: String?,
+        diagnosis: String?,
+        costYuan: Int?,
+        note: String?,
+        occurredAt: Long,
+        newPhotoUris: List<Uri> = emptyList(),
+        existing: RecordEntity? = null,
+        keepPhotoNames: List<String> = emptyList(),
+    ): Long {
+        val record = (existing ?: base(RecordType.VET, occurredAt)).copy(
+            occurredAt = occurredAt,
+            vetHospital = hospital?.trim()?.ifBlank { null },
+            vetDoctor = doctor?.trim()?.ifBlank { null },
+            vetDiagnosis = diagnosis?.trim()?.ifBlank { null },
+            vetCostYuan = costYuan,
+            note = note?.trim()?.ifBlank { null },
+            updatedAt = now(),
+        )
+        val id = if (existing == null) recordDao.insert(record) else {
+            recordDao.update(record)
+            existing.id
+        }
+        val names = keepPhotoNames + newPhotoUris.mapNotNull { photoStore.import(it) }
+        photoDao.deleteByRecordId(id)
+        if (names.isNotEmpty()) {
+            photoDao.insertAll(names.mapIndexed { index, name ->
+                RecordPhotoEntity(recordId = id, fileName = name, sortOrder = index)
+            })
+        }
+        return id
+    }
+
     suspend fun deleteTag(id: Long) {
         tagDao.deleteCustom(id)
     }

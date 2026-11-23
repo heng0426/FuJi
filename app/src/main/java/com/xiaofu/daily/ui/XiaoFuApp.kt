@@ -63,6 +63,7 @@ import com.xiaofu.daily.ui.editor.AnomalyEditor
 import com.xiaofu.daily.ui.editor.DewormEditor
 import com.xiaofu.daily.ui.editor.EditorTarget
 import com.xiaofu.daily.ui.editor.VaccineEditor
+import com.xiaofu.daily.ui.editor.VetEditor
 import com.xiaofu.daily.ui.editor.WeightEditor
 import com.xiaofu.daily.ui.calendar.CalendarScreen
 import com.xiaofu.daily.ui.calendar.CalendarViewModel
@@ -227,6 +228,7 @@ fun XiaoFuApp() {
                 is EditorTarget.Deworm -> DewormEditor(vm, current.record, current.occurredAtMs) { editor = null }
                 is EditorTarget.Vaccine -> VaccineEditor(vm, current.record, current.occurredAtMs) { editor = null }
                 is EditorTarget.Anomaly -> AnomalyEditor(vm, current.record, current.occurredAtMs) { editor = null }
+                is EditorTarget.Vet -> VetEditor(vm, current.record, current.occurredAtMs) { editor = null }
             }
         }
     }

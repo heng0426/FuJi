@@ -706,6 +706,116 @@ fun AnomalyEditor(vm: TodayViewModel, record: RecordEntity?, initialOccurredAt: 
 }
 
 @Composable
+fun VetEditor(vm: TodayViewModel, record: RecordEntity?, initialOccurredAt: Long? = null, onBack: () -> Unit) {
+    val scope = rememberCoroutineScope()
+    var hospital by remember { mutableStateOf(record?.vetHospital ?: "") }
+    var doctor by remember { mutableStateOf(record?.vetDoctor ?: "") }
+    var diagnosis by remember { mutableStateOf(record?.vetDiagnosis ?: "") }
+    var cost by remember { mutableStateOf(record?.vetCostYuan?.toString() ?: "") }
+    var note by remember { mutableStateOf(record?.note ?: "") }
+    var occurredAt by remember { mutableStateOf(record?.occurredAt ?: initialOccurredAt ?: nowMillis()) }
+    var showPicker by remember { mutableStateOf(false) }
+
+    var existingPhotos by remember { mutableStateOf<List<String>>(emptyList()) }
+    var newUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
+    LaunchedEffect(record?.id) {
+        existingPhotos = record?.let { vm.photoNames(it.id) } ?: emptyList()
+    }
+
+    val remaining = (3 - existingPhotos.size - newUris.size).coerceAtLeast(0)
+    val picker = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickMultipleVisualMedia(maxItems = 3),
+    ) { picked ->
+        newUris = (newUris + picked).take(3 - existingPhotos.size)
+    }
+
+    EditorScaffold(
+        title = if (record == null) "记录就诊" else "编辑就诊",
+        onBack = onBack,
+        primaryEnabled = hospital.isNotBlank() || diagnosis.isNotBlank(),
+        onSave = {
+            scope.launch {
+                vm.saveVet(
+                    hospital = hospital,
+                    doctor = doctor,
+                    diagnosis = diagnosis,
+                    costYuan = cost.toIntOrNull(),
+                    note = note.ifBlank { null },
+                    photos = newUris,
+                    existing = record,
+                    keepPhotoNames = existingPhotos,
+                    at = occurredAt,
+                )
+                onBack()
+            }
+        },
+    ) {
+        val optional = MaterialTheme.colorScheme.onSurfaceVariant
+        FormLabel("医院", badge = "选填", badgeColor = optional)
+        TextFieldBox(
+            value = hospital,
+            onValueChange = { hospital = it },
+            placeholder = "例如：XX 宠物医院",
+        )
+        FormLabel("医生", badge = "选填", badgeColor = optional)
+        TextFieldBox(
+            value = doctor,
+            onValueChange = { doctor = it },
+            placeholder = "例如：张医生",
+        )
+        FormLabel("诊断", badge = "选填", badgeColor = optional)
+        TextFieldBox(
+            value = diagnosis,
+            onValueChange = { diagnosis = it },
+            placeholder = "例如：肠胃炎，开了 5 天药",
+            singleLine = false,
+        )
+        FormLabel("费用", badge = "选填", badgeColor = optional)
+        BigNumberField(
+            value = cost,
+            onValueChange = { cost = it },
+            unit = "元",
+            placeholder = "0",
+        )
+        TimeRow("时间", Fmt.detailTime(occurredAt)) { showPicker = true }
+        FormLabel("照片", badge = "最多 3 张", badgeColor = optional)
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            existingPhotos.forEach { fileName ->
+                PhotoTile(file = vm.photoFile(fileName), onRemove = {
+                    existingPhotos = existingPhotos - fileName
+                })
+            }
+            newUris.forEach { uri ->
+                PhotoTile(uri = uri, onRemove = { newUris = newUris - uri })
+            }
+            repeat((3 - existingPhotos.size - newUris.size).coerceAtLeast(0)) {
+                AddPhotoTile {
+                    if (remaining > 0) {
+                        picker.launch(
+                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
+                        )
+                    }
+                }
+            }
+        }
+        FormLabel("备注", badge = "选填", badgeColor = optional)
+        NoteFieldBox(
+            value = note,
+            onValueChange = { note = it },
+            placeholder = "例如：复查时间、用药反应",
+        )
+    }
+
+    if (showPicker) {
+        DatePickerSheet(
+            initialDay = Fmt.date(occurredAt).toEpochDay(),
+            onDismiss = { showPicker = false },
+            onPick = { day -> occurredAt = combineDayWithTime(day, occurredAt) },
+        )
+    }
+}
+
+@Composable
 private fun PhotoTile(file: File? = null, uri: Uri? = null, onRemove: () -> Unit) {
     val cs = MaterialTheme.colorScheme
     val context = LocalContext.current

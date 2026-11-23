@@ -85,6 +85,7 @@ private val typeLabels = mapOf(
     RecordType.DEWORM to "驱虫",
     RecordType.VACCINE to "疫苗",
     RecordType.ANOMALY to "异常",
+    RecordType.VET to "就诊",
 )
 
 @Composable
@@ -467,6 +468,7 @@ fun RecordsScreen(
                     RecordType.WEIGHT -> onOpenEditor(EditorTarget.Weight(record))
                     RecordType.DEWORM -> onOpenEditor(EditorTarget.Deworm(record))
                     RecordType.VACCINE -> onOpenEditor(EditorTarget.Vaccine(record))
+                    RecordType.VET -> onOpenEditor(EditorTarget.Vet(record))
                     RecordType.ANOMALY -> onOpenEditor(EditorTarget.Anomaly(record))
                 }
             },

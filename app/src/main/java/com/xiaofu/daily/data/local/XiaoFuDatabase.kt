@@ -5,6 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.xiaofu.daily.data.local.dao.AnomalyTagDao
 import com.xiaofu.daily.data.local.dao.PhotoDao
@@ -25,7 +26,7 @@ import com.xiaofu.daily.data.local.entity.SettingEntity
         AnomalyTagEntity::class,
         SettingEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -93,6 +94,17 @@ abstract class XiaoFuDatabase : RoomDatabase() {
         fun build(context: Context): XiaoFuDatabase =
             Room.databaseBuilder(context.applicationContext, XiaoFuDatabase::class.java, DB_NAME)
                 .addCallback(seedCallback)
+                .addMigrations(MIGRATION_1_2)
                 .build()
+
+        /** v2：新增就医记录字段（全部可空，不影响既有记录） */
+        val MIGRATION_1_2: Migration = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE records ADD COLUMN vet_hospital TEXT")
+                db.execSQL("ALTER TABLE records ADD COLUMN vet_doctor TEXT")
+                db.execSQL("ALTER TABLE records ADD COLUMN vet_diagnosis TEXT")
+                db.execSQL("ALTER TABLE records ADD COLUMN vet_cost_yuan INTEGER")
+            }
+        }
     }
 }

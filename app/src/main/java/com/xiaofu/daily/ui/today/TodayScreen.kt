@@ -356,6 +356,7 @@ fun TodayScreen(
                     RecordType.WEIGHT -> onOpenEditor(EditorTarget.Weight(record))
                     RecordType.DEWORM -> onOpenEditor(EditorTarget.Deworm(record))
                     RecordType.VACCINE -> onOpenEditor(EditorTarget.Vaccine(record))
+                    RecordType.VET -> onOpenEditor(EditorTarget.Vet(record))
                     RecordType.ANOMALY -> onOpenEditor(EditorTarget.Anomaly(record))
                 }
             },

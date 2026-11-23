@@ -134,6 +134,7 @@ private val LightRecordStyles = mapOf(
     RecordType.DEWORM to RecordStyle(R.drawable.ic_ms_pest_control, Color(0xFF6F55A0), Color(0xFFF0EBFA)),
     RecordType.VACCINE to RecordStyle(R.drawable.ic_ms_vaccines, Color(0xFF2C7366), Color(0xFFE4F2EF)),
     RecordType.ANOMALY to RecordStyle(R.drawable.ic_ms_warning, Color(0xFFB3261E), Color(0xFFFBE9E7)),
+    RecordType.VET to RecordStyle(R.drawable.ic_ms_local_hospital, Color(0xFF4A6FA5), Color(0xFFE8EEF8)),
 )
 
 private val DarkRecordStyles = mapOf(
@@ -143,6 +144,7 @@ private val DarkRecordStyles = mapOf(
     RecordType.DEWORM to RecordStyle(R.drawable.ic_ms_pest_control, Color(0xFFC3A4FA), Color(0xFF2B2141)),
     RecordType.VACCINE to RecordStyle(R.drawable.ic_ms_vaccines, Color(0xFF5FD6BE), Color(0xFF132D28)),
     RecordType.ANOMALY to RecordStyle(R.drawable.ic_ms_warning, Color(0xFFFF9A93), Color(0xFF3D1B19)),
+    RecordType.VET to RecordStyle(R.drawable.ic_ms_local_hospital, Color(0xFF9DBDEC), Color(0xFF1A2940)),
 )
 
 /** 加餐使用独立的棕金语义色（与主粮区分） */

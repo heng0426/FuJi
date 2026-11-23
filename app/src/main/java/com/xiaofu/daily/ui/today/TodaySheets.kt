@@ -409,6 +409,9 @@ fun MoreSheet(onDismiss: () -> Unit, onPick: (EditorTarget) -> Unit) {
             MoreRow(R.drawable.ic_ms_vaccines, "疫苗", "接种记录与下次接种提醒", RecordType.VACCINE) {
                 onPick(EditorTarget.Vaccine())
             }
+            MoreRow(R.drawable.ic_ms_local_hospital, "就诊", "医院、诊断与费用", RecordType.VET) {
+                onPick(EditorTarget.Vet())
+            }
             MoreRow(R.drawable.ic_ms_warning, "异常", "呕吐、腹泻等异常情况", RecordType.ANOMALY, last = true) {
                 onPick(EditorTarget.Anomaly())
             }
@@ -484,16 +487,29 @@ fun DetailSheet(
             }
             Spacer(Modifier.height(14.dp))
             DetailRow("时间", Fmt.detailTime(record.occurredAt))
-            if (record.type == RecordType.ANOMALY) {
-                DetailRow("分类", record.anomalyCategory ?: "—")
-                record.severity?.let { DetailRow("程度", it.label()) }
-                DetailRow("备注", record.note?.takeIf { it.isNotBlank() } ?: "无", multiline = true)
-                AnomalyPhotoStrip(record.id)
-            } else {
-                record.note?.takeIf { it.isNotBlank() }?.let { DetailRow("备注", it, multiline = true) }
-                if (record.type == RecordType.DEWORM || record.type == RecordType.VACCINE) {
-                    record.nextDueDate?.let {
-                        DetailRow(if (record.type == RecordType.VACCINE) "下次接种" else "下次到期", Fmt.fullDate(it))
+            when (record.type) {
+                RecordType.ANOMALY -> {
+                    DetailRow("分类", record.anomalyCategory ?: "—")
+                    record.severity?.let { DetailRow("程度", it.label()) }
+                    DetailRow("备注", record.note?.takeIf { it.isNotBlank() } ?: "无", multiline = true)
+                    RecordPhotoStrip(record.id)
+                }
+
+                RecordType.VET -> {
+                    record.vetHospital?.let { DetailRow("医院", it) }
+                    record.vetDoctor?.let { DetailRow("医生", it) }
+                    record.vetDiagnosis?.let { DetailRow("诊断", it, multiline = true) }
+                    record.vetCostYuan?.let { DetailRow("费用", "¥$it") }
+                    DetailRow("备注", record.note?.takeIf { it.isNotBlank() } ?: "无", multiline = true)
+                    RecordPhotoStrip(record.id)
+                }
+
+                else -> {
+                    record.note?.takeIf { it.isNotBlank() }?.let { DetailRow("备注", it, multiline = true) }
+                    if (record.type == RecordType.DEWORM || record.type == RecordType.VACCINE) {
+                        record.nextDueDate?.let {
+                            DetailRow(if (record.type == RecordType.VACCINE) "下次接种" else "下次到期", Fmt.fullDate(it))
+                        }
                     }
                 }
             }
@@ -526,7 +542,7 @@ private fun DetailRow(label: String, value: String, multiline: Boolean = false) 
 }
 
 @Composable
-private fun AnomalyPhotoStrip(recordId: Long) {
+private fun RecordPhotoStrip(recordId: Long) {
     val cs = MaterialTheme.colorScheme
     val photos by produceState(initialValue = emptyList<File>(), recordId) {
         value = runCatching {
@@ -547,13 +563,13 @@ private fun AnomalyPhotoStrip(recordId: Long) {
             Modifier.fillMaxWidth().padding(top = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            photos.take(3).forEach { file -> AnomalyThumb(file) }
+            photos.take(3).forEach { file -> RecordThumb(file) }
         }
     }
 }
 
 @Composable
-private fun AnomalyThumb(file: File) {
+private fun RecordThumb(file: File) {
     val cs = MaterialTheme.colorScheme
     val bitmap by produceState<ImageBitmap?>(initialValue = null, file.path) {
         value = withContext(Dispatchers.IO) {
@@ -570,7 +586,7 @@ private fun AnomalyThumb(file: File) {
             .background(cs.surfaceVariant),
     ) {
         if (bitmap != null) {
-            Image(bitmap!!, contentDescription = "异常照片", modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+            Image(bitmap!!, contentDescription = "记录照片", modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
         }
     }
 }

@@ -180,6 +180,28 @@ class TodayViewModel(private val repo: RecordRepository) : ViewModel() {
 
     suspend fun photoNames(recordId: Long): List<String> = repo.photoNames(recordId)
 
+    suspend fun saveVet(
+        hospital: String?,
+        doctor: String?,
+        diagnosis: String?,
+        costYuan: Int?,
+        note: String?,
+        photos: List<Uri>,
+        existing: RecordEntity?,
+        keepPhotoNames: List<String>,
+        at: Long? = null,
+    ) = repo.saveVet(
+        hospital = hospital,
+        doctor = doctor,
+        diagnosis = diagnosis,
+        costYuan = costYuan,
+        note = note,
+        occurredAt = at ?: existing?.occurredAt ?: System.currentTimeMillis(),
+        newPhotoUris = photos,
+        existing = existing,
+        keepPhotoNames = keepPhotoNames,
+    )
+
     fun photoFile(name: String) = repo.photoFile(name)
 
     companion object {

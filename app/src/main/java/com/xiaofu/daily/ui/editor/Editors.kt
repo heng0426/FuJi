@@ -288,6 +288,7 @@ fun DewormEditor(vm: TodayViewModel, record: RecordEntity?, initialOccurredAt: L
     var medicineTags by remember { mutableStateOf<List<String>>(emptyList()) }
     var showCustomTag by remember { mutableStateOf(false) }
     var customTagName by remember { mutableStateOf("") }
+    var pendingDeleteTag by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) { medicineTags = vm.medicineTags() }
 
@@ -323,12 +324,7 @@ fun DewormEditor(vm: TodayViewModel, record: RecordEntity?, initialOccurredAt: L
                     text = tag,
                     selected = medicine == tag,
                     onClick = { medicine = tag },
-                    onLongClick = {
-                        scope.launch {
-                            vm.removeMedicineTag(tag)
-                            medicineTags = medicineTags - tag
-                        }
-                    },
+                    onLongClick = { pendingDeleteTag = tag },
                 )
             }
             PillChip(
@@ -390,6 +386,28 @@ fun DewormEditor(vm: TodayViewModel, record: RecordEntity?, initialOccurredAt: L
             placeholder = "例如：海乐妙",
         )
     }
+
+    pendingDeleteTag?.let { tag ->
+        AlertDialog(
+            onDismissRequest = { pendingDeleteTag = null },
+            containerColor = MaterialTheme.colorScheme.surface,
+            shape = RoundedCornerShape(22.dp),
+            title = { Text("删除药品", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold) },
+            text = { Text("删除常用药品「$tag」？", style = MaterialTheme.typography.bodyMedium) },
+            confirmButton = {
+                TextButton(onClick = {
+                    pendingDeleteTag = null
+                    scope.launch {
+                        vm.removeMedicineTag(tag)
+                        medicineTags = medicineTags - tag
+                    }
+                }) { Text("删除", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDeleteTag = null }) { Text("取消") }
+            },
+        )
+    }
 }
 
 // ===================== 疫苗 =====================
@@ -406,6 +424,7 @@ fun VaccineEditor(vm: TodayViewModel, record: RecordEntity?, initialOccurredAt: 
     var vaccineTags by remember { mutableStateOf<List<String>>(emptyList()) }
     var showCustomTag by remember { mutableStateOf(false) }
     var customTagName by remember { mutableStateOf("") }
+    var pendingDeleteTag by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) { vaccineTags = vm.vaccineTags() }
 
@@ -428,12 +447,7 @@ fun VaccineEditor(vm: TodayViewModel, record: RecordEntity?, initialOccurredAt: 
                     text = tag,
                     selected = name.trim() == tag,
                     onClick = { name = tag },
-                    onLongClick = {
-                        scope.launch {
-                            vm.removeVaccineTag(tag)
-                            vaccineTags = vaccineTags - tag
-                        }
-                    },
+                    onLongClick = { pendingDeleteTag = tag },
                 )
             }
             PillChip(
@@ -498,6 +512,28 @@ fun VaccineEditor(vm: TodayViewModel, record: RecordEntity?, initialOccurredAt: 
             },
             title = "自定义疫苗",
             placeholder = "例如：猫三联",
+        )
+    }
+
+    pendingDeleteTag?.let { tag ->
+        AlertDialog(
+            onDismissRequest = { pendingDeleteTag = null },
+            containerColor = MaterialTheme.colorScheme.surface,
+            shape = RoundedCornerShape(22.dp),
+            title = { Text("删除疫苗", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold) },
+            text = { Text("删除常用疫苗「$tag」？", style = MaterialTheme.typography.bodyMedium) },
+            confirmButton = {
+                TextButton(onClick = {
+                    pendingDeleteTag = null
+                    scope.launch {
+                        vm.removeVaccineTag(tag)
+                        vaccineTags = vaccineTags - tag
+                    }
+                }) { Text("删除", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDeleteTag = null }) { Text("取消") }
+            },
         )
     }
 }

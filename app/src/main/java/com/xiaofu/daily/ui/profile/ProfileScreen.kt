@@ -67,6 +67,7 @@ import com.xiaofu.daily.R
 import com.xiaofu.daily.data.SettingsKeys
 import com.xiaofu.daily.data.local.entity.ProfileEntity
 import com.xiaofu.daily.data.local.model.Gender
+import com.xiaofu.daily.ui.backup.BackupSection
 import com.xiaofu.daily.ui.components.CardSurface
 import com.xiaofu.daily.ui.components.PillChip
 import com.xiaofu.daily.ui.components.PrimaryButton
@@ -90,7 +91,11 @@ import java.time.ZoneOffset
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileScreen(vm: ProfileViewModel, modifier: Modifier = Modifier) {
+fun ProfileScreen(
+    vm: ProfileViewModel,
+    modifier: Modifier = Modifier,
+    onMessage: (String) -> Unit = {},
+) {
     val cs = MaterialTheme.colorScheme
     val context = LocalContext.current
     val versionName = remember {
@@ -190,11 +195,14 @@ fun ProfileScreen(vm: ProfileViewModel, modifier: Modifier = Modifier) {
                 }
             }
         }
+        item(key = "backup") {
+            BackupSection(onMessage = onMessage)
+        }
         item(key = "note") {
             CardSurface(contentPadding = 16.dp) {
                 Text("数据都在本机", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = cs.onSurface)
                 Text(
-                    "当前版本仅本地存储，不上传云端；导出备份将在后续版本提供。",
+                    "数据仅保存在本机，不上传云端。换机或清除应用数据前，请先导出备份。",
                     style = MaterialTheme.typography.labelSmall,
                     color = cs.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp),

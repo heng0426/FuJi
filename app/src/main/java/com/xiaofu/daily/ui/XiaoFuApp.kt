@@ -217,6 +217,7 @@ fun XiaoFuApp() {
                     Tab.PROFILE -> ProfileScreen(
                         vm = profileVm,
                         modifier = Modifier.padding(innerPadding),
+                        onMessage = onMessage,
                     )
                 }
             }

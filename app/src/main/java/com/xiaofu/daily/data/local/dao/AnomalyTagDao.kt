@@ -25,4 +25,16 @@ interface AnomalyTagDao {
 
     @Query("SELECT IFNULL(MAX(sort_order), -1) FROM anomaly_tags")
     suspend fun maxSortOrder(): Int
+
+    // ---- 备份/恢复 ----
+
+    @Query("SELECT * FROM anomaly_tags ORDER BY id ASC")
+    suspend fun getAll(): List<AnomalyTagEntity>
+
+    /** 导入专用：携带显式 id 整体写入，须在 deleteAll 后调用 */
+    @Insert
+    suspend fun insertAll(tags: List<AnomalyTagEntity>)
+
+    @Query("DELETE FROM anomaly_tags")
+    suspend fun deleteAll()
 }

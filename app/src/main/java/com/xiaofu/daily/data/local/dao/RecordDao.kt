@@ -129,4 +129,16 @@ interface RecordDao {
             "AND next_due_date BETWEEN :fromDay AND :toDay ORDER BY next_due_date ASC",
     )
     suspend fun getUpcomingDue(fromDay: Long, toDay: Long): List<RecordEntity>
+
+    // ---- 备份/恢复 ----
+
+    @Query("SELECT * FROM records ORDER BY id ASC")
+    suspend fun getAll(): List<RecordEntity>
+
+    /** 导入专用：携带显式 id 整体写入，须在 deleteAll 后调用 */
+    @Insert
+    suspend fun insertAll(records: List<RecordEntity>)
+
+    @Query("DELETE FROM records")
+    suspend fun deleteAll()
 }

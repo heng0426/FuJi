@@ -3,6 +3,7 @@ package com.xiaofu.daily
 import android.app.Application
 import android.content.Context
 import com.xiaofu.daily.data.RecordRepository
+import com.xiaofu.daily.data.backup.BackupManager
 import com.xiaofu.daily.data.local.XiaoFuDatabase
 import com.xiaofu.daily.reminder.ReminderNotifier
 import com.xiaofu.daily.reminder.ReminderScheduler
@@ -11,10 +12,13 @@ import com.xiaofu.daily.reminder.ReminderScheduler
 object AppContainer {
     lateinit var repository: RecordRepository
         private set
+    lateinit var backup: BackupManager
+        private set
 
     fun init(context: Context) {
         val db = XiaoFuDatabase.build(context)
         repository = RecordRepository(db, context.applicationContext)
+        backup = BackupManager(db, context.applicationContext)
     }
 }
 

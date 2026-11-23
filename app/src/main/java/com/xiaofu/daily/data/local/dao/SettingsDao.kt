@@ -20,4 +20,12 @@ interface SettingsDao {
 
     @Upsert
     suspend fun putAll(settings: List<SettingEntity>)
+
+    // ---- 备份/恢复 ----
+
+    @Query("SELECT * FROM settings ORDER BY `key` ASC")
+    suspend fun getAll(): List<SettingEntity>
+
+    @Query("DELETE FROM settings")
+    suspend fun deleteAll()
 }

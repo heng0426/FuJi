@@ -62,7 +62,6 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
 import com.xiaofu.daily.R
 import java.io.File
 import kotlinx.coroutines.Dispatchers
@@ -168,7 +167,7 @@ fun PhotoViewerDialog(
     }
 }
 
-/** 预览窗口：隐藏状态栏、内容延伸到状态栏区域，背景做半透明模糊（API 31+） */
+/** 预览窗口：内容铺满整屏（含状态栏区域），状态栏保持显示、图标用浅色 */
 @Composable
 private fun ViewerWindowChrome() {
     val view = LocalView.current
@@ -176,11 +175,13 @@ private fun ViewerWindowChrome() {
     SideEffect {
         window.setDimAmount(0.12f)
         window.setBackgroundDrawable(ColorDrawable(android.graphics.Color.TRANSPARENT))
+        @Suppress("DEPRECATION")
+        window.statusBarColor = android.graphics.Color.TRANSPARENT
         val controller = WindowCompat.getInsetsController(window, view)
+        controller.show(WindowInsetsCompat.Type.statusBars())
+        // 背景是深色毛玻璃，状态栏与导航栏都用浅色图标
+        controller.isAppearanceLightStatusBars = false
         controller.isAppearanceLightNavigationBars = false
-        controller.systemBarsBehavior =
-            WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-        controller.hide(WindowInsetsCompat.Type.statusBars())
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             runCatching { window.setBackgroundBlurRadius(80) }
         }

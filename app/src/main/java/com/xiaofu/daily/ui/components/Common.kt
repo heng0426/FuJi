@@ -128,7 +128,7 @@ fun RoundIconButton(
     }
 }
 
-/** 标签 chip：34dp 高、999dp 圆角、左右 14dp（设计规范 §3） */
+/** 标签 chip：30dp 高、999dp 圆角、左右 11dp（按真机反馈收窄；30dp ≥ WCAG AA 24dp 最低触控目标） */
 @Composable
 @OptIn(ExperimentalFoundationApi::class)
 fun PillChip(
@@ -143,7 +143,7 @@ fun PillChip(
     val shape = RoundedCornerShape(999.dp)
     Row(
         modifier = modifier
-            .height(34.dp)
+            .height(30.dp)
             .clip(shape)
             .background(if (selected) cs.primaryContainer else cs.surface)
             .border(1.dp, if (selected) Color.Transparent else cs.outline, shape)
@@ -154,8 +154,7 @@ fun PillChip(
                     Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick)
                 },
             )
-            .padding(horizontal = 14.dp)
-            .minTouchTarget(44.dp),
+            .padding(horizontal = 11.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(3.dp),
     ) {
@@ -163,13 +162,13 @@ fun PillChip(
             Icon(
                 painterResource(leadingIconRes),
                 contentDescription = null,
-                modifier = Modifier.size(15.dp),
+                modifier = Modifier.size(14.dp),
                 tint = if (selected) cs.onPrimaryContainer else cs.primary,
             )
         }
         Text(
             text = text,
-            style = MaterialTheme.typography.labelMedium,
+            style = MaterialTheme.typography.labelMedium.copy(fontSize = 11.sp, lineHeight = 14.sp),
             color = if (selected) cs.onPrimaryContainer else cs.onSurfaceVariant,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
         )

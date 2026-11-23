@@ -15,10 +15,13 @@
             android:name=".MainActivity"
             android:exported="true"
             android:screenOrientation="portrait"
+            android:windowSoftInputMode="adjustResize"
             android:theme="@style/Theme.XiaoFu">
             <!--
                 锁定竖屏：全 App 按 360dp 竖屏单手操作设计（UI 规范 §1），
                 横屏/折叠屏大屏适配未设计，P1 评估结论为锁定竖屏、v2 再评估。
+                adjustResize：edge-to-edge 下由 Compose insets 处理键盘，避免系统默认 pan
+                导致整页上移（异常编辑页真机反馈）。
             -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

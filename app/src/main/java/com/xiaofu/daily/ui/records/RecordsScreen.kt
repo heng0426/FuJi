@@ -170,7 +170,7 @@ fun RecordsScreen(
         }
         }
         item(key = "filters") {
-            LazyRow(state = chipState, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            LazyRow(state = chipState, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 item {
                     PillChip("全部", selected = filter == null, onClick = { vm.setFilter(null) })
                 }
@@ -179,6 +179,8 @@ fun RecordsScreen(
                     val isDragging = draggingType == type
                     Box(
                         modifier = Modifier
+                            // 被挤走的 chip 用 LazyRow 位置动画平滑让位；拖拽中的 chip 跟手，不参与动画
+                            .then(if (isDragging) Modifier else Modifier.animateItem())
                             .graphicsLayer { translationX = if (isDragging) dragOffset else 0f }
                             .zIndex(if (isDragging) 1f else 0f)
                             .pointerInput(type) {

@@ -14,15 +14,17 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -392,74 +394,87 @@ private fun EditProfileSheet(
         dragHandle = null,
         contentWindowInsets = { androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0) },
     ) {
+        // 外层只负责键盘避让；字段区可滚动(weight fill=false)，按钮始终钉在键盘上方——
+        // 档案表单较高，中文键盘弹出时内容+键盘可能超出屏幕，导致按钮被裁掉（真机反馈）
         Column(
             Modifier
                 .navigationBarsPadding()
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .imePadding(),
         ) {
-            SheetHandle()
-            Text("编辑档案", fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = cs.onSurface)
-            Row(
-                modifier = Modifier.fillMaxWidth().clickable {
-                    photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                },
-                verticalAlignment = Alignment.CenterVertically,
+            Column(
+                Modifier
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                ProfileAvatar(photoFile = profile?.photoFile, pickedUri = pickedPhoto, size = 64.dp, radius = 22.dp)
-                Column(Modifier.padding(start = 14.dp)) {
-                    Text("更换头像", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium, color = cs.onSurface)
-                    Text(
-                        if (pickedPhoto != null) "已选择新照片，保存后生效" else "从相册选择",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = cs.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 2.dp),
-                    )
-                }
-            }
-            Text("名字", style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
-            TextFieldBox(value = name, onValueChange = { name = it.take(12) }, placeholder = "小福")
-            Text("品种", style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
-            TextFieldBox(value = breed, onValueChange = { breed = it.take(12) }, placeholder = "例如：橘猫")
-            Text("性别", style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
-            SegmentedRow(
-                options = listOf("男孩", "女孩"),
-                selectedIndex = genderIndex,
-                onSelect = { genderIndex = if (genderIndex == it) -1 else it },
-            )
-            Text("生日", style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(cs.surface)
-                        .border(1.dp, cs.outline, RoundedCornerShape(14.dp))
-                        .clickable { showPicker = true }
-                        .padding(horizontal = 14.dp, vertical = 14.dp),
+                SheetHandle()
+                Text("编辑档案", fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = cs.onSurface)
+                Row(
+                    modifier = Modifier.fillMaxWidth().clickable {
+                        photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                    },
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(
-                        birthdayDay?.let { Fmt.fullDate(it) } ?: "未设置",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = cs.onSurface,
-                    )
+                    ProfileAvatar(photoFile = profile?.photoFile, pickedUri = pickedPhoto, size = 64.dp, radius = 22.dp)
+                    Column(Modifier.padding(start = 14.dp)) {
+                        Text("更换头像", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium, color = cs.onSurface)
+                        Text(
+                            if (pickedPhoto != null) "已选择新照片，保存后生效" else "从相册选择",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = cs.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 2.dp),
+                        )
+                    }
                 }
-                if (birthdayDay != null) {
-                    Text(
-                        "清除",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = cs.onSurfaceVariant,
-                        modifier = Modifier
-                            .padding(start = 8.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .clickable { birthdayDay = null }
-                            .padding(horizontal = 10.dp, vertical = 8.dp),
-                    )
+                Text("名字", style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
+                TextFieldBox(value = name, onValueChange = { name = it.take(12) }, placeholder = "小福")
+                Text("品种", style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
+                TextFieldBox(value = breed, onValueChange = { breed = it.take(12) }, placeholder = "例如：橘猫")
+                Text("性别", style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
+                SegmentedRow(
+                    options = listOf("男孩", "女孩"),
+                    selectedIndex = genderIndex,
+                    onSelect = { genderIndex = if (genderIndex == it) -1 else it },
+                )
+                Text("生日", style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(cs.surface)
+                            .border(1.dp, cs.outline, RoundedCornerShape(14.dp))
+                            .clickable { showPicker = true }
+                            .padding(horizontal = 14.dp, vertical = 14.dp),
+                    ) {
+                        Text(
+                            birthdayDay?.let { Fmt.fullDate(it) } ?: "未设置",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = cs.onSurface,
+                        )
+                    }
+                    if (birthdayDay != null) {
+                        Text(
+                            "清除",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = cs.onSurfaceVariant,
+                            modifier = Modifier
+                                .padding(start = 8.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .clickable { birthdayDay = null }
+                                .padding(horizontal = 10.dp, vertical = 8.dp),
+                        )
+                    }
                 }
             }
-            Spacer(Modifier.height(2.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .padding(top = 16.dp, bottom = 20.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
                 SecondaryButton("取消", onDismiss, Modifier.weight(1f))
                 PrimaryButton(
                     "保存",

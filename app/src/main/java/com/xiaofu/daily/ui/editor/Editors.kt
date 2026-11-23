@@ -115,7 +115,7 @@ private fun EditorScaffold(
             modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 10.dp, bottom = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            RoundIconButton(R.drawable.ic_ms_arrow_back, onBack)
+            RoundIconButton(R.drawable.ic_ms_arrow_back, onBack, contentDescription = "返回")
             Text(
                 title,
                 fontSize = 20.sp,

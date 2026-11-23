@@ -59,6 +59,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -70,6 +73,7 @@ import com.xiaofu.daily.data.local.model.RecordType
 import com.xiaofu.daily.ui.components.CardSurface
 import com.xiaofu.daily.ui.components.RecordRow
 import com.xiaofu.daily.ui.components.appRippleColor
+import com.xiaofu.daily.ui.components.minTouchTarget
 import com.xiaofu.daily.ui.components.roundedRowClickable
 import com.xiaofu.daily.ui.components.RoundIconButton
 import com.xiaofu.daily.ui.components.SheetHandle
@@ -176,7 +180,7 @@ fun CalendarScreen(
                     Text("日历", style = MaterialTheme.typography.headlineSmall, color = cs.onBackground)
                     Text("按日期回看与补记", style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant, modifier = Modifier.padding(top = 2.dp))
                 }
-                RoundIconButton(R.drawable.ic_ms_add, onClick = { showCreate = true })
+                RoundIconButton(R.drawable.ic_ms_add, onClick = { showCreate = true }, contentDescription = "新增记录")
             }
         }
         item(key = "calendar") {
@@ -478,17 +482,25 @@ private fun MonthCard(
         Column(Modifier.fillMaxWidth()) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Box(
-                    Modifier.size(32.dp).clip(CircleShape).clickable {
-                        scope.launch {
-                            pagerState.animateScrollToPage((pagerState.currentPage - 1).coerceAtLeast(0))
+                    Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .clickable {
+                            scope.launch {
+                                pagerState.animateScrollToPage((pagerState.currentPage - 1).coerceAtLeast(0))
+                            }
                         }
-                    },
+                        .minTouchTarget(44.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(painterResource(R.drawable.ic_ms_chevron_left), "上个月", Modifier.size(20.dp), tint = cs.onSurfaceVariant)
                 }
                 Row(
-                    modifier = Modifier.weight(1f).clip(RoundedCornerShape(10.dp)).clickable(onClick = onJump),
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable(onClick = onJump)
+                        .minTouchTarget(44.dp),
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -505,11 +517,15 @@ private fun MonthCard(
                     )
                 }
                 Box(
-                    Modifier.size(32.dp).clip(CircleShape).clickable {
-                        scope.launch {
-                            pagerState.animateScrollToPage((pagerState.currentPage + 1).coerceAtMost(pagerState.pageCount - 1))
+                    Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .clickable {
+                            scope.launch {
+                                pagerState.animateScrollToPage((pagerState.currentPage + 1).coerceAtMost(pagerState.pageCount - 1))
+                            }
                         }
-                    },
+                        .minTouchTarget(44.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(painterResource(R.drawable.ic_ms_chevron_right), "下个月", Modifier.size(20.dp), tint = cs.onSurfaceVariant)
@@ -642,6 +658,15 @@ private fun RowScope.DayCell(
             modifier = Modifier
                 .size(38.dp)
                 .clip(CircleShape)
+                .semantics {
+                    // TalkBack 读完整日期与状态，而不是裸数字
+                    contentDescription = buildString {
+                        append(date.monthValue).append("月").append(date.dayOfMonth).append("日 · ")
+                        append(Fmt.weekday(date))
+                        if (selected) append("，已选中") else if (isToday) append("，今天")
+                        if (due) append("，到期日")
+                    }
+                }
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = ripple(color = appRippleColor()),
@@ -672,6 +697,8 @@ private fun RowScope.DayCell(
                         !inMonth -> cs.onSurfaceVariant.copy(alpha = 0.35f)
                         else -> cs.onSurface
                     },
+                    // 日期语义已由外层 contentDescription 提供，避免数字被重复朗读
+                    modifier = Modifier.clearAndSetSemantics {},
                 )
             }
         }

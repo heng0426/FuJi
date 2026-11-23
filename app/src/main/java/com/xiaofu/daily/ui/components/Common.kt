@@ -15,10 +15,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -27,9 +30,11 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
@@ -93,7 +98,7 @@ fun CardSurface(
     )
 }
 
-/** 圆形/胶囊图标按钮（导航、铃铛、返回） */
+/** 圆形/胶囊图标按钮（导航、铃铛、返回）；有 onClick 时触控区扩展到 ≥44dp */
 @Composable
 fun RoundIconButton(
     iconRes: Int,
@@ -103,18 +108,23 @@ fun RoundIconButton(
     tint: Color = MaterialTheme.colorScheme.onSurface,
     background: Color = MaterialTheme.colorScheme.surface,
     border: Color = MaterialTheme.colorScheme.outline,
+    contentDescription: String? = null,
 ) {
     val shape = CircleShape
+    val interactive = onClick != null
     Box(
         modifier = Modifier
-            .size(size)
+            .size(if (interactive) maxOf(size, 44.dp) else size)
             .clip(shape)
-            .background(background)
-            .border(1.dp, border, shape)
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
+            .then(if (interactive) Modifier.clickable(onClick = onClick!!) else Modifier),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(painterResource(iconRes), contentDescription = null, modifier = Modifier.size(iconSize), tint = tint)
+        Box(
+            Modifier.size(size).clip(shape).background(background).border(1.dp, border, shape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(painterResource(iconRes), contentDescription, Modifier.size(iconSize), tint = tint)
+        }
     }
 }
 
@@ -144,7 +154,8 @@ fun PillChip(
                     Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick)
                 },
             )
-            .padding(horizontal = 14.dp),
+            .padding(horizontal = 14.dp)
+            .minTouchTarget(44.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(3.dp),
     ) {
@@ -284,10 +295,10 @@ fun StepperRow(
             horizontalArrangement = Arrangement.End,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            StepButton(R.drawable.ic_ms_remove, onMinus, minusEnabled)
+            StepButton(R.drawable.ic_ms_remove, "减少", onMinus, minusEnabled)
             Text(
                 text = valueText,
-                modifier = Modifier.width(64.dp),
+                modifier = Modifier.widthIn(min = 64.dp),
                 textAlign = TextAlign.Center,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -300,7 +311,7 @@ fun StepperRow(
                 color = cs.onSurfaceVariant,
                 modifier = Modifier.padding(end = 12.dp),
             )
-            StepButton(R.drawable.ic_ms_add, onPlus, plusEnabled)
+            StepButton(R.drawable.ic_ms_add, "增加", onPlus, plusEnabled)
         }
     }
     if (showDivider) {
@@ -308,24 +319,28 @@ fun StepperRow(
     }
 }
 
+/** 步进按钮：视觉 34dp，触控区扩展到 44dp，带无障碍描述（减少/增加） */
 @Composable
-private fun StepButton(iconRes: Int, onClick: () -> Unit, enabled: Boolean) {
+private fun StepButton(iconRes: Int, description: String, onClick: () -> Unit, enabled: Boolean) {
     val cs = MaterialTheme.colorScheme
     Box(
         modifier = Modifier
-            .size(34.dp)
+            .size(44.dp)
             .clip(RoundedCornerShape(11.dp))
-            .background(cs.surface)
-            .border(1.dp, cs.outline, RoundedCornerShape(11.dp))
             .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(
-            painterResource(iconRes),
-            contentDescription = null,
-            modifier = Modifier.size(17.dp),
-            tint = if (enabled) cs.onSurface else cs.onSurfaceVariant.copy(alpha = 0.4f),
-        )
+        Box(
+            Modifier.size(34.dp).clip(RoundedCornerShape(11.dp)).background(cs.surface),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                painterResource(iconRes),
+                contentDescription = description,
+                modifier = Modifier.size(17.dp),
+                tint = if (enabled) cs.onSurface else cs.onSurfaceVariant.copy(alpha = 0.4f),
+            )
+        }
     }
 }
 
@@ -455,7 +470,8 @@ fun NoteFieldBox(
             onValueChange = onValueChange,
             textStyle = MaterialTheme.typography.bodyMedium.copy(color = cs.onSurface),
             cursorBrush = SolidColor(cs.primary),
-            modifier = Modifier.fillMaxWidth(),
+            // 大字号（2.0×）下内容超出 78dp 时可内部滚动，避免溢出绘制
+            modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
         )
     }
 }
@@ -538,4 +554,19 @@ fun CustomTagDialog(
             }
         },
     )
+}
+
+/**
+ * 无障碍触控目标：保持内部视觉尺寸与点击反馈不变，把布局边界（含命中区域）扩展到 ≥ size。
+ * 用在可点击修饰链的最外层。
+ */
+fun Modifier.minTouchTarget(size: Dp): Modifier = composed {
+    layout { measurable, constraints ->
+        val placeable = measurable.measure(constraints)
+        val width = maxOf(placeable.width, size.roundToPx())
+        val height = maxOf(placeable.height, size.roundToPx())
+        layout(width, height) {
+            placeable.placeRelative((width - placeable.width) / 2, (height - placeable.height) / 2)
+        }
+    }
 }

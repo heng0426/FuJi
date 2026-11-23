@@ -36,6 +36,7 @@ fun SelectionTopBar(
             R.drawable.ic_ms_delete,
             onClick = onDelete,
             tint = cs.error,
+            contentDescription = "删除所选",
         )
     }
 }

@@ -411,6 +411,7 @@ fun CalendarScreen(
         DetailSheet(
             record = record,
             onDismiss = { detail = null },
+            onReopen = { detail = it },
             onEdit = {
                 detail = null
                 when (record.type) {

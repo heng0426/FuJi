@@ -71,8 +71,6 @@ class RecordsViewModel(private val repo: RecordRepository) : ViewModel() {
         ids.forEach { repo.deleteWithSnapshot(it) }
     }
 
-    suspend fun anomalyPhotos() = repo.anomalyPhotos()
-
     fun moveType(type: RecordType, offset: Int) {
         val current = _typeOrder.value.toMutableList()
         val index = current.indexOf(type)

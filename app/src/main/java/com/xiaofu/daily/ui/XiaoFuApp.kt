@@ -37,6 +37,7 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -46,6 +47,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
@@ -67,6 +69,12 @@ import com.xiaofu.daily.ui.editor.VetEditor
 import com.xiaofu.daily.ui.editor.WeightEditor
 import com.xiaofu.daily.ui.calendar.CalendarScreen
 import com.xiaofu.daily.ui.calendar.CalendarViewModel
+import com.xiaofu.daily.ui.components.LocalPhotoViewerHost
+import com.xiaofu.daily.ui.components.PhotoViewerHost
+import com.xiaofu.daily.ui.components.PhotoViewerHostOverlay
+import com.xiaofu.daily.ui.records.AnomalyGalleryOverlay
+import com.xiaofu.daily.ui.records.GalleryHost
+import com.xiaofu.daily.ui.records.LocalGalleryHost
 import com.xiaofu.daily.ui.records.RecordsScreen
 import com.xiaofu.daily.ui.profile.ProfileScreen
 import com.xiaofu.daily.ui.profile.ProfileViewModel
@@ -90,6 +98,10 @@ private enum class Tab(val label: String, val iconRes: Int) {
 fun XiaoFuApp() {
     var selectedTab by rememberSaveable { mutableStateOf(Tab.TODAY) }
     var editor by remember { mutableStateOf<EditorTarget?>(null) }
+    val viewerHost = remember { PhotoViewerHost() }
+    val galleryHost = remember { GalleryHost() }
+    var pendingRecord by remember { mutableStateOf<RecordEntity?>(null) }
+    val viewerVisible = viewerHost.request != null
     val vm: TodayViewModel = viewModel(factory = TodayViewModel.Factory)
     val calendarVm: CalendarViewModel = viewModel(factory = CalendarViewModel.Factory)
     val recordsVm: RecordsViewModel = viewModel(factory = RecordsViewModel.Factory)
@@ -173,8 +185,23 @@ fun XiaoFuApp() {
         )
     }
 
+    CompositionLocalProvider(
+        LocalPhotoViewerHost provides viewerHost,
+        LocalGalleryHost provides galleryHost,
+    ) {
     Box(Modifier.fillMaxSize().background(cs.background)) {
         val current = editor
+        Box(
+            Modifier
+                .fillMaxSize()
+                .then(
+                    if (viewerVisible && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        Modifier.blur(24.dp)
+                    } else {
+                        Modifier
+                    },
+                ),
+        ) {
         if (current == null) {
             Scaffold(
                 containerColor = Color.Transparent,
@@ -213,6 +240,8 @@ fun XiaoFuApp() {
                         actions = vm,
                         onOpenEditor = { editor = it },
                         onDeleteRecord = onDelete,
+                        openRecord = pendingRecord,
+                        onOpenRecordHandled = { pendingRecord = null },
                         modifier = Modifier.padding(innerPadding),
                     )
                     Tab.PROFILE -> ProfileScreen(
@@ -231,6 +260,20 @@ fun XiaoFuApp() {
                 is EditorTarget.Vet -> VetEditor(vm, current.record, current.occurredAtMs) { editor = null }
             }
         }
+
+            if (galleryHost.visible) {
+                AnomalyGalleryOverlay(
+                    onDismiss = { galleryHost.dismiss() },
+                    onOpenRecord = { record ->
+                        galleryHost.dismiss()
+                        pendingRecord = record
+                        selectedTab = Tab.RECORDS
+                    },
+                )
+            }
+        }
+        PhotoViewerHostOverlay()
+    }
     }
 }
 

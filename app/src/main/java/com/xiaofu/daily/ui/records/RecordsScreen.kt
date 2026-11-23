@@ -56,7 +56,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.xiaofu.daily.R
-import com.xiaofu.daily.data.AnomalyPhotoItem
 import com.xiaofu.daily.data.DueCard
 import com.xiaofu.daily.data.local.entity.RecordEntity
 import com.xiaofu.daily.data.local.model.MealKind
@@ -94,9 +93,12 @@ fun RecordsScreen(
     actions: TodayViewModel,
     onOpenEditor: (EditorTarget) -> Unit,
     onDeleteRecord: (RecordEntity) -> Unit,
+    openRecord: RecordEntity? = null,
+    onOpenRecordHandled: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val cs = MaterialTheme.colorScheme
+    val galleryHost = LocalGalleryHost.current
     val filter by vm.filter.collectAsState()
     val records by vm.records.collectAsState()
     val dueCards by vm.dueCards.collectAsState()
@@ -123,11 +125,13 @@ fun RecordsScreen(
     var lastServings by remember { mutableIntStateOf(1) }
     var lastSnack by remember { mutableStateOf<String?>(null) }
     var weightView by remember { mutableIntStateOf(0) }
-    var showGallery by remember { mutableStateOf(false) }
-    var galleryPhotos by remember { mutableStateOf<List<AnomalyPhotoItem>?>(null) }
 
-    LaunchedEffect(showGallery) {
-        if (showGallery) galleryPhotos = vm.anomalyPhotos()
+    // 从照片墙点「记录详情」跳转过来：直接打开对应记录
+    LaunchedEffect(openRecord) {
+        if (openRecord != null) {
+            detail = openRecord
+            onOpenRecordHandled()
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -192,7 +196,7 @@ fun RecordsScreen(
                 }
                 RoundIconButton(
                     R.drawable.ic_ms_image,
-                    onClick = { showGallery = true },
+                    onClick = { galleryHost?.show() },
                     contentDescription = "异常照片墙",
                 )
                 Spacer(Modifier.size(4.dp))
@@ -438,21 +442,11 @@ fun RecordsScreen(
         )
     }
 
-    if (showGallery) {
-        AnomalyGalleryDialog(
-            photos = galleryPhotos,
-            onDismiss = { showGallery = false },
-            onOpenRecord = { record ->
-                showGallery = false
-                detail = record
-            },
-        )
-    }
-
     detail?.let { record ->
         DetailSheet(
             record = record,
             onDismiss = { detail = null },
+            onReopen = { detail = it },
             onEdit = {
                 detail = null
                 when (record.type) {

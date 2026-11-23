@@ -57,8 +57,8 @@ import com.xiaofu.daily.data.local.entity.RecordEntity
 import com.xiaofu.daily.data.local.model.MealKind
 import com.xiaofu.daily.data.local.model.RecordType
 import com.xiaofu.daily.ui.components.BigNumberField
+import com.xiaofu.daily.ui.components.LocalPhotoViewerHost
 import com.xiaofu.daily.ui.components.PillChip
-import com.xiaofu.daily.ui.components.PhotoViewerDialog
 import com.xiaofu.daily.ui.components.ViewerPhoto
 import com.xiaofu.daily.ui.components.PrimaryButton
 import com.xiaofu.daily.ui.components.SecondaryButton
@@ -454,16 +454,28 @@ fun DetailSheet(
     onDismiss: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
+    onReopen: (RecordEntity) -> Unit = {},
 ) {
     val cs = MaterialTheme.colorScheme
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val display = recordDisplay(record)
-    var viewerIndex by remember { mutableStateOf<Int?>(null) }
+    val viewerHost = LocalPhotoViewerHost.current
     val photos by produceState(initialValue = emptyList<File>(), record.id) {
         value = runCatching {
             AppContainer.repository.photoNames(record.id)
                 .map { AppContainer.repository.photoFile(it) }
         }.getOrDefault(emptyList())
+    }
+    // 预览挂在 App 根窗口上，先关掉底部弹窗，关闭预览后再恢复详情
+    val openViewer: (Int) -> Unit = { index ->
+        viewerHost?.let { host ->
+            host.show(
+                photos = photos.map { ViewerPhoto(it, photoHint(record)) },
+                initialIndex = index,
+                onClosed = { onReopen(record) },
+            )
+            onDismiss()
+        }
     }
 
     ModalBottomSheet(
@@ -501,7 +513,7 @@ fun DetailSheet(
                     DetailRow("分类", record.anomalyCategory ?: "—")
                     record.severity?.let { DetailRow("程度", it.label()) }
                     DetailRow("备注", record.note?.takeIf { it.isNotBlank() } ?: "无", multiline = true)
-                    RecordPhotoStrip(photos) { viewerIndex = it }
+                    RecordPhotoStrip(photos, openViewer)
                 }
 
                 RecordType.VET -> {
@@ -510,7 +522,7 @@ fun DetailSheet(
                     record.vetDiagnosis?.let { DetailRow("诊断", it, multiline = true) }
                     record.vetCostYuan?.let { DetailRow("费用", "¥$it") }
                     DetailRow("备注", record.note?.takeIf { it.isNotBlank() } ?: "无", multiline = true)
-                    RecordPhotoStrip(photos) { viewerIndex = it }
+                    RecordPhotoStrip(photos, openViewer)
                 }
 
                 else -> {
@@ -530,14 +542,6 @@ fun DetailSheet(
                 PrimaryButton("编辑", onEdit, Modifier.weight(1f))
             }
         }
-    }
-
-    viewerIndex?.let { index ->
-        PhotoViewerDialog(
-            photos = photos.map { ViewerPhoto(it, photoHint(record)) },
-            initialIndex = index,
-            onDismiss = { viewerIndex = null },
-        )
     }
 }
 

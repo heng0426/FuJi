@@ -18,9 +18,11 @@ import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -50,6 +52,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -69,6 +72,7 @@ import com.xiaofu.daily.ui.editor.VetEditor
 import com.xiaofu.daily.ui.editor.WeightEditor
 import com.xiaofu.daily.ui.calendar.CalendarScreen
 import com.xiaofu.daily.ui.calendar.CalendarViewModel
+import com.xiaofu.daily.ui.components.BottomBarHeight
 import com.xiaofu.daily.ui.components.LocalPhotoViewerHost
 import com.xiaofu.daily.ui.components.PhotoViewerHost
 import com.xiaofu.daily.ui.components.PhotoViewerHostOverlay
@@ -203,16 +207,18 @@ fun XiaoFuApp() {
                 ),
         ) {
         if (current == null) {
+            Box(Modifier.fillMaxSize()) {
             Scaffold(
                 containerColor = Color.Transparent,
-                contentWindowInsets = WindowInsets.safeDrawing,
-                bottomBar = {
-                    BottomNav(selected = selectedTab) { selectedTab = it }
-                },
+                contentWindowInsets = WindowInsets.safeDrawing.only(
+                    WindowInsetsSides.Top + WindowInsetsSides.Horizontal,
+                ),
                 snackbarHost = {
                     SnackbarHost(
                         hostState = snackbar,
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                        modifier = Modifier
+                            .navigationBarsPadding()
+                            .padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = BottomBarHeight + 8.dp),
                     ) { data ->
                         XiaoFuSnackbar(data, accentText)
                     }
@@ -251,6 +257,12 @@ fun XiaoFuApp() {
                     )
                 }
             }
+                BottomNav(
+                    selected = selectedTab,
+                    onSelect = { selectedTab = it },
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                )
+            }
         } else {
             when (current) {
                 is EditorTarget.Weight -> WeightEditor(vm, current.record, current.occurredAtMs) { editor = null }
@@ -278,57 +290,111 @@ fun XiaoFuApp() {
 }
 
 @Composable
-private fun BottomNav(selected: Tab, onSelect: (Tab) -> Unit) {
+private fun BottomNav(
+    selected: Tab,
+    onSelect: (Tab) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val cs = MaterialTheme.colorScheme
-    val shape = RoundedCornerShape(34.dp)
+    val dark = LocalAppDarkTheme.current
+    val shape = RoundedCornerShape(32.dp)
+    val glassTop = if (dark) cs.surface.copy(alpha = 0.80f) else Color.White.copy(alpha = 0.66f)
+    val glassBottom = if (dark) cs.surface.copy(alpha = 0.64f) else Color.White.copy(alpha = 0.54f)
+    val rimTop = if (dark) Color.White.copy(alpha = 0.20f) else Color.White.copy(alpha = 0.92f)
+    val rimBottom = if (dark) Color.White.copy(alpha = 0.05f) else Color.White.copy(alpha = 0.40f)
+    val sheenTop = Color.White.copy(alpha = if (dark) 0.07f else 0.34f)
+    val contentColor = if (dark) Color.White else Color(0xFF1C1B1A)
+    val idleColor = if (dark) Color.White.copy(alpha = 0.62f) else Color(0xFF1C1B1A).copy(alpha = 0.62f)
+    val pillShape = RoundedCornerShape(20.dp)
+
     Box(
-        Modifier
+        modifier
             .fillMaxWidth()
             .windowInsetsPadding(
-                WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal),
+                WindowInsets.navigationBars.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal),
             )
-            .padding(start = 14.dp, end = 14.dp, top = 6.dp, bottom = 10.dp),
+            .padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
     ) {
-        Row(
-            modifier = Modifier
+        Box(
+            Modifier
                 .fillMaxWidth()
                 .height(64.dp)
                 .shadow(
-                    elevation = 16.dp,
+                    elevation = 18.dp,
                     shape = shape,
                     clip = false,
                     ambientColor = Color.Black.copy(alpha = 0.10f),
                     spotColor = Color.Black.copy(alpha = 0.16f),
                 )
                 .clip(shape)
-                .background(cs.surface.copy(alpha = 0.96f)),
-            verticalAlignment = Alignment.CenterVertically,
+                .background(Brush.verticalGradient(listOf(glassTop, glassBottom)))
+                .border(
+                    width = 1.dp,
+                    brush = Brush.verticalGradient(listOf(rimTop, rimBottom)),
+                    shape = shape,
+                ),
         ) {
-            Tab.entries.forEach { tab ->
-                val active = tab == selected
-                Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                    Column(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(if (active) cs.onSurface.copy(alpha = 0.07f) else Color.Transparent)
-                            .clickable { onSelect(tab) }
-                            .padding(horizontal = 16.dp, vertical = 6.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        Icon(
-                            painterResource(tab.iconRes),
-                            contentDescription = null,
-                            modifier = Modifier.size(23.dp),
-                            tint = if (active) cs.onSurface else cs.onSurfaceVariant,
-                        )
-                        Text(
-                            tab.label,
-                            fontSize = 10.5.sp,
-                            lineHeight = 13.sp,
-                            fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium,
-                            color = if (active) cs.onSurface else cs.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 3.dp),
-                        )
+            // 玻璃顶部的柔和高光，模拟光打在弧面上的漫反射
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight(0.62f)
+                    .background(
+                        Brush.verticalGradient(listOf(sheenTop, Color.Transparent)),
+                    ),
+            )
+            Row(
+                modifier = Modifier.fillMaxSize(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Tab.entries.forEach { tab ->
+                    val active = tab == selected
+                    Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                        Column(
+                            modifier = Modifier
+                                .clip(pillShape)
+                                .background(
+                                    when {
+                                        active && dark -> Color.White.copy(alpha = 0.14f)
+                                        active -> Color.White.copy(alpha = 0.92f)
+                                        else -> Color.Transparent
+                                    },
+                                )
+                                .then(
+                                    if (active) {
+                                        Modifier.border(
+                                            width = 1.dp,
+                                            brush = Brush.verticalGradient(
+                                                listOf(
+                                                    Color.White.copy(alpha = if (dark) 0.16f else 0.95f),
+                                                    Color.White.copy(alpha = if (dark) 0.04f else 0.55f),
+                                                ),
+                                            ),
+                                            shape = pillShape,
+                                        )
+                                    } else {
+                                        Modifier
+                                    },
+                                )
+                                .clickable { onSelect(tab) }
+                                .padding(horizontal = 18.dp, vertical = 6.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            Icon(
+                                painterResource(tab.iconRes),
+                                contentDescription = null,
+                                modifier = Modifier.size(23.dp),
+                                tint = if (active) contentColor else idleColor,
+                            )
+                            Text(
+                                tab.label,
+                                fontSize = 10.5.sp,
+                                lineHeight = 13.sp,
+                                fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium,
+                                color = if (active) contentColor else idleColor,
+                                modifier = Modifier.padding(top = 3.dp),
+                            )
+                        }
                     }
                 }
             }

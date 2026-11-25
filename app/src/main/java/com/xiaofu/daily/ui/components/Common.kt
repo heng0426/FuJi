@@ -10,8 +10,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -581,3 +584,11 @@ fun Modifier.minTouchTarget(size: Dp): Modifier = composed {
         }
     }
 }
+
+/** 悬浮底栏高度（64dp 栏 + 上下留白），列表底部要让开这段距离 */
+val BottomBarHeight = 84.dp
+
+/** 列表底部留白：常规间距 + 悬浮底栏 + 系统导航栏 */
+@Composable
+fun bottomBarAwarePadding(extra: Dp = 20.dp): Dp =
+    extra + BottomBarHeight + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()

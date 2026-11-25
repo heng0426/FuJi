@@ -71,6 +71,7 @@ import com.xiaofu.daily.data.local.entity.ProfileEntity
 import com.xiaofu.daily.data.local.model.Gender
 import com.xiaofu.daily.ui.backup.BackupSection
 import com.xiaofu.daily.ui.components.CardSurface
+import com.xiaofu.daily.ui.components.bottomBarAwarePadding
 import com.xiaofu.daily.ui.components.PillChip
 import com.xiaofu.daily.ui.components.PrimaryButton
 import com.xiaofu.daily.ui.components.SecondaryButton
@@ -122,7 +123,7 @@ fun ProfileScreen(
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 20.dp),
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = bottomBarAwarePadding()),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item(key = "top") {

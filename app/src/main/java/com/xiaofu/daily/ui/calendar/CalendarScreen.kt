@@ -73,6 +73,7 @@ import com.xiaofu.daily.data.local.entity.RecordEntity
 import com.xiaofu.daily.data.local.model.MealKind
 import com.xiaofu.daily.data.local.model.RecordType
 import com.xiaofu.daily.ui.components.CardSurface
+import com.xiaofu.daily.ui.components.bottomBarAwarePadding
 import com.xiaofu.daily.ui.components.RecordRow
 import com.xiaofu.daily.ui.components.appRippleColor
 import com.xiaofu.daily.ui.components.minTouchTarget
@@ -179,7 +180,7 @@ fun CalendarScreen(
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 20.dp),
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = bottomBarAwarePadding()),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item(key = "top") {

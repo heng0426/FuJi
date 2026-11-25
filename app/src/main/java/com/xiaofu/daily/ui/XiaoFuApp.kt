@@ -207,7 +207,7 @@ fun XiaoFuApp() {
                 containerColor = Color.Transparent,
                 contentWindowInsets = WindowInsets.safeDrawing,
                 bottomBar = {
-                    BottomNav(selected = selectedTab, accentText = accentText) { selectedTab = it }
+                    BottomNav(selected = selectedTab) { selectedTab = it }
                 },
                 snackbarHost = {
                     SnackbarHost(
@@ -278,53 +278,56 @@ fun XiaoFuApp() {
 }
 
 @Composable
-private fun BottomNav(selected: Tab, accentText: Color, onSelect: (Tab) -> Unit) {
+private fun BottomNav(selected: Tab, onSelect: (Tab) -> Unit) {
     val cs = MaterialTheme.colorScheme
-    Column(Modifier.fillMaxWidth().background(cs.surface)) {
-        Box(
-            Modifier.windowInsetsPadding(
+    val shape = RoundedCornerShape(34.dp)
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .windowInsetsPadding(
                 WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal),
-            ),
+            )
+            .padding(start = 14.dp, end = 14.dp, top = 6.dp, bottom = 10.dp),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(64.dp)
+                .shadow(
+                    elevation = 16.dp,
+                    shape = shape,
+                    clip = false,
+                    ambientColor = Color.Black.copy(alpha = 0.10f),
+                    spotColor = Color.Black.copy(alpha = 0.16f),
+                )
+                .clip(shape)
+                .background(cs.surface.copy(alpha = 0.96f)),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(66.dp)
-                    .padding(horizontal = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Tab.entries.forEach { tab ->
-                    val active = tab == selected
+            Tab.entries.forEach { tab ->
+                val active = tab == selected
+                Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                     Column(
                         modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(12.dp))
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(if (active) cs.onSurface.copy(alpha = 0.07f) else Color.Transparent)
                             .clickable { onSelect(tab) }
-                            .padding(vertical = 6.dp),
+                            .padding(horizontal = 16.dp, vertical = 6.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .height(28.dp)
-                                .fillMaxWidth(0.66f)
-                                .clip(RoundedCornerShape(999.dp))
-                                .background(if (active) cs.primaryContainer else Color.Transparent),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                painterResource(tab.iconRes),
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp),
-                                tint = if (active) cs.onPrimaryContainer else cs.onSurfaceVariant,
-                            )
-                        }
+                        Icon(
+                            painterResource(tab.iconRes),
+                            contentDescription = null,
+                            modifier = Modifier.size(23.dp),
+                            tint = if (active) cs.onSurface else cs.onSurfaceVariant,
+                        )
                         Text(
                             tab.label,
                             fontSize = 10.5.sp,
-                            lineHeight = 14.sp,
-                            fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
-                            color = if (active) accentText else cs.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 2.dp),
+                            lineHeight = 13.sp,
+                            fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium,
+                            color = if (active) cs.onSurface else cs.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 3.dp),
                         )
                     }
                 }

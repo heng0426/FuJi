@@ -56,17 +56,17 @@ data class NavTuning(
     // 外框
     val barHeight: Float = 72f,
     val barRadius: Float = 36f,
-    val barBottom: Float = 12f,
-    val barBorder: Float = 1f,
+    val barBottom: Float = 16f,
+    val barBorder: Float = 0.5f,
     val barShadow: Float = 20f,
     // 排布
     val rowPadding: Float = 8f,
-    val cellWidth: Float = 56f,
+    val cellWidth: Float = 77f,
     // 选中块
-    val pillWidth: Float = 56f,
+    val pillWidth: Float = 78f,
     val pillPadH: Float = 8.5f,
     val pillPadV: Float = 8.5f,
-    val pillRadius: Float = 28f,
+    val pillRadius: Float = 36f,
     val pillBorder: Float = 1f,
     val pillShadow: Float = 4f,
     // 图标与文字

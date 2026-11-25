@@ -8,13 +8,13 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-/** 纯聚合逻辑：按本地日期汇总喝水 ml 与进食克数，起点取最早记录，至少保留 7 天 */
+/** 纯聚合逻辑：按本地日期汇总喝水 ml 与进食克数，至少保留两个 7 天窗口 */
 class WeekStatsTest {
 
     private val zone = ZoneId.of("UTC")
 
     @Test
-    fun aggregatesByLocalDayAndKeepsSevenDays() {
+    fun aggregatesByLocalDayAndKeepsTwoWindows() {
         val today = LocalDate.of(2026, 11, 23)
         val records = listOf(
             record(RecordType.WATER, at(today, 9), ml = 200),
@@ -26,8 +26,8 @@ class WeekStatsTest {
 
         val series = buildChartSeries(today, records, zone)
 
-        assertEquals(7, series.days.size)
-        assertEquals(today.minusDays(6), series.days.first().date)
+        assertEquals(14, series.days.size)
+        assertEquals(today.minusDays(13), series.days.first().date)
         assertEquals(today, series.days.last().date)
         assertEquals(250, series.days.last().waterMl)
         assertEquals(0, series.days.last().foodGrams)
@@ -39,25 +39,25 @@ class WeekStatsTest {
     }
 
     @Test
-    fun emptySeriesIsSevenZeroDays() {
+    fun emptySeriesStillCoversTwoWindows() {
         val today = LocalDate.of(2026, 11, 23)
         val series = buildChartSeries(today, emptyList(), zone)
-        assertEquals(7, series.days.size)
-        assertEquals(today.minusDays(6), series.days.first().date)
+        assertEquals(14, series.days.size)
+        assertEquals(today.minusDays(13), series.days.first().date)
         assertEquals(0, series.days.sumOf { it.waterMl })
         assertEquals(0, series.days.sumOf { it.foodGrams })
     }
 
     @Test
-    fun startsFromEarliestRecord() {
+    fun startsFromEarliestRecordWhenOlderThanTwoWindows() {
         val today = LocalDate.of(2026, 11, 23)
-        val old = today.minusDays(9)
+        val old = today.minusDays(39)
         val series = buildChartSeries(
             today,
             listOf(record(RecordType.WATER, at(old, 9), ml = 90)),
             zone,
         )
-        assertEquals(10, series.days.size)
+        assertEquals(40, series.days.size)
         assertEquals(old, series.days.first().date)
         assertEquals(today, series.days.last().date)
         assertEquals(90, series.days.first().waterMl)

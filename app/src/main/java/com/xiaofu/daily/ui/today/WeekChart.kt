@@ -3,10 +3,10 @@ package com.xiaofu.daily.ui.today
 import androidx.compose.animation.rememberSplineBasedDecay
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.calculateTargetValue
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -83,7 +84,11 @@ data class ChartSeries(
     }
 }
 
-/** 把记录按本地日期聚合；起点取最早记录，不足 7 天补到 7 天，最多回看 maxDays 天 */
+/**
+ * 把记录按本地日期聚合；终点为今天，起点取最早记录。
+ * 至少保留两个 7 天窗口（14 天），保证记录不多时也能往回拖一个窗口；
+ * 最多回看 maxDays 天。
+ */
 fun buildChartSeries(
     today: LocalDate,
     records: List<RecordEntity>,
@@ -93,13 +98,9 @@ fun buildChartSeries(
     val byDate = records.groupBy {
         Instant.ofEpochMilli(it.occurredAt).atZone(zone).toLocalDate()
     }
-    val earliest = byDate.keys.minOrNull()
+    val earliest = byDate.keys.minOrNull() ?: today
     val earliestAllowed = today.minusDays((maxDays - 1).toLong())
-    val start = if (earliest == null) {
-        today.minusDays(6)
-    } else {
-        maxOf(earliest, earliestAllowed).coerceAtMost(today.minusDays(6))
-    }
+    val start = minOf(earliest, today.minusDays(13)).coerceAtLeast(earliestAllowed)
     val days = generateSequence(start) { it.plusDays(1) }
         .takeWhile { !it.isAfter(today) }
         .map { date ->
@@ -152,11 +153,22 @@ fun WeekChartCard(series: ChartSeries, modifier: Modifier = Modifier) {
             }?.toFloat() ?: 0f
         }
     }
-    val scaleMax by animateFloatAsState(
-        targetValue = windowMax,
-        animationSpec = tween(220),
-        label = "chartMax",
-    )
+    // 柱子高度按当前窗口最大值归一。换模式时直接重置，避免用旧模式的量纲算新柱高；
+    // 窗口内最大值变大时立即生效（否则柱子会超出顶部），变小时平滑回落。
+    var scaleMax by remember(mode) { mutableFloatStateOf(windowMax) }
+    LaunchedEffect(windowMax) {
+        if (windowMax >= scaleMax) {
+            scaleMax = windowMax
+        } else {
+            animate(
+                initialValue = scaleMax,
+                targetValue = windowMax,
+                animationSpec = tween(220),
+            ) { value, _ ->
+                scaleMax = value
+            }
+        }
+    }
     val title = if (isCurrent) {
         "近 7 天"
     } else {
@@ -290,7 +302,9 @@ private fun DayStrip(
                     cornerRadius = CornerRadius(7.dp.toPx()),
                 )
                 if (value > 0 && scaleMax > 0) {
-                    val height = (barArea * value / scaleMax).coerceAtLeast(3.dp.toPx())
+                    val height = (barArea * value / scaleMax)
+                        .coerceAtLeast(3.dp.toPx())
+                        .coerceAtMost(barArea)
                     drawRoundRect(
                         color = if (isToday) color else color.copy(alpha = 0.45f),
                         topLeft = Offset(x - barWidth / 2f, barBottom - height),

@@ -23,7 +23,7 @@ class WaterBottleTest {
     @Test
     fun remainingAboveFilledIsInvalid() {
         assertNull(bottleDrinkMl("300", "400"))
-        assertEquals("剩余不能超过加水后水量", bottleHint("300", "400"))
+        assertEquals("本次剩余不能超过上次剩余", bottleHint("300", "400"))
     }
 
     @Test

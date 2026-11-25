@@ -1,24 +1,24 @@
 package com.xiaofu.daily.ui.today
 
 /**
- * 水瓶换算：加水后总量 − 当前剩余 = 本次喝水量。
- * 任一为空、加水后超出 1..5000、剩余不在 0..加水后之间，或差值为 0 时返回 null。
+ * 水瓶换算：上次剩余 − 本次剩余 = 本次喝水量。
+ * 任一为空、上次剩余超出 1..5000、本次剩余不在 0..上次剩余之间，或差值为 0 时返回 null。
  */
-internal fun bottleDrinkMl(addedText: String, leftText: String): Int? {
-    val added = addedText.toIntOrNull() ?: return null
-    val left = leftText.toIntOrNull() ?: return null
-    if (added !in 1..5000 || left !in 0 until added) return null
-    return added - left
+internal fun bottleDrinkMl(lastLeftText: String, nowLeftText: String): Int? {
+    val last = lastLeftText.toIntOrNull() ?: return null
+    val now = nowLeftText.toIntOrNull() ?: return null
+    if (last !in 1..5000 || now !in 0 until last) return null
+    return last - now
 }
 
 /** 只有用户看不出原因时才提示；空值与越界仅禁用保存 */
-internal fun bottleHint(addedText: String, leftText: String): String? {
-    val added = addedText.toIntOrNull() ?: return null
-    val left = leftText.toIntOrNull() ?: return null
-    if (added !in 1..5000) return null
+internal fun bottleHint(lastLeftText: String, nowLeftText: String): String? {
+    val last = lastLeftText.toIntOrNull() ?: return null
+    val now = nowLeftText.toIntOrNull() ?: return null
+    if (last !in 1..5000) return null
     return when {
-        left > added -> "剩余不能超过加水后水量"
-        left == added -> "喝水量为 0，不用记"
+        now > last -> "本次剩余不能超过上次剩余"
+        now == last -> "喝水量为 0，不用记"
         else -> null
     }
 }

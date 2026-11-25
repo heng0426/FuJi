@@ -14,12 +14,8 @@ import com.xiaofu.daily.data.local.model.DewormKind
 import com.xiaofu.daily.data.local.model.MealKind
 import com.xiaofu.daily.data.local.model.Severity
 import android.net.Uri
-import java.time.Instant
 import java.time.LocalDate
-import java.time.ZoneId
-import java.time.temporal.ChronoUnit
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -47,32 +43,14 @@ class TodayViewModel(private val repo: RecordRepository) : ViewModel() {
     val due: StateFlow<DueInfo?> = repo.observeDueSoon()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
-    /** 近 7 天图表：第 0 页为今天结束的 7 天 */
-    val week: StateFlow<WeekStats> = repo.observeRecentDays(7)
-        .map { (today, records) -> buildWeekStats(today, records) }
+    /** 图表：从最早记录（最多一年）到今天，按天聚合，窗口按天拖动回看 */
+    val chart: StateFlow<ChartSeries> = repo.observeRecentDays(365)
+        .map { (today, records) -> buildChartSeries(today, records) }
         .stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(5_000),
-            WeekStats.empty(LocalDate.now()),
+            ChartSeries.empty(LocalDate.now()),
         )
-
-    /** 第 offset 页：offset×7 天之前的那个 7 天窗口 */
-    fun weekPage(offset: Int): Flow<WeekStats> =
-        repo.observeWeekPage(offset).map { (today, records) ->
-            buildWeekStats(today, records, end = today.minusDays(offset * 7L))
-        }
-
-    /** 可回看页数：从今天到最早一条记录，按 7 天向上取整 */
-    val weekPageCount: StateFlow<Int> = repo.observeEarliestAt()
-        .map { earliest ->
-            if (earliest == null) {
-                1
-            } else {
-                val first = Instant.ofEpochMilli(earliest).atZone(ZoneId.systemDefault()).toLocalDate()
-                (ChronoUnit.DAYS.between(first, LocalDate.now()) / 7 + 1).toInt().coerceAtLeast(1)
-            }
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 1)
 
     val tags: StateFlow<List<AnomalyTagEntity>> = repo.observeTags()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())

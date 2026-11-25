@@ -142,18 +142,6 @@ class RecordRepository(
             recordDao.observeByRange(start, end).map { today to it }
         }
 
-    /** 近 7 天分页：offset=0 为今天结束的 7 天，1 为再往前 7 天 */
-    fun observeWeekPage(offset: Int): Flow<Pair<LocalDate, List<RecordEntity>>> =
-        observeToday().flatMapLatest { today ->
-            val zone = ZoneId.systemDefault()
-            val endDate = today.minusDays(offset * 7L)
-            val start = endDate.minusDays(6).atStartOfDay(zone).toInstant().toEpochMilli()
-            val end = endDate.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
-            recordDao.observeByRange(start, end).map { today to it }
-        }
-
-    fun observeEarliestAt(): Flow<Long?> = recordDao.observeEarliestAt()
-
     fun observeByType(type: RecordType, limit: Int = 300): Flow<List<RecordEntity>> =
         recordDao.observeByType(type, limit)
 

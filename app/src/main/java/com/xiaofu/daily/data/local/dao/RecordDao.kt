@@ -101,10 +101,6 @@ interface RecordDao {
     @Query("SELECT * FROM records WHERE type = :type ORDER BY occurred_at DESC LIMIT 1")
     suspend fun latestOfType(type: RecordType): RecordEntity?
 
-    /** 最早一条记录时间，用于确定近 7 天卡可回看的页数 */
-    @Query("SELECT MIN(occurred_at) FROM records")
-    fun observeEarliestAt(): Flow<Long?>
-
     /** 最近一条主粮/加餐记录，用于份数与克重的默认值兜底 */
     @Query(
         "SELECT * FROM records WHERE type = :type AND meal_kind = :kind " +

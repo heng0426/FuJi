@@ -6,10 +6,9 @@ import java.time.LocalDate
 import java.time.ZoneId
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** 纯聚合逻辑：按本地日期汇总喝水 ml 与进食克数，空白天保留占位 */
+/** 纯聚合逻辑：按本地日期汇总喝水 ml 与进食克数，起点取最早记录，至少保留 7 天 */
 class WeekStatsTest {
 
     private val zone = ZoneId.of("UTC")
@@ -25,44 +24,59 @@ class WeekStatsTest {
             record(RecordType.WEIGHT, at(today, 11), weight = 4300),
         )
 
-        val stats = buildWeekStats(today, records, zone)
+        val series = buildChartSeries(today, records, zone)
 
-        assertEquals(7, stats.days.size)
-        assertEquals(today.minusDays(6), stats.days.first().date)
-        assertEquals(today, stats.days.last().date)
-        assertEquals(250, stats.days.last().waterMl)
-        assertEquals(0, stats.days.last().foodGrams)
-        assertEquals(45, stats.days.first { it.date == today.minusDays(2) }.foodGrams)
-        assertEquals(0, stats.days.first { it.date == today.minusDays(5) }.waterMl)
+        assertEquals(7, series.days.size)
+        assertEquals(today.minusDays(6), series.days.first().date)
+        assertEquals(today, series.days.last().date)
+        assertEquals(250, series.days.last().waterMl)
+        assertEquals(0, series.days.last().foodGrams)
+        assertEquals(45, series.days.first { it.date == today.minusDays(2) }.foodGrams)
+        assertEquals(0, series.days.first { it.date == today.minusDays(5) }.waterMl)
         // 同一天两次称重取较晚的一条；没称重的日子留空
-        assertEquals(4300, stats.days.last().weightGrams)
-        assertNull(stats.days.first { it.date == today.minusDays(2) }.weightGrams)
+        assertEquals(4300, series.days.last().weightGrams)
+        assertNull(series.days.first { it.date == today.minusDays(2) }.weightGrams)
     }
 
     @Test
-    fun emptyWeekIsAllZero() {
+    fun emptySeriesIsSevenZeroDays() {
         val today = LocalDate.of(2026, 11, 23)
-        val stats = buildWeekStats(today, emptyList(), zone)
-        assertEquals(7, stats.days.size)
-        assertEquals(0, stats.days.sumOf { it.waterMl })
-        assertEquals(0, stats.days.sumOf { it.foodGrams })
+        val series = buildChartSeries(today, emptyList(), zone)
+        assertEquals(7, series.days.size)
+        assertEquals(today.minusDays(6), series.days.first().date)
+        assertEquals(0, series.days.sumOf { it.waterMl })
+        assertEquals(0, series.days.sumOf { it.foodGrams })
     }
 
     @Test
-    fun earlierWindowUsesGivenEndDate() {
+    fun startsFromEarliestRecord() {
         val today = LocalDate.of(2026, 11, 23)
-        val end = today.minusDays(7)
-        val stats = buildWeekStats(
+        val old = today.minusDays(9)
+        val series = buildChartSeries(
             today,
-            listOf(record(RecordType.WATER, at(end, 9), ml = 90)),
+            listOf(record(RecordType.WATER, at(old, 9), ml = 90)),
             zone,
-            end,
         )
-        assertEquals(end, stats.days.last().date)
-        assertEquals(end.minusDays(6), stats.days.first().date)
-        assertEquals(90, stats.days.last().waterMl)
-        assertEquals(today, stats.today)
-        assertTrue(stats.days.none { it.date == today })
+        assertEquals(10, series.days.size)
+        assertEquals(old, series.days.first().date)
+        assertEquals(today, series.days.last().date)
+        assertEquals(90, series.days.first().waterMl)
+    }
+
+    @Test
+    fun capsLookbackAtMaxDays() {
+        val today = LocalDate.of(2026, 11, 23)
+        val tooOld = today.minusDays(40)
+        val series = buildChartSeries(
+            today,
+            listOf(record(RecordType.WATER, at(tooOld, 9), ml = 10)),
+            zone,
+            maxDays = 30,
+        )
+        assertEquals(30, series.days.size)
+        assertEquals(today.minusDays(29), series.days.first().date)
+        // 超出回看上限的记录不进窗口
+        assertEquals(0, series.days.sumOf { it.waterMl })
     }
 
     private fun at(date: LocalDate, hour: Int): Long =

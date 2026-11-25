@@ -51,6 +51,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -489,11 +490,14 @@ private fun MonthCard(
         val targetPage = (month.year - anchor.year) * 12 + (month.monthValue - anchor.monthValue)
         if (pagerState.currentPage != targetPage) pagerState.scrollToPage(targetPage)
     }
+    // 监听里必须读最新的 month：effect 只随 pagerState 启动一次，
+    // 直接捕获参数会一直拿着首帧的月份，翻回来时不再触发选日
+    val currentMonth by rememberUpdatedState(month)
     LaunchedEffect(pagerState) {
         // 以当前页（而非落位页）同步月份：滑过中线即加载目标月记录，圆点无需再点日期
         snapshotFlow { pagerState.currentPage }.collect { page ->
             val target = anchor.plusMonths(page.toLong())
-            if (target != month) onMonthChange(target)
+            if (target != currentMonth) onMonthChange(target)
         }
     }
 

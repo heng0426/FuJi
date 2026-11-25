@@ -51,6 +51,11 @@ class CalendarViewModel(private val repo: RecordRepository) : ViewModel() {
 
     fun showMonth(month: YearMonth) {
         _month.value = month
+        // 翻月时把选中日带到该月同一天，避免选日落在已加载区间之外、记录列表变空
+        val selected = _selectedDate.value
+        if (YearMonth.from(selected) != month) {
+            _selectedDate.value = selected.withYear(month.year).withMonth(month.monthValue)
+        }
     }
 
     fun select(date: LocalDate) {

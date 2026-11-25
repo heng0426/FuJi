@@ -6,6 +6,7 @@ import java.time.LocalDate
 import java.time.ZoneId
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /** 纯聚合逻辑：按本地日期汇总喝水 ml 与进食克数，空白天保留占位 */
@@ -45,6 +46,23 @@ class WeekStatsTest {
         assertEquals(7, stats.days.size)
         assertEquals(0, stats.days.sumOf { it.waterMl })
         assertEquals(0, stats.days.sumOf { it.foodGrams })
+    }
+
+    @Test
+    fun earlierWindowUsesGivenEndDate() {
+        val today = LocalDate.of(2026, 11, 23)
+        val end = today.minusDays(7)
+        val stats = buildWeekStats(
+            today,
+            listOf(record(RecordType.WATER, at(end, 9), ml = 90)),
+            zone,
+            end,
+        )
+        assertEquals(end, stats.days.last().date)
+        assertEquals(end.minusDays(6), stats.days.first().date)
+        assertEquals(90, stats.days.last().waterMl)
+        assertEquals(today, stats.today)
+        assertTrue(stats.days.none { it.date == today })
     }
 
     private fun at(date: LocalDate, hour: Int): Long =

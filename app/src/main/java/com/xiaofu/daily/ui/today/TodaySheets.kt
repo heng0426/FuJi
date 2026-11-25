@@ -194,21 +194,25 @@ fun WaterSheet(
                     options = listOf("喝水", "水瓶", "水碗"),
                     selectedIndex = mode.ordinal,
                     onSelect = { index ->
-                        mode = WaterEntryMode.entries[index]
-                        WaterEntryMode.write(context, mode)
-                        // 本次剩余属于各自的来源，切换后留空
-                        nowLeftText = ""
+                        val next = WaterEntryMode.entries[index]
+                        if (next != mode) {
+                            mode = next
+                            WaterEntryMode.write(context, next)
+                            // 本次剩余属于各自的来源，切换后留空
+                            nowLeftText = ""
+                        }
                     },
                 )
             }
             Spacer(Modifier.height(14.dp))
             AnimatedContent(
-                targetState = mode,
+                // 水瓶与水碗的输入项相同，切换时只换数值，不做淡入淡出，避免输入框闪一下
+                targetState = mode == WaterEntryMode.DIRECT,
                 modifier = Modifier.fillMaxWidth(),
                 transitionSpec = { fadeIn(tween(180)) togetherWith fadeOut(tween(120)) },
                 label = "waterEntry",
-            ) { current ->
-                if (current == WaterEntryMode.DIRECT) {
+            ) { isDirect ->
+                if (isDirect) {
                     Column {
                         BigNumberField(value = text, onValueChange = { text = it }, unit = "ml")
                         Row(

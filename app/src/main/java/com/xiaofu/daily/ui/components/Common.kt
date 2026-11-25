@@ -343,7 +343,7 @@ private fun StepButton(iconRes: Int, description: String, onClick: () -> Unit, e
     }
 }
 
-/** 大数字输入（喝水弹窗）：44sp + 单位，surface-2 底 */
+/** 大数字输入（喝水弹窗）：44sp + 单位，surface-2 底；compact 为并排输入的小号版本 */
 @Composable
 fun BigNumberField(
     value: String,
@@ -352,10 +352,11 @@ fun BigNumberField(
     modifier: Modifier = Modifier,
     placeholder: String = "",
     allowDecimal: Boolean = false,
+    compact: Boolean = false,
 ) {
     val cs = MaterialTheme.colorScheme
     val measurer = rememberTextMeasurer()
-    val style = StyleNumber.copy(color = cs.onSurface)
+    val style = (if (compact) StyleNumberCompact else StyleNumber).copy(color = cs.onSurface)
     val measured = measurer.measure(AnnotatedString(value.ifEmpty { placeholder.ifEmpty { "0" } }), style)
     val density = LocalDensity.current
     val widthDp = with(density) { measured.size.width.toDp() }
@@ -366,7 +367,7 @@ fun BigNumberField(
             .clip(RoundedCornerShape(16.dp))
             .background(cs.surfaceVariant)
             .border(1.dp, cs.outline, RoundedCornerShape(16.dp))
-            .padding(vertical = 16.dp),
+            .padding(vertical = if (compact) 12.dp else 16.dp),
         contentAlignment = Alignment.Center,
     ) {
         Row(verticalAlignment = Alignment.Bottom) {
@@ -395,7 +396,7 @@ fun BigNumberField(
                     }
                 },
             )
-            Text(unit, style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant, modifier = Modifier.padding(start = 6.dp, bottom = 8.dp))
+            Text(unit, style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant, modifier = Modifier.padding(start = 6.dp, bottom = if (compact) 5.dp else 8.dp))
         }
     }
 }
@@ -405,6 +406,15 @@ private val StyleNumber = TextStyle(
     lineHeight = 44.sp,
     fontWeight = FontWeight.SemiBold,
     letterSpacing = (-1).sp,
+    textAlign = TextAlign.Center,
+    fontFeatureSettings = "tnum",
+)
+
+private val StyleNumberCompact = TextStyle(
+    fontSize = 30.sp,
+    lineHeight = 30.sp,
+    fontWeight = FontWeight.SemiBold,
+    letterSpacing = (-0.5).sp,
     textAlign = TextAlign.Center,
     fontFeatureSettings = "tnum",
 )

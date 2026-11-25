@@ -1,5 +1,6 @@
 package com.xiaofu.daily.ui.today
 
+import android.content.Context
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -57,6 +58,7 @@ import com.xiaofu.daily.data.local.entity.RecordEntity
 import com.xiaofu.daily.data.local.model.MealKind
 import com.xiaofu.daily.data.local.model.RecordType
 import com.xiaofu.daily.ui.components.BigNumberField
+import com.xiaofu.daily.ui.components.FormLabel
 import com.xiaofu.daily.ui.components.LocalPhotoViewerHost
 import com.xiaofu.daily.ui.components.PillChip
 import com.xiaofu.daily.ui.components.ViewerPhoto
@@ -80,6 +82,29 @@ import kotlinx.coroutines.withContext
 
 private val SnackTypes = listOf("冻干", "罐头", "零食", "自制", "其他")
 
+/** 喝水输入方式：直接填喝掉的量，或按水瓶加水前后算；记住上次选择 */
+private enum class WaterEntryMode {
+    DIRECT,
+    BOTTLE;
+
+    companion object {
+        private const val PREFS = "xiaofu_prefs"
+        private const val KEY = "water_entry_mode"
+
+        fun read(context: Context): WaterEntryMode {
+            val raw = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY, null)
+            return entries.firstOrNull { it.name == raw } ?: DIRECT
+        }
+
+        fun write(context: Context, mode: WaterEntryMode) {
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .edit()
+                .putString(KEY, mode.name)
+                .apply()
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WaterSheet(
@@ -89,10 +114,23 @@ fun WaterSheet(
     onSave: (Int) -> Unit,
 ) {
     val cs = MaterialTheme.colorScheme
+    val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    // 编辑只针对已记下的数值，固定走直接填
+    var mode by remember {
+        mutableStateOf(if (editing == null) WaterEntryMode.read(context) else WaterEntryMode.DIRECT)
+    }
     var text by remember { mutableStateOf((editing?.amountMl ?: lastMl).toString()) }
+    var addedText by remember { mutableStateOf("") }
+    var leftText by remember { mutableStateOf("") }
+
     val value = text.toIntOrNull()
-    val valid = value != null && value in 1..5000
+    val bottleMl = bottleDrinkMl(addedText, leftText)
+    val valid = if (mode == WaterEntryMode.DIRECT) {
+        value != null && value in 1..5000
+    } else {
+        bottleMl != null
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -116,17 +154,64 @@ fun WaterSheet(
                 fontWeight = FontWeight.SemiBold,
                 color = cs.onSurface,
             )
+            if (editing == null) {
+                Spacer(Modifier.height(12.dp))
+                SegmentedRow(
+                    options = listOf("直接填", "按瓶算"),
+                    selectedIndex = mode.ordinal,
+                    onSelect = { index ->
+                        mode = WaterEntryMode.entries[index]
+                        WaterEntryMode.write(context, mode)
+                    },
+                )
+            }
             Spacer(Modifier.height(14.dp))
-            BigNumberField(value = text, onValueChange = { text = it }, unit = "ml")
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                listOf(50, 100, 150, 200).forEach { preset ->
-                    PillChip(
-                        text = preset.toString(),
-                        selected = value == preset,
-                        onClick = { text = preset.toString() },
+            if (mode == WaterEntryMode.DIRECT) {
+                BigNumberField(value = text, onValueChange = { text = it }, unit = "ml")
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    listOf(50, 100, 150, 200).forEach { preset ->
+                        PillChip(
+                            text = preset.toString(),
+                            selected = value == preset,
+                            onClick = { text = preset.toString() },
+                        )
+                    }
+                }
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        FormLabel("加水后")
+                        Spacer(Modifier.height(6.dp))
+                        BigNumberField(
+                            value = addedText,
+                            onValueChange = { addedText = it },
+                            unit = "ml",
+                            compact = true,
+                        )
+                    }
+                    Column(Modifier.weight(1f)) {
+                        FormLabel("剩余")
+                        Spacer(Modifier.height(6.dp))
+                        BigNumberField(
+                            value = leftText,
+                            onValueChange = { leftText = it },
+                            unit = "ml",
+                            compact = true,
+                        )
+                    }
+                }
+                bottleHint(addedText, leftText)?.let { hint ->
+                    Text(
+                        hint,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = cs.error,
+                        modifier = Modifier.padding(top = 8.dp),
                     )
                 }
             }
@@ -137,7 +222,10 @@ fun WaterSheet(
                 SecondaryButton("取消", onDismiss, Modifier.weight(1f))
                 PrimaryButton(
                     text = if (editing == null) "记下来" else "保存",
-                    onClick = { value?.let(onSave) },
+                    onClick = {
+                        val ml = if (mode == WaterEntryMode.DIRECT) value else bottleMl
+                        if (ml != null) onSave(ml)
+                    },
                     modifier = Modifier.weight(1f),
                     enabled = valid,
                 )

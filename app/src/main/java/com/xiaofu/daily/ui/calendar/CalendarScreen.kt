@@ -152,12 +152,16 @@ fun CalendarScreen(
     var lastWater by remember { mutableStateOf(60) }
     var serving by remember { mutableStateOf(15) }
     var lastServings by remember { mutableIntStateOf(1) }
+    var snackServing by remember { mutableStateOf(15) }
+    var snackServings by remember { mutableIntStateOf(1) }
     var lastSnack by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         lastWater = actions.lastWaterMl()
-        serving = actions.servingGrams()
-        lastServings = actions.lastServings()
+        serving = actions.servingGrams(MealKind.MAIN)
+        lastServings = actions.lastServings(MealKind.MAIN)
+        snackServing = actions.servingGrams(MealKind.SNACK)
+        snackServings = actions.lastServings(MealKind.SNACK)
         lastSnack = actions.lastSnackType()
     }
 
@@ -214,8 +218,10 @@ fun CalendarScreen(
                 Text("${selectedRecords.size} 条", style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
             }
         }
-        items(items = selectedDue, key = { "sel_due_${it.type}_${it.dueDay}" }) { card ->
-            CalendarDueRow(card)
+        items(items = selectedDue, key = { "sel_due_${it.recordId}" }) { card ->
+            CalendarDueRow(card) {
+                scope.launch { vm.recordById(card.recordId)?.let { detail = it } }
+            }
         }
         if (selectedRecords.isEmpty() && selectedDue.isEmpty()) {
             item(key = "empty") {
@@ -371,8 +377,10 @@ fun CalendarScreen(
         val editing = foodEditing
         FoodSheet(
             initialKind = foodKind,
-            initialGrams = editing?.gramsPerServing ?: serving,
-            initialServings = editing?.servingCount?.roundToInt() ?: lastServings,
+            initialGrams = editing?.gramsPerServing
+                ?: if (foodKind == MealKind.SNACK) snackServing else serving,
+            initialServings = editing?.servingCount?.roundToInt()
+                ?: if (foodKind == MealKind.SNACK) snackServings else lastServings,
             initialSnack = editing?.snackType ?: lastSnack,
             editing = editing,
             onSavePreset = { preset, grams ->
@@ -397,8 +405,13 @@ fun CalendarScreen(
             onSave = { kind, servings, grams, snackType ->
                 scope.launch {
                     actions.saveFood(kind, servings, grams, snackType, editing, if (editing == null) backfillAt else null)
-                    serving = grams
-                    lastServings = servings
+                    if (kind == MealKind.SNACK) {
+                        snackServing = grams
+                        snackServings = servings
+                    } else {
+                        serving = grams
+                        lastServings = servings
+                    }
                     if (snackType != null) lastSnack = snackType
                     showFood = false
                     foodEditing = null
@@ -784,7 +797,7 @@ private fun CreateSheet(onDismiss: () -> Unit, onPick: (CreateOption) -> Unit) {
 }
 
 @Composable
-private fun CalendarDueRow(card: DueCard) {
+private fun CalendarDueRow(card: DueCard, onClick: () -> Unit) {
     val cs = MaterialTheme.colorScheme
     val style = recordStyle(card.type)
     Row(
@@ -793,6 +806,7 @@ private fun CalendarDueRow(card: DueCard) {
             .clip(RoundedCornerShape(16.dp))
             .background(cs.surface)
             .border(1.dp, cs.outline, RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

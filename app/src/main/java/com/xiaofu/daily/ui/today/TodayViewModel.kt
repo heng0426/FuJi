@@ -60,9 +60,9 @@ class TodayViewModel(private val repo: RecordRepository) : ViewModel() {
 
     suspend fun lastWaterMl(): Int = repo.lastWaterMl()
 
-    suspend fun servingGrams(): Int = repo.servingGrams()
+    suspend fun servingGrams(kind: MealKind = MealKind.MAIN): Int = repo.servingGrams(kind)
 
-    suspend fun lastServings(): Int = repo.lastServings()
+    suspend fun lastServings(kind: MealKind = MealKind.MAIN): Int = repo.lastServings(kind)
 
     suspend fun lastWeightGrams(): Int? = repo.lastWeightGrams()
 

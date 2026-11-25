@@ -6,6 +6,7 @@ import androidx.room.Query
 import androidx.room.Update
 import com.xiaofu.daily.data.local.entity.RecordEntity
 import com.xiaofu.daily.data.local.model.DewormKind
+import com.xiaofu.daily.data.local.model.MealKind
 import com.xiaofu.daily.data.local.model.RecordType
 import kotlinx.coroutines.flow.Flow
 
@@ -99,6 +100,13 @@ interface RecordDao {
 
     @Query("SELECT * FROM records WHERE type = :type ORDER BY occurred_at DESC LIMIT 1")
     suspend fun latestOfType(type: RecordType): RecordEntity?
+
+    /** 最近一条主粮/加餐记录，用于份数与克重的默认值兜底 */
+    @Query(
+        "SELECT * FROM records WHERE type = :type AND meal_kind = :kind " +
+            "ORDER BY occurred_at DESC LIMIT 1",
+    )
+    suspend fun latestFoodOfKind(type: RecordType, kind: MealKind): RecordEntity?
 
     /** 体重曲线数据（按时间正序），UI 以"斤"展示 */
     @Query("SELECT * FROM records WHERE type = :type ORDER BY occurred_at ASC")

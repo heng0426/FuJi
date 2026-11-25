@@ -1,5 +1,6 @@
 package com.xiaofu.daily.ui.today
 
+import android.content.Context
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -45,6 +46,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -63,6 +65,7 @@ import com.xiaofu.daily.ui.components.CardSurface
 import com.xiaofu.daily.ui.components.CircleTypeIcon
 import com.xiaofu.daily.ui.components.DayGroupHeader
 import com.xiaofu.daily.ui.components.RecordRow
+import com.xiaofu.daily.ui.components.RoundIconButton
 import com.xiaofu.daily.ui.components.SelectionTopBar
 import com.xiaofu.daily.ui.components.TypeIcon
 import com.xiaofu.daily.ui.editor.EditorTarget
@@ -92,10 +95,13 @@ fun TodayScreen(
 
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     var lastWater by remember { mutableStateOf(60) }
     var serving by remember { mutableStateOf(15) }
     var lastServings by remember { mutableIntStateOf(1) }
+    var snackServing by remember { mutableStateOf(15) }
+    var snackServings by remember { mutableIntStateOf(1) }
     var lastSnack by remember { mutableStateOf<String?>(null) }
     var showWater by remember { mutableStateOf(false) }
     var waterEditing by remember { mutableStateOf<RecordEntity?>(null) }
@@ -107,11 +113,14 @@ fun TodayScreen(
     var selecting by remember { mutableStateOf(false) }
     var selectedIds by remember { mutableStateOf(setOf<Long>()) }
     var confirmDeleteSelected by remember { mutableStateOf(false) }
+    var showChart by remember { mutableStateOf(WeekChartPreference.read(context)) }
 
     LaunchedEffect(Unit) {
         lastWater = vm.lastWaterMl()
-        serving = vm.servingGrams()
-        lastServings = vm.lastServings()
+        serving = vm.servingGrams(MealKind.MAIN)
+        lastServings = vm.lastServings(MealKind.MAIN)
+        snackServing = vm.servingGrams(MealKind.SNACK)
+        snackServings = vm.lastServings(MealKind.SNACK)
         lastSnack = vm.lastSnackType()
     }
 
@@ -157,7 +166,15 @@ fun TodayScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
         if (!selecting) {
-            item(key = "topbar") { TodayTopBar() }
+            item(key = "topbar") {
+                TodayTopBar(
+                    showChart = showChart,
+                    onToggleChart = {
+                        showChart = !showChart
+                        WeekChartPreference.write(context, showChart)
+                    },
+                )
+            }
         }
         item(key = "overview") {
             OverviewCard(summary = summary, onWeightClick = { onOpenEditor(EditorTarget.Weight()) })
@@ -183,7 +200,9 @@ fun TodayScreen(
                 onMore = { showMore = true },
             )
         }
-        item(key = "week") { WeekChartCard(week) }
+        if (showChart) {
+            item(key = "week") { WeekChartCard(week, Modifier.animateItem()) }
+        }
 
         if (groups.isEmpty()) {
             item(key = "empty") { EmptyTimeline() }
@@ -262,8 +281,10 @@ fun TodayScreen(
         val editing = foodEditing
         FoodSheet(
             initialKind = foodKind,
-            initialGrams = editing?.gramsPerServing ?: serving,
-            initialServings = editing?.servingCount?.roundToInt() ?: lastServings,
+            initialGrams = editing?.gramsPerServing
+                ?: if (foodKind == MealKind.SNACK) snackServing else serving,
+            initialServings = editing?.servingCount?.roundToInt()
+                ?: if (foodKind == MealKind.SNACK) snackServings else lastServings,
             initialSnack = editing?.snackType ?: lastSnack,
             editing = editing,
             onSavePreset = { preset, grams ->
@@ -288,8 +309,13 @@ fun TodayScreen(
             onSave = { kind, servings, grams, snackType ->
                 scope.launch {
                     vm.saveFood(kind, servings, grams, snackType, editing)
-                    serving = grams
-                    lastServings = servings
+                    if (kind == MealKind.SNACK) {
+                        snackServing = grams
+                        snackServings = servings
+                    } else {
+                        serving = grams
+                        lastServings = servings
+                    }
                     if (snackType != null) lastSnack = snackType
                     showFood = false
                     foodEditing = null
@@ -368,7 +394,7 @@ fun TodayScreen(
 }
 
 @Composable
-private fun TodayTopBar() {
+private fun TodayTopBar(showChart: Boolean, onToggleChart: () -> Unit) {
     val cs = MaterialTheme.colorScheme
     Row(
         modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
@@ -383,6 +409,12 @@ private fun TodayTopBar() {
                 modifier = Modifier.padding(top = 2.dp),
             )
         }
+        RoundIconButton(
+            R.drawable.ic_ms_bar_chart,
+            onClick = onToggleChart,
+            tint = if (showChart) cs.primary else cs.onSurfaceVariant,
+            contentDescription = if (showChart) "隐藏近 7 天" else "显示近 7 天",
+        )
     }
 }
 
@@ -648,5 +680,21 @@ private fun ScrollHint() {
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
             modifier = Modifier.padding(start = 3.dp),
         )
+    }
+}
+
+/** 近 7 天卡片显示开关，只存本地 */
+private object WeekChartPreference {
+    private const val PREFS = "xiaofu_prefs"
+    private const val KEY = "week_chart_visible"
+
+    fun read(context: Context): Boolean =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY, true)
+
+    fun write(context: Context, visible: Boolean) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY, visible)
+            .apply()
     }
 }

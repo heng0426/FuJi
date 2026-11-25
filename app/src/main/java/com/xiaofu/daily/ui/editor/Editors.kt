@@ -251,12 +251,6 @@ fun WeightEditor(vm: TodayViewModel, record: RecordEntity?, initialOccurredAt: L
             placeholder = "0.0",
             allowDecimal = true,
         )
-        Text(
-            "0.1 斤精度，例如 8.6",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(Modifier.height(2.dp))
         TimeRow("时间", Fmt.detailTime(occurredAt)) { showPicker = true }
         FormLabel("备注", badge = "选填", badgeColor = MaterialTheme.colorScheme.onSurfaceVariant)
         NoteFieldBox(value = note, onValueChange = { note = it }, placeholder = "例如：晚间称重")

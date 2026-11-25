@@ -5,6 +5,7 @@ import com.xiaofu.daily.data.local.model.RecordType
 import java.time.LocalDate
 import java.time.ZoneId
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 /** 纯聚合逻辑：按本地日期汇总喝水 ml 与进食克数，空白天保留占位 */
@@ -19,7 +20,8 @@ class WeekStatsTest {
             record(RecordType.WATER, at(today, 9), ml = 200),
             record(RecordType.WATER, at(today, 10), ml = 50),
             record(RecordType.FOOD, at(today.minusDays(2), 12), grams = 45),
-            record(RecordType.WEIGHT, at(today, 8)),
+            record(RecordType.WEIGHT, at(today, 8), weight = 4200),
+            record(RecordType.WEIGHT, at(today, 11), weight = 4300),
         )
 
         val stats = buildWeekStats(today, records, zone)
@@ -31,6 +33,9 @@ class WeekStatsTest {
         assertEquals(0, stats.days.last().foodGrams)
         assertEquals(45, stats.days.first { it.date == today.minusDays(2) }.foodGrams)
         assertEquals(0, stats.days.first { it.date == today.minusDays(5) }.waterMl)
+        // 同一天两次称重取较晚的一条；没称重的日子留空
+        assertEquals(4300, stats.days.last().weightGrams)
+        assertNull(stats.days.first { it.date == today.minusDays(2) }.weightGrams)
     }
 
     @Test
@@ -50,6 +55,7 @@ class WeekStatsTest {
         at: Long,
         ml: Int? = null,
         grams: Int? = null,
+        weight: Int? = null,
     ) = RecordEntity(
         type = type,
         occurredAt = at,
@@ -57,5 +63,6 @@ class WeekStatsTest {
         updatedAt = 0L,
         amountMl = ml,
         totalGrams = grams,
+        weightGrams = weight,
     )
 }

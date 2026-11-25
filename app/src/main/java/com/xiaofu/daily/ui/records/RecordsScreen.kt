@@ -123,6 +123,8 @@ fun RecordsScreen(
     var lastWater by remember { mutableStateOf(60) }
     var serving by remember { mutableStateOf(15) }
     var lastServings by remember { mutableIntStateOf(1) }
+    var snackServing by remember { mutableStateOf(15) }
+    var snackServings by remember { mutableIntStateOf(1) }
     var lastSnack by remember { mutableStateOf<String?>(null) }
     var weightView by remember { mutableIntStateOf(0) }
 
@@ -136,8 +138,10 @@ fun RecordsScreen(
 
     LaunchedEffect(Unit) {
         lastWater = actions.lastWaterMl()
-        serving = actions.servingGrams()
-        lastServings = actions.lastServings()
+        serving = actions.servingGrams(MealKind.MAIN)
+        lastServings = actions.lastServings(MealKind.MAIN)
+        snackServing = actions.servingGrams(MealKind.SNACK)
+        snackServings = actions.lastServings(MealKind.SNACK)
         lastSnack = actions.lastSnackType()
     }
 
@@ -276,7 +280,7 @@ fun RecordsScreen(
             item(key = "weight_trend") { WeightTrendCard(records) }
         } else {
             if (visibleDueCards.isNotEmpty()) {
-                items(items = visibleDueCards, key = { "due_${it.type}_${it.dueDay}" }) { card ->
+                items(items = visibleDueCards, key = { "due_${it.recordId}" }) { card ->
                     DueCardRow(card) { vm.setFilter(card.type) }
                 }
             }
@@ -405,8 +409,10 @@ fun RecordsScreen(
         val editing = foodEditing
         FoodSheet(
             initialKind = foodKind,
-            initialGrams = editing?.gramsPerServing ?: serving,
-            initialServings = editing?.servingCount?.roundToInt() ?: lastServings,
+            initialGrams = editing?.gramsPerServing
+                ?: if (foodKind == MealKind.SNACK) snackServing else serving,
+            initialServings = editing?.servingCount?.roundToInt()
+                ?: if (foodKind == MealKind.SNACK) snackServings else lastServings,
             initialSnack = editing?.snackType ?: lastSnack,
             editing = editing,
             onSavePreset = { preset, grams ->
@@ -430,8 +436,13 @@ fun RecordsScreen(
             onSave = { kind, servings, grams, snackType ->
                 scope.launch {
                     actions.saveFood(kind, servings, grams, snackType, editing)
-                    serving = grams
-                    lastServings = servings
+                    if (kind == MealKind.SNACK) {
+                        snackServing = grams
+                        snackServings = servings
+                    } else {
+                        serving = grams
+                        lastServings = servings
+                    }
                     if (snackType != null) lastSnack = snackType
                     showFood = false
                     foodEditing = null

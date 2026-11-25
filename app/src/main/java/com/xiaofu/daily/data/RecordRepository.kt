@@ -67,6 +67,8 @@ data class DueCard(
     val daysLeft: Long,
     val type: RecordType,
     val note: String?,
+    /** 产生这个到期日的驱虫/疫苗记录 */
+    val recordId: Long,
 ) {
     val daysText: String
         get() = if (daysLeft >= 0) "还有 $daysLeft 天" else "已超期 ${-daysLeft} 天"
@@ -81,6 +83,8 @@ data class RecordSnapshot(
 object SettingsKeys {
     const val SERVING_GRAMS = "serving_grams_current"
     const val LAST_SERVINGS = "last_servings"
+    const val SNACK_GRAMS = "snack_grams_current"
+    const val SNACK_SERVINGS = "snack_servings_current"
     const val LAST_WEIGHT_GRAMS = "last_weight_grams"
     const val FOOD_PRESETS = "food_presets"
     const val TYPE_ORDER = "record_type_order"
@@ -176,13 +180,13 @@ class RecordRepository(
             ) { internal, external, vaccine ->
                 buildList {
                     internal?.nextDueDate?.let {
-                        add(DueCard("内驱", it, it - todayDay, RecordType.DEWORM, internal.medicine))
+                        add(DueCard("内驱", it, it - todayDay, RecordType.DEWORM, internal.medicine, internal.id))
                     }
                     external?.nextDueDate?.let {
-                        add(DueCard("外驱", it, it - todayDay, RecordType.DEWORM, external.medicine))
+                        add(DueCard("外驱", it, it - todayDay, RecordType.DEWORM, external.medicine, external.id))
                     }
                     vaccine?.nextDueDate?.let {
-                        add(DueCard("疫苗", it, it - todayDay, RecordType.VACCINE, vaccine.vaccineName))
+                        add(DueCard("疫苗", it, it - todayDay, RecordType.VACCINE, vaccine.vaccineName, vaccine.id))
                     }
                 }.sortedBy { it.dueDay }
             }
@@ -258,10 +262,12 @@ class RecordRepository(
 
     suspend fun lastSnackType(): String? = settingsDao.get(SettingsKeys.LAST_SNACK_TYPE)
 
-    suspend fun lastServings(): Int =
-        settingsDao.get(SettingsKeys.LAST_SERVINGS)?.toDoubleOrNull()?.roundToInt()?.coerceIn(1, 20)
-            ?: recordDao.latestOfType(RecordType.FOOD)?.servingCount?.roundToInt()?.coerceIn(1, 20)
+    suspend fun lastServings(kind: MealKind = MealKind.MAIN): Int {
+        val key = if (kind == MealKind.SNACK) SettingsKeys.SNACK_SERVINGS else SettingsKeys.LAST_SERVINGS
+        return settingsDao.get(key)?.toDoubleOrNull()?.roundToInt()?.coerceIn(1, 20)
+            ?: recordDao.latestFoodOfKind(RecordType.FOOD, kind)?.servingCount?.roundToInt()?.coerceIn(1, 20)
             ?: 1
+    }
 
     suspend fun lastWeightGrams(): Int? =
         settingsDao.get(SettingsKeys.LAST_WEIGHT_GRAMS)?.toIntOrNull()
@@ -308,8 +314,12 @@ class RecordRepository(
 
     suspend fun putSetting(key: String, value: String) = settingsDao.put(SettingEntity(key, value))
 
-    suspend fun servingGrams(): Int =
-        settingsDao.get(SettingsKeys.SERVING_GRAMS)?.toIntOrNull() ?: 15
+    suspend fun servingGrams(kind: MealKind = MealKind.MAIN): Int {
+        val key = if (kind == MealKind.SNACK) SettingsKeys.SNACK_GRAMS else SettingsKeys.SERVING_GRAMS
+        return settingsDao.get(key)?.toIntOrNull()
+            ?: recordDao.latestFoodOfKind(RecordType.FOOD, kind)?.gramsPerServing
+            ?: 15
+    }
 
     suspend fun dewormCycleDays(kind: DewormKind): Int {
         val key = if (kind == DewormKind.INTERNAL) SettingsKeys.DEWORM_INTERNAL_DAYS else SettingsKeys.DEWORM_EXTERNAL_DAYS
@@ -387,8 +397,10 @@ class RecordRepository(
         val grams = gramsPerServing.coerceIn(1, 200)
         val total = wholeServings * grams
         if (rememberDefaults) {
-            settingsDao.put(SettingEntity(SettingsKeys.SERVING_GRAMS, grams.toString()))
-            settingsDao.put(SettingEntity(SettingsKeys.LAST_SERVINGS, wholeServings.toString()))
+            val gramsKey = if (mealKind == MealKind.SNACK) SettingsKeys.SNACK_GRAMS else SettingsKeys.SERVING_GRAMS
+            val servingsKey = if (mealKind == MealKind.SNACK) SettingsKeys.SNACK_SERVINGS else SettingsKeys.LAST_SERVINGS
+            settingsDao.put(SettingEntity(gramsKey, grams.toString()))
+            settingsDao.put(SettingEntity(servingsKey, wholeServings.toString()))
         }
         if (mealKind == MealKind.SNACK && snackType != null) {
             settingsDao.put(SettingEntity(SettingsKeys.LAST_SNACK_TYPE, snackType))
@@ -579,6 +591,8 @@ class RecordRepository(
     suspend fun importPhoto(uri: Uri): String? = photoStore.import(uri)
 
     // ---------- 删除与撤销 ----------
+
+    suspend fun recordById(id: Long): RecordEntity? = recordDao.getById(id)
 
     suspend fun deleteWithSnapshot(id: Long): RecordSnapshot? {
         val record = recordDao.getById(id) ?: return null

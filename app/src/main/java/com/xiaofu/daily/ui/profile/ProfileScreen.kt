@@ -198,17 +198,6 @@ fun ProfileScreen(
         item(key = "backup") {
             BackupSection(onMessage = onMessage)
         }
-        item(key = "note") {
-            CardSurface(contentPadding = 16.dp) {
-                Text("数据都在本机", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = cs.onSurface)
-                Text(
-                    "数据仅保存在本机，不上传云端。换机或清除应用数据前，请先导出备份。",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = cs.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 4.dp),
-                )
-            }
-        }
     }
 
     if (editProfile) {

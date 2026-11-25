@@ -39,6 +39,8 @@ class CalendarViewModel(private val repo: RecordRepository) : ViewModel() {
     val dueCards: StateFlow<List<DueCard>> = repo.observeDueCards()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    suspend fun recordById(id: Long): RecordEntity? = repo.recordById(id)
+
     fun previousMonth() {
         _month.value = _month.value.minusMonths(1)
     }

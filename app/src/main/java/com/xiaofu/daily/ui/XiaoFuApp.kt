@@ -89,10 +89,12 @@ import com.xiaofu.daily.ui.editor.VetEditor
 import com.xiaofu.daily.ui.editor.WeightEditor
 import com.xiaofu.daily.ui.calendar.CalendarScreen
 import com.xiaofu.daily.ui.calendar.CalendarViewModel
-import com.xiaofu.daily.ui.components.BottomBarHeight
 import com.xiaofu.daily.ui.components.LocalPhotoViewerHost
 import com.xiaofu.daily.ui.components.PhotoViewerHost
 import com.xiaofu.daily.ui.components.PhotoViewerHostOverlay
+import com.xiaofu.daily.ui.nav.LocalNavTuning
+import com.xiaofu.daily.ui.nav.NavTuning
+import com.xiaofu.daily.ui.nav.NavTuningPanel
 import com.xiaofu.daily.ui.records.AnomalyGalleryOverlay
 import com.xiaofu.daily.ui.records.GalleryHost
 import com.xiaofu.daily.ui.records.LocalGalleryHost
@@ -136,6 +138,8 @@ fun XiaoFuApp() {
 
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("xiaofu_prefs", Context.MODE_PRIVATE) }
+    var navTuning by remember { mutableStateOf(NavTuning.load(context)) }
+    var showNavTuning by remember { mutableStateOf(false) }
     var showGuide by remember { mutableStateOf(!prefs.getBoolean("onboarding_done", false)) }
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -211,6 +215,7 @@ fun XiaoFuApp() {
     CompositionLocalProvider(
         LocalPhotoViewerHost provides viewerHost,
         LocalGalleryHost provides galleryHost,
+        LocalNavTuning provides navTuning,
     ) {
     Box(Modifier.fillMaxSize().background(cs.background)) {
         val current = editor
@@ -245,7 +250,7 @@ fun XiaoFuApp() {
                         hostState = snackbar,
                         modifier = Modifier
                             .navigationBarsPadding()
-                            .padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = BottomBarHeight + 8.dp),
+                            .padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = navTuning.barHeight.dp + navTuning.barBottom.dp + 16.dp),
                     ) { data ->
                         XiaoFuSnackbar(data, accentText)
                     }
@@ -281,6 +286,7 @@ fun XiaoFuApp() {
                         vm = profileVm,
                         modifier = Modifier.padding(innerPadding),
                         onMessage = onMessage,
+                        onOpenNavTuning = { showNavTuning = true },
                     )
                 }
             }
@@ -289,6 +295,7 @@ fun XiaoFuApp() {
                     selected = selectedTab,
                     onSelect = { selectedTab = it },
                     backdrop = backdropLayer,
+                    tuning = navTuning,
                     modifier = Modifier.align(Alignment.BottomCenter),
                 )
             }
@@ -314,6 +321,16 @@ fun XiaoFuApp() {
             }
         }
         PhotoViewerHostOverlay()
+        if (showNavTuning) {
+            NavTuningPanel(
+                tuning = navTuning,
+                onChange = { next ->
+                    navTuning = next
+                    NavTuning.save(context, next)
+                },
+                onDone = { showNavTuning = false },
+            )
+        }
     }
     }
 }
@@ -323,6 +340,7 @@ private fun BottomNav(
     selected: Tab,
     onSelect: (Tab) -> Unit,
     backdrop: GraphicsLayer?,
+    tuning: NavTuning,
     modifier: Modifier = Modifier,
 ) {
     val cs = MaterialTheme.colorScheme
@@ -332,27 +350,27 @@ private fun BottomNav(
     var barOrigin by remember { mutableStateOf(Offset.Zero) }
     // 系统跨窗口模糊不可用时退化为更实的底，保证文字可读
     val canSample = backdrop != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
-    val blurRadius = with(density) { 26.dp.toPx() }
+    val blurRadius = with(density) { tuning.blurRadius.dp.toPx() }
 
-    val shape = RoundedCornerShape(36.dp)
+    val shape = RoundedCornerShape(tuning.barRadius.dp)
     val glassTop = when {
-        canSample && dark -> cs.surface.copy(alpha = 0.46f)
-        canSample -> Color.White.copy(alpha = 0.40f)
+        canSample && dark -> cs.surface.copy(alpha = tuning.glassTop)
+        canSample -> Color.White.copy(alpha = tuning.glassTop)
         dark -> cs.surface.copy(alpha = 0.94f)
         else -> Color.White.copy(alpha = 0.92f)
     }
     val glassBottom = when {
-        canSample && dark -> cs.surface.copy(alpha = 0.34f)
-        canSample -> Color.White.copy(alpha = 0.28f)
+        canSample && dark -> cs.surface.copy(alpha = tuning.glassBottom)
+        canSample -> Color.White.copy(alpha = tuning.glassBottom)
         dark -> cs.surface.copy(alpha = 0.90f)
         else -> Color.White.copy(alpha = 0.88f)
     }
-    val rimTop = if (dark) Color.White.copy(alpha = 0.26f) else Color.White.copy(alpha = 0.98f)
-    val rimBottom = if (dark) Color.White.copy(alpha = 0.06f) else Color.Black.copy(alpha = 0.08f)
-    val sheenTop = Color.White.copy(alpha = if (dark) 0.07f else 0.30f)
+    val rimTop = Color.White.copy(alpha = tuning.rimTop)
+    val rimBottom = if (dark) Color.White.copy(alpha = tuning.rimBottom) else Color.Black.copy(alpha = tuning.rimBottom)
+    val sheenTop = Color.White.copy(alpha = tuning.sheen)
     val activeColor = if (dark) cs.primary else Color(0xFFB5501A)
     val idleColor = if (dark) Color.White.copy(alpha = 0.55f) else Color(0xFF1C1B1A).copy(alpha = 0.55f)
-    val pillShape = RoundedCornerShape(18.dp)
+    val pillShape = RoundedCornerShape(tuning.pillRadius.dp)
 
     Box(
         modifier
@@ -360,14 +378,14 @@ private fun BottomNav(
             .windowInsetsPadding(
                 WindowInsets.navigationBars.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal),
             )
-            .padding(bottom = 12.dp),
+            .padding(bottom = tuning.barBottom.dp),
         contentAlignment = Alignment.Center,
     ) {
         Box(
             Modifier
-                .height(72.dp)
+                .height(tuning.barHeight.dp)
                 .shadow(
-                    elevation = 20.dp,
+                    elevation = tuning.barShadow.dp,
                     shape = shape,
                     clip = false,
                     ambientColor = Color.Black.copy(alpha = 0.10f),
@@ -375,7 +393,7 @@ private fun BottomNav(
                 )
                 .clip(shape)
                 .border(
-                    width = 1.dp,
+                    width = tuning.barBorder.dp,
                     brush = Brush.verticalGradient(listOf(rimTop, rimBottom)),
                     shape = shape,
                 )
@@ -416,25 +434,25 @@ private fun BottomNav(
             )
             Row(
                 modifier = Modifier
-                    .height(72.dp)
-                    .padding(horizontal = 14.dp),
+                    .height(tuning.barHeight.dp)
+                    .padding(horizontal = tuning.rowPadding.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Tab.entries.forEach { tab ->
                     val active = tab == selected
                     val iconScale by animateFloatAsState(
-                        targetValue = if (active) 1.06f else 1f,
+                        targetValue = if (active) tuning.iconScale else 1f,
                         animationSpec = tween(180),
                         label = "tabScale",
                     )
-                    Box(Modifier.width(54.dp), contentAlignment = Alignment.Center) {
+                    Box(Modifier.width(tuning.cellWidth.dp), contentAlignment = Alignment.Center) {
                         Column(
                             modifier = Modifier
-                                .width(44.dp)
+                                .width(tuning.pillWidth.dp)
                                 .then(
                                     if (active) {
                                         Modifier.shadow(
-                                            elevation = 4.dp,
+                                            elevation = tuning.pillShadow.dp,
                                             shape = pillShape,
                                             clip = false,
                                             ambientColor = Color.Black.copy(alpha = 0.08f),
@@ -455,7 +473,7 @@ private fun BottomNav(
                                 .then(
                                     if (active) {
                                         Modifier.border(
-                                            width = 1.dp,
+                                            width = tuning.pillBorder.dp,
                                             brush = Brush.verticalGradient(
                                                 listOf(
                                                     Color.White.copy(alpha = if (dark) 0.28f else 1f),
@@ -469,15 +487,17 @@ private fun BottomNav(
                                     },
                                 )
                                 .clickable { onSelect(tab) }
-                                // 胶囊四周留白统一：左右 10dp、上下 9dp，内容与边框等距
-                                .padding(horizontal = 10.dp, vertical = 9.dp),
+                                .padding(
+                                    horizontal = tuning.pillPadH.dp,
+                                    vertical = tuning.pillPadV.dp,
+                                ),
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
                             Icon(
                                 painterResource(tab.iconRes),
                                 contentDescription = null,
                                 modifier = Modifier
-                                    .size(23.dp)
+                                    .size(tuning.iconSize.dp)
                                     .graphicsLayer {
                                         scaleX = iconScale
                                         scaleY = iconScale
@@ -486,11 +506,11 @@ private fun BottomNav(
                             )
                             Text(
                                 tab.label,
-                                fontSize = 10.5.sp,
-                                lineHeight = 13.sp,
+                                fontSize = tuning.labelSize.sp,
+                                lineHeight = (tuning.labelSize + 2.5f).sp,
                                 fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium,
                                 color = if (active) activeColor else idleColor,
-                                modifier = Modifier.padding(top = 3.dp),
+                                modifier = Modifier.padding(top = tuning.labelGap.dp),
                             )
                         }
                     }

@@ -97,6 +97,7 @@ fun ProfileScreen(
     vm: ProfileViewModel,
     modifier: Modifier = Modifier,
     onMessage: (String) -> Unit = {},
+    onOpenNavTuning: () -> Unit = {},
 ) {
     val cs = MaterialTheme.colorScheme
     val context = LocalContext.current
@@ -185,6 +186,12 @@ fun ProfileScreen(
                         title = "外观",
                         value = themeMode.label,
                         onClick = { showTheme = true },
+                    )
+                    SettingRow(
+                        iconRes = R.drawable.ic_ms_settings,
+                        title = "底栏参数",
+                        value = "临时",
+                        onClick = onOpenNavTuning,
                     )
                     SettingRow(
                         iconRes = R.drawable.ic_ms_info,

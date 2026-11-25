@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.xiaofu.daily.R
+import com.xiaofu.daily.ui.nav.LocalNavTuning
 
 /** 记录类型图标底（时间线 36dp / 概览 22dp / 快捷 圆底） */
 @Composable
@@ -585,10 +586,10 @@ fun Modifier.minTouchTarget(size: Dp): Modifier = composed {
     }
 }
 
-/** 悬浮底栏高度（72dp 栏 + 上下留白），列表底部要让开这段距离 */
-val BottomBarHeight = 92.dp
-
-/** 列表底部留白：常规间距 + 悬浮底栏 + 系统导航栏 */
+/** 列表底部留白：常规间距 + 悬浮底栏 + 系统导航栏（底栏尺寸随调试参数变化） */
 @Composable
-fun bottomBarAwarePadding(extra: Dp = 20.dp): Dp =
-    extra + BottomBarHeight + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+fun bottomBarAwarePadding(extra: Dp = 20.dp): Dp {
+    val tuning = LocalNavTuning.current
+    return extra + tuning.barHeight.dp + tuning.barBottom.dp + 8.dp +
+        WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+}

@@ -87,10 +87,11 @@ import kotlinx.coroutines.withContext
 
 private val SnackTypes = listOf("冻干", "罐头", "零食", "自制", "其他")
 
-/** 喝水输入方式：喝水直接填喝掉的量；水瓶用上次剩余减本次剩余；记住上次选择 */
+/** 喝水输入方式：喝水直接填喝掉的量；水瓶 / 水碗用上次剩余减本次剩余；记住上次选择 */
 private enum class WaterEntryMode {
     DIRECT,
-    BOTTLE;
+    BOTTLE,
+    BOWL;
 
     companion object {
         private const val PREFS = "xiaofu_prefs"
@@ -110,18 +111,22 @@ private enum class WaterEntryMode {
     }
 }
 
-/** 水瓶剩余只存本地，不进数据库与备份；保存后带入下次的「上次剩余」 */
-private object WaterBottleMemory {
+/** 水瓶 / 水碗的剩余各存一份，只在本机，不进数据库与备份；保存后带入下次的「上次剩余」 */
+private object WaterSourceMemory {
     private const val PREFS = "xiaofu_prefs"
-    private const val KEY = "water_bottle_last_left"
+    private const val BOTTLE_KEY = "water_bottle_last_left"
+    private const val BOWL_KEY = "water_bowl_last_left"
 
-    fun readLeft(context: Context): String =
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY, "").orEmpty()
+    private fun key(mode: WaterEntryMode): String =
+        if (mode == WaterEntryMode.BOWL) BOWL_KEY else BOTTLE_KEY
 
-    fun writeLeft(context: Context, left: String) {
+    fun readLeft(context: Context, mode: WaterEntryMode): String =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(key(mode), "").orEmpty()
+
+    fun writeLeft(context: Context, mode: WaterEntryMode, left: String) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit()
-            .putString(KEY, left)
+            .putString(key(mode), left)
             .apply()
     }
 }
@@ -142,15 +147,23 @@ fun WaterSheet(
         mutableStateOf(if (editing == null) WaterEntryMode.read(context) else WaterEntryMode.DIRECT)
     }
     var text by remember { mutableStateOf((editing?.amountMl ?: lastMl).toString()) }
-    var lastLeftText by remember { mutableStateOf(WaterBottleMemory.readLeft(context)) }
+    // 水瓶与水碗各自记住上次剩余，互不覆盖
+    var lastLeftByMode by remember {
+        mutableStateOf(
+            WaterEntryMode.entries.associateWith { WaterSourceMemory.readLeft(context, it) },
+        )
+    }
     var nowLeftText by remember { mutableStateOf("") }
+    val lastLeftText = lastLeftByMode[mode].orEmpty()
 
     val value = text.toIntOrNull()
-    val bottleMl = bottleDrinkMl(lastLeftText, nowLeftText)
+    val sourceMl = sourceDrinkMl(lastLeftText, nowLeftText)
+    // 只填上次剩余：按钮只更新剩余，不产生喝水记录
+    val sourceOnly = mode != WaterEntryMode.DIRECT && sourceMl == null
     val valid = if (mode == WaterEntryMode.DIRECT) {
         value != null && value in 1..5000
     } else {
-        bottleMl != null
+        sourceCanSave(lastLeftText, nowLeftText)
     }
 
     ModalBottomSheet(
@@ -178,11 +191,13 @@ fun WaterSheet(
             if (editing == null) {
                 Spacer(Modifier.height(12.dp))
                 SegmentedRow(
-                    options = listOf("喝水", "水瓶"),
+                    options = listOf("喝水", "水瓶", "水碗"),
                     selectedIndex = mode.ordinal,
                     onSelect = { index ->
                         mode = WaterEntryMode.entries[index]
                         WaterEntryMode.write(context, mode)
+                        // 本次剩余属于各自的来源，切换后留空
+                        nowLeftText = ""
                     },
                 )
             }
@@ -220,7 +235,7 @@ fun WaterSheet(
                                 Spacer(Modifier.height(6.dp))
                                 BigNumberField(
                                     value = lastLeftText,
-                                    onValueChange = { lastLeftText = it },
+                                    onValueChange = { lastLeftByMode = lastLeftByMode + (mode to it) },
                                     unit = "ml",
                                     compact = true,
                                 )
@@ -236,7 +251,7 @@ fun WaterSheet(
                                 )
                             }
                         }
-                        bottleHint(lastLeftText, nowLeftText)?.let { hint ->
+                        sourceHint(lastLeftText, nowLeftText)?.let { hint ->
                             Text(
                                 hint,
                                 style = MaterialTheme.typography.labelMedium,
@@ -253,14 +268,23 @@ fun WaterSheet(
             ) {
                 SecondaryButton("取消", onDismiss, Modifier.weight(1f))
                 PrimaryButton(
-                    text = if (editing == null) "记下来" else "保存",
+                    text = if (editing == null && !sourceOnly) "记下来" else "保存",
                     onClick = {
-                        val ml = if (mode == WaterEntryMode.DIRECT) value else bottleMl
-                        if (ml != null) {
-                            if (mode == WaterEntryMode.BOTTLE) {
-                                WaterBottleMemory.writeLeft(context, nowLeftText.toIntOrNull()?.toString() ?: nowLeftText)
+                        when {
+                            mode == WaterEntryMode.DIRECT -> value?.let(onSave)
+                            sourceMl != null -> {
+                                WaterSourceMemory.writeLeft(
+                                    context,
+                                    mode,
+                                    nowLeftText.toIntOrNull()?.toString() ?: "0",
+                                )
+                                onSave(sourceMl)
                             }
-                            onSave(ml)
+                            else -> {
+                                // 只填上次剩余：只记住这个值，不记喝水
+                                WaterSourceMemory.writeLeft(context, mode, lastLeftText)
+                                onDismiss()
+                            }
                         }
                     },
                     modifier = Modifier.weight(1f),

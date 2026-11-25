@@ -199,8 +199,6 @@ fun RecordsScreen(
                     onClick = { galleryHost?.show() },
                     contentDescription = "异常照片墙",
                 )
-                Spacer(Modifier.size(4.dp))
-                RoundIconButton(R.drawable.ic_ms_search)
             }
         }
         }

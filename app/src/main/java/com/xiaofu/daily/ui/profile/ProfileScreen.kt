@@ -73,7 +73,6 @@ import com.xiaofu.daily.ui.backup.BackupSection
 import com.xiaofu.daily.ui.components.CardSurface
 import com.xiaofu.daily.ui.components.PillChip
 import com.xiaofu.daily.ui.components.PrimaryButton
-import com.xiaofu.daily.ui.components.RoundIconButton
 import com.xiaofu.daily.ui.components.SecondaryButton
 import com.xiaofu.daily.ui.components.SegmentedRow
 import com.xiaofu.daily.ui.components.SheetHandle
@@ -132,7 +131,6 @@ fun ProfileScreen(
                     Text("我的", style = MaterialTheme.typography.headlineSmall, color = cs.onBackground)
                     Text("小福的档案与偏好", style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant, modifier = Modifier.padding(top = 2.dp))
                 }
-                RoundIconButton(R.drawable.ic_ms_settings)
             }
         }
         item(key = "profile") {

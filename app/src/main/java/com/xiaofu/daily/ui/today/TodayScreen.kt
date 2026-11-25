@@ -23,7 +23,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
@@ -65,7 +64,6 @@ import com.xiaofu.daily.ui.components.CircleTypeIcon
 import com.xiaofu.daily.ui.components.DayGroupHeader
 import com.xiaofu.daily.ui.components.RecordRow
 import com.xiaofu.daily.ui.components.SelectionTopBar
-import com.xiaofu.daily.ui.components.RoundIconButton
 import com.xiaofu.daily.ui.components.TypeIcon
 import com.xiaofu.daily.ui.editor.EditorTarget
 import com.xiaofu.daily.ui.format.Fmt
@@ -383,18 +381,6 @@ private fun TodayTopBar() {
                 style = MaterialTheme.typography.labelMedium,
                 color = cs.onSurfaceVariant,
                 modifier = Modifier.padding(top = 2.dp),
-            )
-        }
-        Box {
-            RoundIconButton(R.drawable.ic_ms_notifications)
-            Box(
-                Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(top = 9.dp, end = 10.dp)
-                    .size(7.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFFD9542B))
-                    .border(2.dp, cs.surface, CircleShape),
             )
         }
     }

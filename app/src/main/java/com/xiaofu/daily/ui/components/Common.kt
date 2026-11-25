@@ -585,8 +585,8 @@ fun Modifier.minTouchTarget(size: Dp): Modifier = composed {
     }
 }
 
-/** 悬浮底栏高度（64dp 栏 + 上下留白），列表底部要让开这段距离 */
-val BottomBarHeight = 84.dp
+/** 悬浮底栏高度（72dp 栏 + 上下留白），列表底部要让开这段距离 */
+val BottomBarHeight = 92.dp
 
 /** 列表底部留白：常规间距 + 悬浮底栏 + 系统导航栏 */
 @Composable

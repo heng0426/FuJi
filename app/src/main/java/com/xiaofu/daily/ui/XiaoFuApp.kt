@@ -6,6 +6,9 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -26,6 +29,7 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
@@ -51,13 +55,26 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.layer.GraphicsLayer
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -90,6 +107,7 @@ import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 private enum class Tab(val label: String, val iconRes: Int) {
     TODAY("今日", R.drawable.ic_ms_home),
@@ -114,6 +132,7 @@ fun XiaoFuApp() {
     val scope = rememberCoroutineScope()
     val cs = MaterialTheme.colorScheme
     val accentText = if (LocalAppDarkTheme.current) cs.primary else Color(0xFFB5501A)
+    val backdropLayer = rememberGraphicsLayer()
 
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("xiaofu_prefs", Context.MODE_PRIVATE) }
@@ -208,6 +227,14 @@ fun XiaoFuApp() {
         ) {
         if (current == null) {
             Box(Modifier.fillMaxSize()) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .drawWithContent {
+                        backdropLayer.record { this@drawWithContent.drawContent() }
+                        drawLayer(backdropLayer)
+                    },
+            ) {
             Scaffold(
                 containerColor = Color.Transparent,
                 contentWindowInsets = WindowInsets.safeDrawing.only(
@@ -257,9 +284,11 @@ fun XiaoFuApp() {
                     )
                 }
             }
+            }
                 BottomNav(
                     selected = selectedTab,
                     onSelect = { selectedTab = it },
+                    backdrop = backdropLayer,
                     modifier = Modifier.align(Alignment.BottomCenter),
                 )
             }
@@ -293,19 +322,37 @@ fun XiaoFuApp() {
 private fun BottomNav(
     selected: Tab,
     onSelect: (Tab) -> Unit,
+    backdrop: GraphicsLayer?,
     modifier: Modifier = Modifier,
 ) {
     val cs = MaterialTheme.colorScheme
     val dark = LocalAppDarkTheme.current
-    val shape = RoundedCornerShape(32.dp)
-    val glassTop = if (dark) cs.surface.copy(alpha = 0.80f) else Color.White.copy(alpha = 0.66f)
-    val glassBottom = if (dark) cs.surface.copy(alpha = 0.64f) else Color.White.copy(alpha = 0.54f)
-    val rimTop = if (dark) Color.White.copy(alpha = 0.20f) else Color.White.copy(alpha = 0.92f)
-    val rimBottom = if (dark) Color.White.copy(alpha = 0.05f) else Color.White.copy(alpha = 0.40f)
-    val sheenTop = Color.White.copy(alpha = if (dark) 0.07f else 0.34f)
-    val contentColor = if (dark) Color.White else Color(0xFF1C1B1A)
-    val idleColor = if (dark) Color.White.copy(alpha = 0.62f) else Color(0xFF1C1B1A).copy(alpha = 0.62f)
-    val pillShape = RoundedCornerShape(20.dp)
+    val density = LocalDensity.current
+    val blurLayer = rememberGraphicsLayer()
+    var barOrigin by remember { mutableStateOf(Offset.Zero) }
+    // 系统跨窗口模糊不可用时退化为更实的底，保证文字可读
+    val canSample = backdrop != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    val blurRadius = with(density) { 26.dp.toPx() }
+
+    val shape = RoundedCornerShape(36.dp)
+    val glassTop = when {
+        canSample && dark -> cs.surface.copy(alpha = 0.46f)
+        canSample -> Color.White.copy(alpha = 0.40f)
+        dark -> cs.surface.copy(alpha = 0.94f)
+        else -> Color.White.copy(alpha = 0.92f)
+    }
+    val glassBottom = when {
+        canSample && dark -> cs.surface.copy(alpha = 0.34f)
+        canSample -> Color.White.copy(alpha = 0.28f)
+        dark -> cs.surface.copy(alpha = 0.90f)
+        else -> Color.White.copy(alpha = 0.88f)
+    }
+    val rimTop = if (dark) Color.White.copy(alpha = 0.26f) else Color.White.copy(alpha = 0.98f)
+    val rimBottom = if (dark) Color.White.copy(alpha = 0.06f) else Color.Black.copy(alpha = 0.08f)
+    val sheenTop = Color.White.copy(alpha = if (dark) 0.07f else 0.30f)
+    val activeColor = if (dark) cs.primary else Color(0xFFB5501A)
+    val idleColor = if (dark) Color.White.copy(alpha = 0.55f) else Color(0xFF1C1B1A).copy(alpha = 0.55f)
+    val pillShape = RoundedCornerShape(18.dp)
 
     Box(
         modifier
@@ -313,50 +360,95 @@ private fun BottomNav(
             .windowInsetsPadding(
                 WindowInsets.navigationBars.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal),
             )
-            .padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
+            .padding(bottom = 12.dp),
+        contentAlignment = Alignment.Center,
     ) {
         Box(
             Modifier
-                .fillMaxWidth()
-                .height(64.dp)
+                .height(72.dp)
                 .shadow(
-                    elevation = 18.dp,
+                    elevation = 20.dp,
                     shape = shape,
                     clip = false,
                     ambientColor = Color.Black.copy(alpha = 0.10f),
-                    spotColor = Color.Black.copy(alpha = 0.16f),
+                    spotColor = Color.Black.copy(alpha = 0.20f),
                 )
                 .clip(shape)
-                .background(Brush.verticalGradient(listOf(glassTop, glassBottom)))
                 .border(
                     width = 1.dp,
                     brush = Brush.verticalGradient(listOf(rimTop, rimBottom)),
                     shape = shape,
-                ),
+                )
+                .onGloballyPositioned { barOrigin = it.positionInRoot() },
         ) {
-            // 玻璃顶部的柔和高光，模拟光打在弧面上的漫反射
+            // 1. 下层内容模糊采样：把底栏背后的画面做高斯模糊后铺在玻璃下方
+            if (canSample) {
+                Canvas(Modifier.matchParentSize()) {
+                    val w = size.width.roundToInt()
+                    val h = size.height.roundToInt()
+                    if (w <= 0 || h <= 0) return@Canvas
+                    blurLayer.record(size = IntSize(w, h)) {
+                        translate(-barOrigin.x, -barOrigin.y) {
+                            drawLayer(backdrop!!)
+                        }
+                    }
+                    blurLayer.renderEffect = BlurEffect(blurRadius, blurRadius, TileMode.Clamp)
+                    drawLayer(blurLayer)
+                }
+            }
+            // 2. 玻璃底色（压在模糊层之上，弱化背景对比、统一色调）
             Box(
                 Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight(0.62f)
+                    .matchParentSize()
+                    .background(Brush.verticalGradient(listOf(glassTop, glassBottom))),
+            )
+            // 3. 顶部柔光，模拟弧面高光
+            Box(
+                Modifier
+                    .matchParentSize()
                     .background(
-                        Brush.verticalGradient(listOf(sheenTop, Color.Transparent)),
+                        Brush.verticalGradient(
+                            0f to sheenTop,
+                            0.62f to Color.Transparent,
+                            1f to Color.Transparent,
+                        ),
                     ),
             )
             Row(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .height(72.dp)
+                    .padding(horizontal = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Tab.entries.forEach { tab ->
                     val active = tab == selected
-                    Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                    val iconScale by animateFloatAsState(
+                        targetValue = if (active) 1.06f else 1f,
+                        animationSpec = tween(180),
+                        label = "tabScale",
+                    )
+                    Box(Modifier.width(54.dp), contentAlignment = Alignment.Center) {
                         Column(
                             modifier = Modifier
+                                .width(44.dp)
+                                .then(
+                                    if (active) {
+                                        Modifier.shadow(
+                                            elevation = 4.dp,
+                                            shape = pillShape,
+                                            clip = false,
+                                            ambientColor = Color.Black.copy(alpha = 0.08f),
+                                            spotColor = Color.Black.copy(alpha = 0.12f),
+                                        )
+                                    } else {
+                                        Modifier
+                                    },
+                                )
                                 .clip(pillShape)
                                 .background(
                                     when {
-                                        active && dark -> Color.White.copy(alpha = 0.14f)
-                                        active -> Color.White.copy(alpha = 0.92f)
+                                        active && dark -> Color.White.copy(alpha = 0.22f)
+                                        active -> Color.White.copy(alpha = 1f)
                                         else -> Color.Transparent
                                     },
                                 )
@@ -366,8 +458,8 @@ private fun BottomNav(
                                             width = 1.dp,
                                             brush = Brush.verticalGradient(
                                                 listOf(
-                                                    Color.White.copy(alpha = if (dark) 0.16f else 0.95f),
-                                                    Color.White.copy(alpha = if (dark) 0.04f else 0.55f),
+                                                    Color.White.copy(alpha = if (dark) 0.28f else 1f),
+                                                    Color.White.copy(alpha = if (dark) 0.06f else 0.72f),
                                                 ),
                                             ),
                                             shape = pillShape,
@@ -377,21 +469,27 @@ private fun BottomNav(
                                     },
                                 )
                                 .clickable { onSelect(tab) }
-                                .padding(horizontal = 18.dp, vertical = 6.dp),
+                                // 胶囊四周留白统一：左右 10dp、上下 9dp，内容与边框等距
+                                .padding(horizontal = 10.dp, vertical = 9.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
                             Icon(
                                 painterResource(tab.iconRes),
                                 contentDescription = null,
-                                modifier = Modifier.size(23.dp),
-                                tint = if (active) contentColor else idleColor,
+                                modifier = Modifier
+                                    .size(23.dp)
+                                    .graphicsLayer {
+                                        scaleX = iconScale
+                                        scaleY = iconScale
+                                    },
+                                tint = if (active) activeColor else idleColor,
                             )
                             Text(
                                 tab.label,
                                 fontSize = 10.5.sp,
                                 lineHeight = 13.sp,
                                 fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium,
-                                color = if (active) contentColor else idleColor,
+                                color = if (active) activeColor else idleColor,
                                 modifier = Modifier.padding(top = 3.dp),
                             )
                         }

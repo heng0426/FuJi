@@ -24,6 +24,9 @@
  *
  * 布局约定：组件自身高度恒为 itemHeight * 3（收起时不占位变化），
  * 胶囊在壳内居中、上下对称展开，因此不会推挤调用方的布局。
+ * ----------------------------------------------------------------------------
+ * 本地扩展（小福日常）：新增 loop 参数，末项与首项无缝衔接（时间轮：23→00、59→00）。
+ * 该扩展尚未回灌上游 wheelcapsule 工程，合入上游时以本文件为准。
  * ============================================================================
  */
 package com.shinemeow.wheelcapsule
@@ -151,7 +154,8 @@ object WheelCapsuleDefaults {
  * - **松手**：吸附最近项，若与 [selected] 不同则回调 [onSelect]。
  * - **按住判定**：按下后 130ms 内移动超过 touchSlop，视为「用户想滚父容器」，
  *   组件完全不消费手势；静止按住超过 130ms 才进入调值。这样把滚轮铺在可滚动面板里
- *   也不会出现「想滚面板却把参数改了」。
+ *   也不会出现「想滚面板却把参数改了」。把 [engageTimeoutMillis] 设为 0 可关掉这段等待，
+ *   按下即可直接滑动（代价是该区域不再把竖向手势让给父容器）。
  *
  * ## 状态同步
  * 组件是**受控**的：显示以 [selected] 为准。外部值变化（网络回读、重置等）时，
@@ -178,6 +182,8 @@ object WheelCapsuleDefaults {
  * @param onSelect 用户确认新挡位时回调（只在值真正变化时触发）
  * @param modifier 作用在最外层的修饰符
  * @param enabled false = 灰置且不响应手势
+ * @param loop true = 首尾无缝循环（滑过末项接首项、首项下滑接末项）。
+ *   为保证同一窗口内的候选项不重复，循环模式建议 items.size ≥ 5（时间轮 24 / 60 项）。
  * @param colors 配色，默认跟随 Material 主题
  * @param itemHeight 单挡高度 / 相邻项间距
  * @param collapsedHeight 收起时胶囊高度
@@ -187,7 +193,7 @@ object WheelCapsuleDefaults {
  * @param minTextSize 自动缩字号下限
  * @param hapticsEnabled 是否在过挡时震动
  * @param resetKey 递增可强制把内部位置归位到 [selected]（写值失败场景）
- * @param engageTimeoutMillis 按住判定时长
+ * @param engageTimeoutMillis 按住判定时长；<= 0 表示不等待，按下即可直接拖动
  * @param snapAnimationMillis 吸附与展开动画时长
  * @param a11yPreviousLabel 读屏「上一项」动作文案
  * @param a11yNextLabel 读屏「下一项」动作文案
@@ -200,6 +206,7 @@ fun WheelCapsule(
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    loop: Boolean = false,
     colors: WheelCapsuleColors = WheelCapsuleDefaults.colors(),
     itemHeight: Dp = WheelCapsuleDefaults.ItemHeight,
     collapsedHeight: Dp = WheelCapsuleDefaults.CollapsedHeight,
@@ -234,9 +241,13 @@ fun WheelCapsule(
     }
 
     val lastIndex = items.lastIndex
+    val count = items.size
     val selectedSafe = selected.coerceIn(0, lastIndex)
     val restHeight = collapsedHeight.coerceIn(0.dp, pressedHeight)
     val itemHeightPx = with(density) { itemHeight.toPx() }
+    // 循环模式下 position 是无界（按 count 取模）的连续坐标：整数部分只表示"转了多少圈"，
+    // 显示一律走 wrapIndex，因此同一位置可以等价地写成 0 / count / 2count。
+    val looping = loop && count > 1
 
     var pressed by remember { mutableStateOf(false) }
     // ⚠️ 不要用 remember(selected) 重建 state：selected 变化会换掉 state 对象，
@@ -260,13 +271,22 @@ fun WheelCapsule(
 
     // 外部值同步：非拖动中 selected 变化 → position 动画归位
     // resetKey：调用方写值失败时递增，强制归位（失败后真值没变，必须把滚轮拉回去）
-    LaunchedEffect(selectedSafe, resetKey, items.size) {
-        if (!pressed && position != selectedSafe.toFloat()) {
+    LaunchedEffect(selectedSafe, resetKey, items.size, looping) {
+        if (pressed) return@LaunchedEffect
+        // 循环模式取与当前位置**同圈**的等价目标，避免 23 → 00 被反向绕一整圈
+        val target = if (looping) {
+            (selectedSafe + ((position - selectedSafe) / count).roundToInt() * count).toFloat()
+        } else {
+            selectedSafe.toFloat()
+        }
+        if (position != target) {
             val anim = Animatable(position)
             anim.animateTo(
-                selectedSafe.toFloat(),
+                target,
                 tween(WheelCapsuleDefaults.SyncAnimationMillis)
             ) { position = value }
+            // 动画停在同值异圈的位置上，无动画收回到首圈，视觉零变化
+            if (looping) position = wrapPosition(position, count)
         }
     }
 
@@ -287,10 +307,15 @@ fun WheelCapsule(
     else colors.containerColor.copy(alpha = colors.containerColor.alpha * 0.5f)
 
     fun snapAndCommit() {
-        val target = position.roundToInt().coerceIn(0, lastIndex)
+        // 循环模式先吸附到"本圈"的整数位置（视觉上就是最近的一挡），再取模换算真实下标
+        val rawTarget = if (looping) position.roundToInt()
+                        else position.roundToInt().coerceIn(0, lastIndex)
+        val target = if (looping) wrapIndex(rawTarget, count) else rawTarget
         scope.launch {
             val anim = Animatable(position)
-            anim.animateTo(target.toFloat(), tween(snapAnimationMillis)) { position = value }
+            anim.animateTo(rawTarget.toFloat(), tween(snapAnimationMillis)) { position = value }
+            // 停在别的圈上时无动画收回首圈：渲染按取模，视觉零跳变
+            if (looping) position = wrapPosition(position, count)
             // 与**最新**值比较：相同才跳过（重复选同一挡不必打扰宿主）
             if (target != selectedNow.value && enabled) onSelectNow.value(target)
         }
@@ -309,8 +334,8 @@ fun WheelCapsule(
                 .height(capsuleHeight)
                 .clip(RoundedCornerShape(percent = 50))
                 .background(container)
-                // 单一手势：按住 130ms 才算「要调值」，在此之前划走 = 滚父容器。
-                // ① 展开动画与调值同时开始；② 判定窗口内越过 touchSlop 的移动一律让给父级滚动。
+                // 单一手势：默认按住 130ms 才算「要调值」，在此之前划走 = 滚父容器。
+                // engageTimeoutMillis <= 0 时跳过判定，按下就能直接跟手滑（时间轮用这种方式）。
                 // ⚠️ 判定窗口必须用 withTimeoutOrNull 计时：只在 awaitPointerEvent 里比较
                 //    System.currentTimeMillis() 的话，手指静止时收不到事件、永远判不出来，
                 //    等到第一个 MOVE 时位移已经超过 slop → 被判成「滚动」（真机踩过）。
@@ -320,7 +345,8 @@ fun WheelCapsule(
                     itemHeightPx,
                     hapticsEnabled,
                     engageTimeoutMillis,
-                    snapAnimationMillis
+                    snapAnimationMillis,
+                    looping
                 ) {
                     if (!enabled) return@pointerInput
                     awaitEachGesture {
@@ -328,27 +354,33 @@ fun WheelCapsule(
                         var engaged = false
                         var handOff = false          // true = 让给父级滚动，绝不写值
                         try {
-                            // 判定窗口内**累计**位移：130ms 内越过 slop 就判为滚动（让给父级），
-                            // 窗口到期仍未越过才算「要调值」。只看单个事件不够——真手指每帧
-                            // 只移动十几像素，首个事件通常小于 slop。
-                            val verdict = withTimeoutOrNull(engageTimeoutMillis) {
-                                var total = 0f
-                                while (true) {
-                                    val ev = awaitPointerEvent()
-                                    val ch = ev.changes.firstOrNull { it.id == down.id }
-                                        ?: return@withTimeoutOrNull 1
-                                    if (!ch.pressed) return@withTimeoutOrNull 1   // 只是点了一下
-                                    total += ch.positionChange().getDistance()
-                                    if (total > viewConfiguration.touchSlop) {
-                                        return@withTimeoutOrNull 2              // 滚动
+                            if (engageTimeoutMillis <= 0L) {
+                                // 无等待：按下即接管本区域手势，第一帧移动就开始改值；
+                                // 展开延到出现真实位移时（见下方 pressed 赋值），轻点不会闪
+                                engaged = true
+                            } else {
+                                // 判定窗口内**累计**位移：130ms 内越过 slop 就判为滚动（让给父级），
+                                // 窗口到期仍未越过才算「要调值」。只看单个事件不够——真手指每帧
+                                // 只移动十几像素，首个事件通常小于 slop。
+                                val verdict = withTimeoutOrNull(engageTimeoutMillis) {
+                                    var total = 0f
+                                    while (true) {
+                                        val ev = awaitPointerEvent()
+                                        val ch = ev.changes.firstOrNull { it.id == down.id }
+                                            ?: return@withTimeoutOrNull 1
+                                        if (!ch.pressed) return@withTimeoutOrNull 1   // 只是点了一下
+                                        total += ch.positionChange().getDistance()
+                                        if (total > viewConfiguration.touchSlop) {
+                                            return@withTimeoutOrNull 2              // 滚动
+                                        }
                                     }
+                                    @Suppress("UNREACHABLE_CODE") 1
                                 }
-                                @Suppress("UNREACHABLE_CODE") 1
-                            }
-                            when (verdict) {
-                                2 -> handOff = true
-                                1 -> {}                        // 抬手结束，什么都不做
-                                else -> { engaged = true; pressed = true }   // null = 超时 → 调值
+                                when (verdict) {
+                                    2 -> handOff = true
+                                    1 -> {}                        // 抬手结束，什么都不做
+                                    else -> { engaged = true; pressed = true }   // null = 超时 → 调值
+                                }
                             }
                             if (!handOff) while (true) {
                                 val ev = awaitPointerEvent()
@@ -358,10 +390,14 @@ fun WheelCapsule(
                                 if (!engaged) continue
                                 if (delta.y != 0f) {
                                     ch.consume()
+                                    // 展开留给"真的开始拖"那一刻：轻点不会闪一下展开动画
+                                    if (!pressed) pressed = true
                                     val old = position.roundToInt()
                                     // 上滑（delta.y < 0）→ position 增 → 序号变大
-                                    position = (position - delta.y / itemHeightPx)
-                                        .coerceIn(0f, lastIndex.toFloat())
+                                    val moved = position - delta.y / itemHeightPx
+                                    // 循环模式环绕而非夹紧：23 之后自然接 00、59 之后接 00
+                                    position = if (looping) wrapPosition(moved, count)
+                                               else moved.coerceIn(0f, lastIndex.toFloat())
                                     if (hapticsEnabled && position.roundToInt() != old) {
                                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                     }
@@ -380,18 +416,21 @@ fun WheelCapsule(
                     stateDescription = items.getOrNull(selectedSafe).orEmpty()
                     if (!enabled) disabled()
                     val cur = selectedNow.value.coerceIn(0, lastIndex)
+                    // 循环模式下读屏的前后项也首尾相接（00 的上一项是 23），与滑动手感一致
+                    val prev = if (looping) wrapIndex(cur - 1, count) else cur - 1
+                    val next = if (looping) wrapIndex(cur + 1, count) else cur + 1
                     customActions = listOf(
                         CustomAccessibilityAction(a11yPreviousLabel) {
-                            if (enabled && cur > 0) {
-                                onSelectNow.value(cur - 1)
+                            if (enabled && prev in items.indices) {
+                                onSelectNow.value(prev)
                                 true
                             } else {
                                 false
                             }
                         },
                         CustomAccessibilityAction(a11yNextLabel) {
-                            if (enabled && cur < lastIndex) {
-                                onSelectNow.value(cur + 1)
+                            if (enabled && next in items.indices) {
+                                onSelectNow.value(next)
                                 true
                             } else {
                                 false
@@ -407,14 +446,17 @@ fun WheelCapsule(
                 (maxWidth - textHorizontalPadding * 2).toPx().toInt().coerceAtLeast(0)
             }
             // 可见窗口：以当前项为中心的 ±2 项，各自独立定位（越远越淡）
-            val centerIdx = position.roundToInt().coerceIn(0, lastIndex)
+            // 循环模式沿无界坐标展开再取模映射到真实下标，所以 23 的下一项就是 00
+            val baseIdx = if (looping) position.roundToInt()
+                          else position.roundToInt().coerceIn(0, lastIndex)
             for (rel in -2..2) {
-                val i = centerIdx + rel
+                val slot = baseIdx + rel
+                val i = if (looping) wrapIndex(slot, count) else slot
                 if (i !in items.indices) continue
-                // key(i)：循环里 continue 会让「位置索引」漂移，加 key 保证 remember
-                // 绑定到具体候选项，否则自适应字号可能张冠李戴。
-                key(i) {
-                    val d = i - position
+                // key(rel)：循环且项数 < 5 时同一项会在窗口里出现两次，用相对槽位保证 key 唯一；
+                // remember 的键里带了 itemText，换项时字号仍会重算，不会张冠李戴。
+                key(rel) {
+                    val d = slot - position
                     val itemText = items[i]
                     val isCenter = rel == 0
                     val baseSize = if (isCenter) centerTextSize else neighborTextSize
@@ -445,6 +487,21 @@ fun WheelCapsule(
             }
         }
     }
+}
+
+/**
+ * 环形取模：把任意整数下标折进 `0 until count`（负数也成立，如 -1 → count-1）。
+ * 循环滚轮的所有「真实下标」都经过它，窗口计算仍用无界坐标。
+ */
+private fun wrapIndex(index: Int, count: Int): Int = ((index % count) + count) % count
+
+/**
+ * 环形位置归一：把连续坐标折进 `[0, count)`。
+ * 整数部分表示转了几圈，小数部分决定挡位的跟手偏移，所以取模不改变任何可见像素。
+ */
+private fun wrapPosition(position: Float, count: Int): Float {
+    val m = position % count
+    return if (m < 0f) m + count else m
 }
 
 /**

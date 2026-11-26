@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -48,9 +47,9 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -66,6 +65,7 @@ import java.time.YearMonth
 import java.time.ZoneId
 import java.time.ZoneOffset
 import kotlin.math.abs
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 
 /**
@@ -212,7 +212,7 @@ fun DateTimePickerDialog(
                 }
                 HorizontalPager(
                     state = pagerState,
-                    modifier = Modifier.fillMaxWidth().height((6 * 30).dp),
+                    modifier = Modifier.fillMaxWidth().height((6 * 40).dp),
                     beyondViewportPageCount = 1,
                 ) { page ->
                     MonthGridCompact(
@@ -319,12 +319,12 @@ private fun MonthGridCompact(
                     val isSelected = date == selected
                     val isToday = date == today
                     Box(
-                        Modifier.weight(1f).height(30.dp),
+                        Modifier.weight(1f).height(40.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         Box(
                             Modifier
-                                .size(28.dp)
+                                .size(36.dp)
                                 .clip(CircleShape)
                                 .then(
                                     when {
@@ -338,7 +338,7 @@ private fun MonthGridCompact(
                         ) {
                             Text(
                                 date.dayOfMonth.toString(),
-                                fontSize = 12.sp,
+                                fontSize = 14.sp,
                                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                                 color = when {
                                     isSelected -> cs.onPrimary
@@ -367,19 +367,21 @@ private fun TimeWheels(
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        WheelColumn(values = 0..23, selected = hour, onSelect = onHour, modifier = Modifier.width(62.dp))
+        WheelColumn(values = 0..23, selected = hour, onSelect = onHour, modifier = Modifier.width(78.dp))
         Text(
             ":",
-            fontSize = 18.sp,
+            fontSize = 22.sp,
             fontWeight = FontWeight.SemiBold,
             color = cs.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 2.dp),
+            modifier = Modifier.padding(horizontal = 4.dp),
         )
-        WheelColumn(values = 0..59, selected = minute, onSelect = onMinute, modifier = Modifier.width(62.dp))
+        WheelColumn(values = 0..59, selected = minute, onSelect = onMinute, modifier = Modifier.width(78.dp))
     }
 }
 
-/** 单列滚轮：吸附居中、中心项随滚动连续放大加粗、上下渐隐；停止后回报选中值 */
+private const val WHEEL_COPIES = 5
+
+/** 单列滚轮：3 行可视、双细分隔线、随距离缩放淡出；数据重复多份实现首尾无缝循环 */
 @Composable
 private fun WheelColumn(
     values: IntRange,
@@ -389,38 +391,55 @@ private fun WheelColumn(
 ) {
     val cs = MaterialTheme.colorScheme
     val scope = rememberCoroutineScope()
-    val itemHeight = 34.dp
+    val itemHeight = 38.dp
     val list = remember(values) { values.toList() }
-    val initialIndex = (selected - values.first).coerceIn(0, list.lastIndex)
+    val count = list.size
+    val selectedIndex = (selected - values.first).coerceIn(0, count - 1)
+    val totalItems = count * WHEEL_COPIES
+    // 初始落在中间份：向上滚到 23 之后接 0，向下滚到 0 之前接 59
+    val baseIndex = count * (WHEEL_COPIES / 2)
+    val initialIndex = baseIndex + selectedIndex
     val state = rememberLazyListState(initialFirstVisibleItemIndex = initialIndex)
     val fling = rememberSnapFlingBehavior(lazyListState = state)
     val itemPx = with(LocalDensity.current) { itemHeight.toPx() }
 
-    // 连续滚动进度：视口中心对应的索引（contentPadding 恰好等于一个 item 高）
+    // 连续滚动进度：视口中心对应的索引（contentPadding 上下各一行）
     val centerIndex by remember {
-        derivedStateOf {
-            state.firstVisibleItemIndex + state.firstVisibleItemScrollOffset / itemPx
-        }
+        derivedStateOf { state.firstVisibleItemIndex + state.firstVisibleItemScrollOffset / itemPx }
     }
 
+    // 保险：极少数情况下首帧未按初始索引定位，这里补一次无动画定位
+    LaunchedEffect(Unit) {
+        if (state.firstVisibleItemIndex != initialIndex) state.scrollToItem(initialIndex)
+    }
+
+    // 跳过初始布局发出的 false，避免用尚未定位的索引覆盖初值
     LaunchedEffect(state) {
-        snapshotFlow { state.isScrollInProgress }.collect { scrolling ->
-            if (!scrolling) {
-                list.getOrNull(state.firstVisibleItemIndex)?.let {
-                    if (it != selected) onSelect(it)
+        snapshotFlow { state.isScrollInProgress }
+            .drop(1)
+            .collect { scrolling ->
+                if (scrolling) return@collect
+                val index = state.firstVisibleItemIndex
+                list.getOrNull(index % count)?.let { if (it != selected) onSelect(it) }
+                // 边界回收：滚出中间三份就瞬间跳回同值的中间位置，内容重复所以视觉无跳变
+                if (index < count || index >= count * (WHEEL_COPIES - 1)) {
+                    state.scrollToItem(baseIndex + index % count)
                 }
             }
-        }
     }
 
     Box(modifier.height(itemHeight * 3), contentAlignment = Alignment.Center) {
-        // 中心选中带
-        Box(
+        // 选中行上下细分隔线（NumberPicker / UIDatePicker 范式）
+        Column(
             Modifier
+                .align(Alignment.Center)
                 .fillMaxWidth()
-                .height(itemHeight)
-                .background(cs.surfaceVariant.copy(alpha = 0.8f), RoundedCornerShape(10.dp)),
-        )
+                .height(itemHeight),
+            verticalArrangement = Arrangement.SpaceBetween,
+        ) {
+            HorizontalDivider(color = cs.outline, thickness = 1.dp)
+            HorizontalDivider(color = cs.outline, thickness = 1.dp)
+        }
         LazyColumn(
             state = state,
             flingBehavior = fling,
@@ -428,8 +447,10 @@ private fun WheelColumn(
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            itemsIndexed(list) { index, value ->
-                val fraction = 1f - abs(index - centerIndex).coerceAtMost(1f)
+            items(totalItems) { index ->
+                val value = list[index % count]
+                val distance = abs(index - centerIndex)
+                val fraction = (1f - distance / 1.8f).coerceIn(0f, 1f)
                 Box(
                     Modifier
                         .fillMaxWidth()
@@ -439,36 +460,16 @@ private fun WheelColumn(
                 ) {
                     Text(
                         value.toString().padStart(2, '0'),
-                        fontSize = (13f + 3f * fraction).sp,
-                        fontWeight = if (fraction > 0.5f) FontWeight.SemiBold else FontWeight.Normal,
-                        color = cs.onSurface.copy(alpha = 0.3f + 0.7f * fraction),
+                        style = TextStyle(
+                            fontSize = (16f + 4f * fraction).sp,
+                            fontWeight = if (fraction > 0.85f) FontWeight.SemiBold else FontWeight.Normal,
+                            color = cs.onSurface.copy(alpha = 0.18f + 0.82f * fraction),
+                            fontFeatureSettings = "tnum",
+                        ),
                     )
                 }
             }
         }
-        // 上下渐隐，强化滚轮纵深
-        Box(
-            Modifier
-                .align(Alignment.TopCenter)
-                .fillMaxWidth()
-                .height(itemHeight)
-                .background(
-                    Brush.verticalGradient(
-                        listOf(cs.surface.copy(alpha = 0.95f), cs.surface.copy(alpha = 0f)),
-                    ),
-                ),
-        )
-        Box(
-            Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .height(itemHeight)
-                .background(
-                    Brush.verticalGradient(
-                        listOf(cs.surface.copy(alpha = 0f), cs.surface.copy(alpha = 0.95f)),
-                    ),
-                ),
-        )
     }
 }
 

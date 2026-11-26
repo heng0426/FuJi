@@ -3,22 +3,16 @@ package com.xiaofu.daily.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -47,15 +41,15 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.shinemeow.wheelcapsule.WheelCapsule
+import com.shinemeow.wheelcapsule.WheelCapsuleColors
 import com.xiaofu.daily.R
 import com.xiaofu.daily.ui.format.Fmt
 import com.xiaofu.daily.ui.format.parseDateInput
@@ -64,8 +58,6 @@ import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
 import java.time.ZoneOffset
-import kotlin.math.abs
-import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 
 /**
@@ -362,114 +354,51 @@ private fun TimeWheels(
     onMinute: (Int) -> Unit,
 ) {
     val cs = MaterialTheme.colorScheme
+    val hourItems = remember { (0..23).map { it.toString().padStart(2, '0') } }
+    val minuteItems = remember { (0..59).map { it.toString().padStart(2, '0') } }
+    val capsuleColors = WheelCapsuleColors(
+        contentColor = cs.onSurface,
+        containerColor = cs.surfaceVariant,
+    )
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        WheelColumn(values = 0..23, selected = hour, onSelect = onHour, modifier = Modifier.width(78.dp))
+        WheelCapsule(
+            items = hourItems,
+            selected = hour,
+            onSelect = onHour,
+            modifier = Modifier.weight(1f),
+            colors = capsuleColors,
+            itemHeight = 28.dp,
+            collapsedHeight = 52.dp,
+            centerTextSize = 20.sp,
+            neighborTextSize = 15.sp,
+            contentDescription = "小时",
+            a11yPreviousLabel = "上一小时",
+            a11yNextLabel = "下一小时",
+        )
         Text(
             ":",
             fontSize = 22.sp,
             fontWeight = FontWeight.SemiBold,
             color = cs.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 4.dp),
+            modifier = Modifier.padding(horizontal = 8.dp),
         )
-        WheelColumn(values = 0..59, selected = minute, onSelect = onMinute, modifier = Modifier.width(78.dp))
-    }
-}
-
-private const val WHEEL_COPIES = 5
-
-/** 单列滚轮：3 行可视、双细分隔线、随距离缩放淡出；数据重复多份实现首尾无缝循环 */
-@Composable
-private fun WheelColumn(
-    values: IntRange,
-    selected: Int,
-    onSelect: (Int) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val cs = MaterialTheme.colorScheme
-    val scope = rememberCoroutineScope()
-    val itemHeight = 38.dp
-    val list = remember(values) { values.toList() }
-    val count = list.size
-    val selectedIndex = (selected - values.first).coerceIn(0, count - 1)
-    val totalItems = count * WHEEL_COPIES
-    // 初始落在中间份：向上滚到 23 之后接 0，向下滚到 0 之前接 59
-    val baseIndex = count * (WHEEL_COPIES / 2)
-    val initialIndex = baseIndex + selectedIndex
-    val state = rememberLazyListState(initialFirstVisibleItemIndex = initialIndex)
-    val fling = rememberSnapFlingBehavior(lazyListState = state)
-    val itemPx = with(LocalDensity.current) { itemHeight.toPx() }
-
-    // 连续滚动进度：视口中心对应的索引（contentPadding 上下各一行）
-    val centerIndex by remember {
-        derivedStateOf { state.firstVisibleItemIndex + state.firstVisibleItemScrollOffset / itemPx }
-    }
-
-    // 保险：极少数情况下首帧未按初始索引定位，这里补一次无动画定位
-    LaunchedEffect(Unit) {
-        if (state.firstVisibleItemIndex != initialIndex) state.scrollToItem(initialIndex)
-    }
-
-    // 跳过初始布局发出的 false，避免用尚未定位的索引覆盖初值
-    LaunchedEffect(state) {
-        snapshotFlow { state.isScrollInProgress }
-            .drop(1)
-            .collect { scrolling ->
-                if (scrolling) return@collect
-                val index = state.firstVisibleItemIndex
-                list.getOrNull(index % count)?.let { if (it != selected) onSelect(it) }
-                // 边界回收：滚出中间三份就瞬间跳回同值的中间位置，内容重复所以视觉无跳变
-                if (index < count || index >= count * (WHEEL_COPIES - 1)) {
-                    state.scrollToItem(baseIndex + index % count)
-                }
-            }
-    }
-
-    Box(modifier.height(itemHeight * 3), contentAlignment = Alignment.Center) {
-        // 选中行上下细分隔线（NumberPicker / UIDatePicker 范式）
-        Column(
-            Modifier
-                .align(Alignment.Center)
-                .fillMaxWidth()
-                .height(itemHeight),
-            verticalArrangement = Arrangement.SpaceBetween,
-        ) {
-            HorizontalDivider(color = cs.outline, thickness = 1.dp)
-            HorizontalDivider(color = cs.outline, thickness = 1.dp)
-        }
-        LazyColumn(
-            state = state,
-            flingBehavior = fling,
-            contentPadding = PaddingValues(vertical = itemHeight),
-            modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            items(totalItems) { index ->
-                val value = list[index % count]
-                val distance = abs(index - centerIndex)
-                val fraction = (1f - distance / 1.8f).coerceIn(0f, 1f)
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .height(itemHeight)
-                        .clickable { scope.launch { state.animateScrollToItem(index) } },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        value.toString().padStart(2, '0'),
-                        style = TextStyle(
-                            fontSize = (16f + 4f * fraction).sp,
-                            fontWeight = if (fraction > 0.85f) FontWeight.SemiBold else FontWeight.Normal,
-                            color = cs.onSurface.copy(alpha = 0.18f + 0.82f * fraction),
-                            fontFeatureSettings = "tnum",
-                        ),
-                    )
-                }
-            }
-        }
+        WheelCapsule(
+            items = minuteItems,
+            selected = minute,
+            onSelect = onMinute,
+            modifier = Modifier.weight(1f),
+            colors = capsuleColors,
+            itemHeight = 28.dp,
+            collapsedHeight = 52.dp,
+            centerTextSize = 20.sp,
+            neighborTextSize = 15.sp,
+            contentDescription = "分钟",
+            a11yPreviousLabel = "上一分钟",
+            a11yNextLabel = "下一分钟",
+        )
     }
 }
 

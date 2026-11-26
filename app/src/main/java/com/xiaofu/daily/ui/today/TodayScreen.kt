@@ -483,23 +483,14 @@ private fun OverviewCard(summary: DaySummary, onWeightClick: () -> Unit) {
                 ) {
                     CircleTypeIcon(weightStyle.iconRes, weightStyle.fg, weightStyle.bg)
                     Column(Modifier.weight(1f).padding(start = 9.dp)) {
-                        Text("最近体重", style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
-                        Row(verticalAlignment = Alignment.Bottom) {
-                            Text(
-                                summary.weightGrams?.let { "${Fmt.jin(it)} 斤" } ?: "未记录",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Medium,
-                                color = cs.onSurface,
-                                modifier = Modifier.padding(top = 1.dp),
-                            )
-                            summary.weightAt?.let {
-                                Text(
-                                    " ${Fmt.dayLabel(Fmt.date(it))}",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = cs.onSurfaceVariant,
-                                )
-                            }
-                        }
+                        Text("体重", style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
+                        Text(
+                            summary.weightGrams?.let { "${Fmt.jin(it)} 斤" } ?: "未记录",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium,
+                            color = cs.onSurface,
+                            modifier = Modifier.padding(top = 1.dp),
+                        )
                     }
                     Icon(
                         painterResource(R.drawable.ic_ms_chevron_right),

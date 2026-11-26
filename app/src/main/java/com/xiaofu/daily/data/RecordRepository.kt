@@ -32,7 +32,7 @@ import kotlinx.coroutines.withContext
 import kotlin.math.max
 import kotlin.math.roundToInt
 
-/** 当日概览：喝水合计、主粮/加餐份数与克数、最近体重 */
+/** 当日概览：喝水合计、主粮/加餐份数与克数、体重 */
 data class DaySummary(
     val waterMl: Int = 0,
     val waterCount: Int = 0,
@@ -41,7 +41,6 @@ data class DaySummary(
     val snackServings: Int = 0,
     val snackGrams: Int = 0,
     val weightGrams: Int? = null,
-    val weightAt: Long? = null,
 ) {
     val hasFood: Boolean get() = mainServings > 0 || snackServings > 0
 }
@@ -214,7 +213,6 @@ class RecordRepository(
                     snackServings = snack?.servings?.roundToInt() ?: 0,
                     snackGrams = snack?.grams ?: 0,
                     weightGrams = latestWeight?.weightGrams,
-                    weightAt = latestWeight?.occurredAt,
                 )
             }
         }

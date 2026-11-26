@@ -84,6 +84,7 @@ import com.xiaofu.daily.ui.components.TextFieldBox
 import com.xiaofu.daily.ui.components.TypeIcon
 import com.xiaofu.daily.ui.editor.EditorTarget
 import com.xiaofu.daily.ui.format.Fmt
+import com.xiaofu.daily.ui.format.parseDateInput
 import com.xiaofu.daily.ui.theme.recordStyle
 import com.xiaofu.daily.ui.today.DetailSheet
 import com.xiaofu.daily.ui.today.FoodSheet
@@ -114,17 +115,6 @@ private val createOptions = listOf(
     CreateOption("就诊", RecordType.VET),
     CreateOption("异常", RecordType.ANOMALY),
 )
-
-/** 跳转日期解析：按非数字分段提取，兼容 2026-11-23 / 2026/11/23 / 2026年11月23日 */
-private fun parseJumpDate(raw: String): LocalDate? {
-    val parts = raw.trim().split(Regex("\\D+")).filter { it.isNotBlank() }
-    if (parts.size != 3) return null
-    val numbers = parts.map { it.toIntOrNull() ?: return null }
-    val (year, month, day) = numbers
-    // 页面范围 2000-01 ~ 2199-12（锚点 2000-01，共 200 年）
-    if (year !in 2000..2199) return null
-    return runCatching { LocalDate.of(year, month, day) }.getOrNull()
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -253,7 +243,7 @@ fun CalendarScreen(
     }
 
     if (showJump) {
-        val parsed = parseJumpDate(jumpText)
+        val parsed = parseDateInput(jumpText)
         var showJumpPicker by remember { mutableStateOf(false) }
         AlertDialog(
             onDismissRequest = { showJump = false },

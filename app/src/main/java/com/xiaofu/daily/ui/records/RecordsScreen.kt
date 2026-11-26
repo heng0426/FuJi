@@ -395,9 +395,9 @@ fun RecordsScreen(
                 showWater = false
                 waterEditing = null
             },
-            onSave = { ml ->
+            onSave = { ml, at ->
                 scope.launch {
-                    actions.saveWater(ml, editing)
+                    actions.saveWater(ml, editing, at)
                     lastWater = ml
                     showWater = false
                     waterEditing = null
@@ -416,7 +416,7 @@ fun RecordsScreen(
                 ?: if (foodKind == MealKind.SNACK) snackServings else lastServings,
             initialSnack = editing?.snackType ?: lastSnack,
             editing = editing,
-            onSavePreset = { preset, grams ->
+            onSavePreset = { preset, grams, at ->
                 scope.launch {
                     actions.saveFood(
                         kind = foodKind,
@@ -424,6 +424,7 @@ fun RecordsScreen(
                         grams = grams,
                         snackType = null,
                         existing = null,
+                        at = at,
                         rememberDefaults = false,
                     )
                     showFood = false
@@ -434,9 +435,9 @@ fun RecordsScreen(
                 showFood = false
                 foodEditing = null
             },
-            onSave = { kind, servings, grams, snackType ->
+            onSave = { kind, servings, grams, snackType, at ->
                 scope.launch {
-                    actions.saveFood(kind, servings, grams, snackType, editing)
+                    actions.saveFood(kind, servings, grams, snackType, editing, at)
                     if (kind == MealKind.SNACK) {
                         snackServing = grams
                         snackServings = servings

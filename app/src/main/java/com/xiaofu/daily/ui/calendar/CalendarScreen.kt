@@ -360,13 +360,14 @@ fun CalendarScreen(
         WaterSheet(
             lastMl = lastWater,
             editing = editing,
+            initialOccurredAt = if (editing == null) backfillAt else null,
             onDismiss = {
                 showWater = false
                 waterEditing = null
             },
-            onSave = { ml ->
+            onSave = { ml, at ->
                 scope.launch {
-                    actions.saveWater(ml, editing, if (editing == null) backfillAt else null)
+                    actions.saveWater(ml, editing, at)
                     lastWater = ml
                     showWater = false
                     waterEditing = null
@@ -385,7 +386,8 @@ fun CalendarScreen(
                 ?: if (foodKind == MealKind.SNACK) snackServings else lastServings,
             initialSnack = editing?.snackType ?: lastSnack,
             editing = editing,
-            onSavePreset = { preset, grams ->
+            initialOccurredAt = if (editing == null) backfillAt else null,
+            onSavePreset = { preset, grams, at ->
                 scope.launch {
                     actions.saveFood(
                         kind = foodKind,
@@ -393,7 +395,7 @@ fun CalendarScreen(
                         grams = grams,
                         snackType = null,
                         existing = null,
-                        at = backfillAt,
+                        at = at,
                         rememberDefaults = false,
                     )
                     showFood = false
@@ -404,9 +406,9 @@ fun CalendarScreen(
                 showFood = false
                 foodEditing = null
             },
-            onSave = { kind, servings, grams, snackType ->
+            onSave = { kind, servings, grams, snackType, at ->
                 scope.launch {
-                    actions.saveFood(kind, servings, grams, snackType, editing, if (editing == null) backfillAt else null)
+                    actions.saveFood(kind, servings, grams, snackType, editing, at)
                     if (kind == MealKind.SNACK) {
                         snackServing = grams
                         snackServings = servings

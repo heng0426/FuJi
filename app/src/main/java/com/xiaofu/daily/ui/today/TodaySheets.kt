@@ -63,8 +63,10 @@ import com.xiaofu.daily.data.local.entity.RecordEntity
 import com.xiaofu.daily.data.local.model.MealKind
 import com.xiaofu.daily.data.local.model.RecordType
 import com.xiaofu.daily.ui.components.BigNumberField
+import com.xiaofu.daily.ui.components.DateTimePickerDialog
 import com.xiaofu.daily.ui.components.FormLabel
 import com.xiaofu.daily.ui.components.LocalPhotoViewerHost
+import com.xiaofu.daily.ui.components.PickerRow
 import com.xiaofu.daily.ui.components.PillChip
 import com.xiaofu.daily.ui.components.ViewerPhoto
 import com.xiaofu.daily.ui.components.PrimaryButton
@@ -136,12 +138,18 @@ private object WaterSourceMemory {
 fun WaterSheet(
     lastMl: Int,
     editing: RecordEntity?,
+    initialOccurredAt: Long? = null,
     onDismiss: () -> Unit,
-    onSave: (Int) -> Unit,
+    onSave: (Int, Long) -> Unit,
 ) {
     val cs = MaterialTheme.colorScheme
     val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    // 编辑沿用原时刻；从日历补记时用选中日；其余取当前时间
+    var occurredAt by remember {
+        mutableStateOf(editing?.occurredAt ?: initialOccurredAt ?: System.currentTimeMillis())
+    }
+    var showTimePicker by remember { mutableStateOf(false) }
     // 编辑只针对已记下的数值，固定走喝水
     var mode by remember {
         mutableStateOf(if (editing == null) WaterEntryMode.read(context) else WaterEntryMode.DIRECT)
@@ -266,6 +274,8 @@ fun WaterSheet(
                     }
                 }
             }
+            Spacer(Modifier.height(14.dp))
+            PickerRow("时间", Fmt.detailTime(occurredAt)) { showTimePicker = true }
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -275,14 +285,14 @@ fun WaterSheet(
                     text = if (editing == null && !sourceOnly) "记下来" else "保存",
                     onClick = {
                         when {
-                            mode == WaterEntryMode.DIRECT -> value?.let(onSave)
+                            mode == WaterEntryMode.DIRECT -> value?.let { onSave(it, occurredAt) }
                             sourceMl != null -> {
                                 WaterSourceMemory.writeLeft(
                                     context,
                                     mode,
                                     nowLeftText.toIntOrNull()?.toString() ?: "0",
                                 )
-                                onSave(sourceMl)
+                                onSave(sourceMl, occurredAt)
                             }
                             else -> {
                                 // 只填上次剩余：只记住这个值，不记喝水
@@ -297,6 +307,14 @@ fun WaterSheet(
             }
         }
     }
+
+    if (showTimePicker) {
+        DateTimePickerDialog(
+            initialMillis = occurredAt,
+            onDismiss = { showTimePicker = false },
+            onPick = { occurredAt = it },
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -307,13 +325,19 @@ fun FoodSheet(
     initialServings: Int,
     initialSnack: String?,
     editing: RecordEntity?,
-    onSavePreset: (com.xiaofu.daily.data.FoodPreset, Int) -> Unit,
+    initialOccurredAt: Long? = null,
+    onSavePreset: (com.xiaofu.daily.data.FoodPreset, Int, Long) -> Unit,
     onDismiss: () -> Unit,
-    onSave: (MealKind, Int, Int, String?) -> Unit,
+    onSave: (MealKind, Int, Int, String?, Long) -> Unit,
 ) {
     val cs = MaterialTheme.colorScheme
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
+    // 编辑沿用原时刻；从日历补记时用选中日；其余取当前时间
+    var occurredAt by remember {
+        mutableStateOf(editing?.occurredAt ?: initialOccurredAt ?: System.currentTimeMillis())
+    }
+    var showTimePicker by remember { mutableStateOf(false) }
     var servings by remember {
         mutableIntStateOf((editing?.servingCount?.roundToInt() ?: initialServings).coerceIn(1, 20))
     }
@@ -369,7 +393,7 @@ fun FoodSheet(
                         PillChip(
                             text = "${preset.name} ${preset.servings}份",
                             selected = false,
-                            onClick = { onSavePreset(preset, grams) },
+                            onClick = { onSavePreset(preset, grams, occurredAt) },
                             onLongClick = if (isCustom) ({ pendingDeletePreset = preset }) else null,
                         )
                     }
@@ -440,6 +464,8 @@ fun FoodSheet(
                     }
                 }
             }
+            Spacer(Modifier.height(12.dp))
+            PickerRow("时间", Fmt.detailTime(occurredAt)) { showTimePicker = true }
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -447,7 +473,7 @@ fun FoodSheet(
                 SecondaryButton("取消", onDismiss, Modifier.weight(1f))
                 PrimaryButton(
                     text = if (editing == null) "保存" else "保存修改",
-                    onClick = { onSave(kind, servings, grams, if (kind == MealKind.SNACK) snackType else null) },
+                    onClick = { onSave(kind, servings, grams, if (kind == MealKind.SNACK) snackType else null, occurredAt) },
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -487,6 +513,14 @@ fun FoodSheet(
                     presets = runCatching { AppContainer.repository.foodPresets() }.getOrDefault(presets)
                 }
             },
+        )
+    }
+
+    if (showTimePicker) {
+        DateTimePickerDialog(
+            initialMillis = occurredAt,
+            onDismiss = { showTimePicker = false },
+            onPick = { occurredAt = it },
         )
     }
 }

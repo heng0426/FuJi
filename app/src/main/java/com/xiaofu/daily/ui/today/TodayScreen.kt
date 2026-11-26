@@ -268,9 +268,9 @@ fun TodayScreen(
                 showWater = false
                 waterEditing = null
             },
-            onSave = { ml ->
+            onSave = { ml, at ->
                 scope.launch {
-                    vm.saveWater(ml, editing)
+                    vm.saveWater(ml, editing, at)
                     lastWater = ml
                     showWater = false
                     waterEditing = null
@@ -290,7 +290,7 @@ fun TodayScreen(
                 ?: if (foodKind == MealKind.SNACK) snackServings else lastServings,
             initialSnack = editing?.snackType ?: lastSnack,
             editing = editing,
-            onSavePreset = { preset, grams ->
+            onSavePreset = { preset, grams, at ->
                 scope.launch {
                     vm.saveFood(
                         kind = foodKind,
@@ -298,6 +298,7 @@ fun TodayScreen(
                         grams = grams,
                         snackType = if (foodKind == MealKind.SNACK) lastSnack else null,
                         existing = null,
+                        at = at,
                         rememberDefaults = false,
                     )
                     showFood = false
@@ -309,9 +310,9 @@ fun TodayScreen(
                 showFood = false
                 foodEditing = null
             },
-            onSave = { kind, servings, grams, snackType ->
+            onSave = { kind, servings, grams, snackType, at ->
                 scope.launch {
-                    vm.saveFood(kind, servings, grams, snackType, editing)
+                    vm.saveFood(kind, servings, grams, snackType, editing, at)
                     if (kind == MealKind.SNACK) {
                         snackServing = grams
                         snackServings = servings

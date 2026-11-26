@@ -35,15 +35,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -73,8 +69,11 @@ import com.xiaofu.daily.data.local.model.RecordType
 import com.xiaofu.daily.data.local.model.Severity
 import com.xiaofu.daily.ui.components.BigNumberField
 import com.xiaofu.daily.ui.components.CustomTagDialog
+import com.xiaofu.daily.ui.components.DateOnlyPickerDialog
+import com.xiaofu.daily.ui.components.DateTimePickerDialog
 import com.xiaofu.daily.ui.components.FormLabel
 import com.xiaofu.daily.ui.components.NoteFieldBox
+import com.xiaofu.daily.ui.components.PickerRow
 import com.xiaofu.daily.ui.components.PillChip
 import com.xiaofu.daily.ui.components.PrimaryButton
 import com.xiaofu.daily.ui.components.RoundIconButton
@@ -83,11 +82,7 @@ import com.xiaofu.daily.ui.components.TextFieldBox
 import com.xiaofu.daily.ui.format.Fmt
 import com.xiaofu.daily.ui.today.TodayViewModel
 import java.io.File
-import java.time.Instant
 import java.time.LocalDate
-import java.time.LocalTime
-import java.time.ZoneId
-import java.time.ZoneOffset
 import java.util.Locale
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
@@ -147,66 +142,7 @@ private fun EditorScaffold(
     }
 }
 
-@Composable
-private fun TimeRow(label: String, text: String, onClick: () -> Unit) {
-    val cs = MaterialTheme.colorScheme
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(cs.surface)
-            .border(1.dp, cs.outline, RoundedCornerShape(14.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(label, style = MaterialTheme.typography.bodyMedium, color = cs.onSurface)
-        Spacer(Modifier.weight(1f))
-        Text(text, style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
-        Icon(
-            painterResource(R.drawable.ic_ms_chevron_right),
-            contentDescription = null,
-            modifier = Modifier.padding(start = 3.dp).size(16.dp),
-            tint = cs.onSurfaceVariant,
-        )
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun DatePickerSheet(
-    initialDay: Long,
-    onDismiss: () -> Unit,
-    onPick: (Long) -> Unit,
-) {
-    val state = rememberDatePickerState(
-        initialSelectedDateMillis = LocalDate.ofEpochDay(initialDay).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(),
-    )
-    DatePickerDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = {
-            TextButton(onClick = {
-                state.selectedDateMillis?.let { millis ->
-                    val day = Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate().toEpochDay()
-                    onPick(day)
-                }
-                onDismiss()
-            }) { Text("确定") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
-    ) {
-        DatePicker(state = state)
-    }
-}
-
 private fun nowMillis(): Long = System.currentTimeMillis()
-
-/** 改日期时保留记录原有时间点，避免时刻被重置为当前 */
-private fun combineDayWithTime(day: Long, sourceMillis: Long): Long {
-    val zone = ZoneId.systemDefault()
-    val time = Instant.ofEpochMilli(sourceMillis).atZone(zone).toLocalTime()
-    return LocalDate.ofEpochDay(day).atTime(time).atZone(zone).toInstant().toEpochMilli()
-}
 
 // ===================== 体重 =====================
 
@@ -251,16 +187,16 @@ fun WeightEditor(vm: TodayViewModel, record: RecordEntity?, initialOccurredAt: L
             placeholder = "0.0",
             allowDecimal = true,
         )
-        TimeRow("时间", Fmt.detailTime(occurredAt)) { showPicker = true }
+        PickerRow("时间", Fmt.detailTime(occurredAt)) { showPicker = true }
         FormLabel("备注", badge = "选填", badgeColor = MaterialTheme.colorScheme.onSurfaceVariant)
         NoteFieldBox(value = note, onValueChange = { note = it }, placeholder = "例如：晚间称重")
     }
 
     if (showPicker) {
-        DatePickerSheet(
-            initialDay = Fmt.date(occurredAt).toEpochDay(),
+        DateTimePickerDialog(
+            initialMillis = occurredAt,
             onDismiss = { showPicker = false },
-            onPick = { day -> occurredAt = combineDayWithTime(day, occurredAt) },
+            onPick = { millis -> occurredAt = millis },
         )
     }
 }
@@ -328,8 +264,8 @@ fun DewormEditor(vm: TodayViewModel, record: RecordEntity?, initialOccurredAt: L
                 leadingIconRes = R.drawable.ic_ms_add,
             )
         }
-        TimeRow("驱虫时间", Fmt.detailTime(occurredAt)) { showOccurredPicker = true }
-        TimeRow(
+        PickerRow("驱虫时间", Fmt.detailTime(occurredAt)) { showOccurredPicker = true }
+        PickerRow(
             "下次到期",
             nextDueDay?.let { "${Fmt.fullDate(it)}（$cycleDays 天周期）" } ?: "未设置",
         ) { showDuePicker = true }
@@ -338,21 +274,21 @@ fun DewormEditor(vm: TodayViewModel, record: RecordEntity?, initialOccurredAt: L
     }
 
     if (showOccurredPicker) {
-        DatePickerSheet(
-            initialDay = Fmt.date(occurredAt).toEpochDay(),
+        DateTimePickerDialog(
+            initialMillis = occurredAt,
             onDismiss = { showOccurredPicker = false },
-            onPick = { day ->
+            onPick = { millis ->
                 val oldDay = Fmt.date(occurredAt).toEpochDay()
-                occurredAt = combineDayWithTime(day, occurredAt)
+                occurredAt = millis
                 // 未手动改写的到期日（= 旧日期 + 周期）按新日期随周期平移；手动改写过的保持不变
                 if (nextDueDay == oldDay + cycleDays) {
-                    nextDueDay = Fmt.date(occurredAt).plusDays(cycleDays.toLong()).toEpochDay()
+                    nextDueDay = Fmt.date(millis).plusDays(cycleDays.toLong()).toEpochDay()
                 }
             },
         )
     }
     if (showDuePicker) {
-        DatePickerSheet(
+        DateOnlyPickerDialog(
             initialDay = nextDueDay ?: LocalDate.now().toEpochDay(),
             onDismiss = { showDuePicker = false },
             onPick = { day -> nextDueDay = day },
@@ -414,7 +350,8 @@ fun VaccineEditor(vm: TodayViewModel, record: RecordEntity?, initialOccurredAt: 
     var note by remember { mutableStateOf(record?.note ?: "") }
     var occurredAt by remember { mutableStateOf(record?.occurredAt ?: initialOccurredAt ?: nowMillis()) }
     var nextDueDay by remember { mutableStateOf(record?.nextDueDate) }
-    var showPicker by remember { mutableStateOf(false) }
+    var showOccurredPicker by remember { mutableStateOf(false) }
+    var showDuePicker by remember { mutableStateOf(false) }
     var vaccineTags by remember { mutableStateOf<List<String>>(emptyList()) }
     var showCustomTag by remember { mutableStateOf(false) }
     var customTagName by remember { mutableStateOf("") }
@@ -451,7 +388,7 @@ fun VaccineEditor(vm: TodayViewModel, record: RecordEntity?, initialOccurredAt: 
                 leadingIconRes = R.drawable.ic_ms_add,
             )
         }
-        TimeRow("接种日期", Fmt.detailTime(occurredAt)) { showPicker = true }
+        PickerRow("接种时间", Fmt.detailTime(occurredAt)) { showOccurredPicker = true }
         FormLabel("下次接种", badge = "选填", badgeColor = MaterialTheme.colorScheme.onSurfaceVariant)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             PillChip("1 年后", selected = false, onClick = {
@@ -464,19 +401,19 @@ fun VaccineEditor(vm: TodayViewModel, record: RecordEntity?, initialOccurredAt: 
                 PillChip("清除", selected = false, onClick = { nextDueDay = null })
             }
         }
-        TimeRow("下次接种日期", nextDueDay?.let { Fmt.fullDate(it) } ?: "未设置") { showPicker = true }
+        PickerRow("下次接种日期", nextDueDay?.let { Fmt.fullDate(it) } ?: "未设置") { showDuePicker = true }
         FormLabel("备注", badge = "选填", badgeColor = MaterialTheme.colorScheme.onSurfaceVariant)
         NoteFieldBox(value = note, onValueChange = { note = it }, placeholder = "例如：年度加强")
     }
 
-    if (showPicker) {
-        DatePickerSheet(
-            initialDay = nextDueDay ?: Fmt.date(occurredAt).toEpochDay(),
-            onDismiss = { showPicker = false },
-            onPick = { day ->
+    if (showOccurredPicker) {
+        DateTimePickerDialog(
+            initialMillis = occurredAt,
+            onDismiss = { showOccurredPicker = false },
+            onPick = { millis ->
                 val oldDate = Fmt.date(occurredAt)
-                occurredAt = combineDayWithTime(day, occurredAt)
-                val newDate = Fmt.date(occurredAt)
+                occurredAt = millis
+                val newDate = Fmt.date(millis)
                 // 快捷选项（1年/3年）产生的下次接种日期随接种日期平移；手动自定义的保持不变
                 nextDueDay = when (nextDueDay) {
                     oldDate.plusYears(1).toEpochDay() -> newDate.plusYears(1).toEpochDay()
@@ -484,6 +421,13 @@ fun VaccineEditor(vm: TodayViewModel, record: RecordEntity?, initialOccurredAt: 
                     else -> nextDueDay
                 }
             },
+        )
+    }
+    if (showDuePicker) {
+        DateOnlyPickerDialog(
+            initialDay = nextDueDay ?: Fmt.date(occurredAt).toEpochDay(),
+            onDismiss = { showDuePicker = false },
+            onPick = { day -> nextDueDay = day },
         )
     }
 
@@ -623,7 +567,7 @@ fun AnomalyEditor(vm: TodayViewModel, record: RecordEntity?, initialOccurredAt: 
             selectedIndex = severityIndex,
             onSelect = { index -> severityIndex = if (severityIndex == index) -1 else index },
         )
-        TimeRow("时间", Fmt.detailTime(occurredAt)) { showPicker = true }
+        PickerRow("时间", Fmt.detailTime(occurredAt)) { showPicker = true }
         FormLabel("照片", badge = "最多 3 张", badgeColor = MaterialTheme.colorScheme.onSurfaceVariant)
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             existingPhotos.forEach { fileName ->
@@ -647,10 +591,10 @@ fun AnomalyEditor(vm: TodayViewModel, record: RecordEntity?, initialOccurredAt: 
     }
 
     if (showPicker) {
-        DatePickerSheet(
-            initialDay = Fmt.date(occurredAt).toEpochDay(),
+        DateTimePickerDialog(
+            initialMillis = occurredAt,
             onDismiss = { showPicker = false },
-            onPick = { day -> occurredAt = combineDayWithTime(day, occurredAt) },
+            onPick = { millis -> occurredAt = millis },
         )
     }
 
@@ -771,7 +715,7 @@ fun VetEditor(vm: TodayViewModel, record: RecordEntity?, initialOccurredAt: Long
             unit = "元",
             placeholder = "0",
         )
-        TimeRow("时间", Fmt.detailTime(occurredAt)) { showPicker = true }
+        PickerRow("时间", Fmt.detailTime(occurredAt)) { showPicker = true }
         FormLabel("照片", badge = "最多 3 张", badgeColor = optional)
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             existingPhotos.forEach { fileName ->
@@ -801,10 +745,10 @@ fun VetEditor(vm: TodayViewModel, record: RecordEntity?, initialOccurredAt: Long
     }
 
     if (showPicker) {
-        DatePickerSheet(
-            initialDay = Fmt.date(occurredAt).toEpochDay(),
+        DateTimePickerDialog(
+            initialMillis = occurredAt,
             onDismiss = { showPicker = false },
-            onPick = { day -> occurredAt = combineDayWithTime(day, occurredAt) },
+            onPick = { millis -> occurredAt = millis },
         )
     }
 }

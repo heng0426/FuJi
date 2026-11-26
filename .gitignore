@@ -33,3 +33,10 @@ google-services.json
 
 # Android Profiling
 *.hprof
+
+# Video subproject (Remotion) — 与 video/.gitignore 保持一致，
+# 使产物规则不依赖 video/ 目录是否存在（切分支后仍然生效）
+video/node_modules/
+video/out/
+video/.remotion/
+video/public/fonts/corpus.txt

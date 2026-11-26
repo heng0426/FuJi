@@ -358,6 +358,26 @@ private fun DayStrip(
                         center = Offset(centerX(index), centerY(value)),
                     )
                 }
+                // 数值标注：每个称重点标出重量（斤，1 位小数）。
+                // 优先画在点上方，最高点贴近上边界时改画在点下方，避免被裁切。
+                val valueGap = 3.dp.toPx()
+                points.forEach { (index, value) ->
+                    val isToday = series.days[index].date == series.today
+                    val layout = measurer.measure(
+                        Fmt.jin(value),
+                        valueStyle.copy(
+                            color = if (isToday) color else cs.onSurfaceVariant,
+                            fontWeight = if (isToday) FontWeight.SemiBold else FontWeight.Normal,
+                        ),
+                    )
+                    val dotY = centerY(value)
+                    val above = dotY - valueGap - layout.size.height
+                    val top = if (above >= 0f) above else dotY + valueGap
+                    drawText(
+                        layout,
+                        topLeft = Offset(centerX(index) - layout.size.width / 2f, top),
+                    )
+                }
             }
         }
 

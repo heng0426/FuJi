@@ -28,7 +28,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.xiaofu.daily.R
 import com.xiaofu.daily.ui.components.PrimaryButton
-import com.xiaofu.daily.ui.components.SecondaryButton
 import com.xiaofu.daily.ui.components.SheetHandle
 import com.xiaofu.daily.update.UpdateManifest
 import com.xiaofu.daily.update.UpdateState
@@ -71,7 +70,8 @@ fun AboutSheet(
         Column(
             Modifier
                 .navigationBarsPadding()
-                .padding(horizontal = 20.dp),
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 20.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             SheetHandle()
@@ -156,19 +156,12 @@ fun AboutSheet(
                     .padding(top = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        "每日检查并提醒",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = cs.onSurface,
-                    )
-                    Text(
-                        "每天 10:00 检查一次，发现新版本时通知；可随时关闭",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = cs.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 2.dp),
-                    )
-                }
+                Text(
+                    "每日检查并提醒",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = cs.onSurface,
+                    modifier = Modifier.weight(1f),
+                )
                 Switch(
                     checked = notifyEnabled,
                     onCheckedChange = onToggleNotify,
@@ -176,21 +169,12 @@ fun AboutSheet(
                 )
             }
 
-            Text(
-                "记录与照片只保存在本机，不会上传；仅在检查更新时访问 GitHub 获取版本信息。",
-                style = MaterialTheme.typography.labelSmall,
-                color = cs.onSurfaceVariant,
-                modifier = Modifier.padding(top = 10.dp),
-            )
-
-            Column(Modifier.padding(top = 18.dp, bottom = 20.dp)) {
-                if (pending != null) {
+            if (pending != null) {
+                Column(Modifier.padding(top = 18.dp)) {
                     PrimaryButton(
                         text = "更新到 ${pending.versionName}",
                         onClick = { onInstall(pending) },
                     )
-                } else {
-                    SecondaryButton(text = "关闭", onClick = onDismiss)
                 }
             }
         }

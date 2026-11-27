@@ -20,6 +20,7 @@ object UpdateStore {
     private const val KEY_PENDING_INSTALL = "pending_install_version"
     private const val KEY_INSTALL_ERROR = "install_error"
     private const val KEY_INSTALL_ERROR_ROM_BLOCKED = "install_error_rom_blocked"
+    private const val KEY_LAST_BACKUP_KEY = "last_backup_key"
 
     private fun prefs(context: Context) =
         context.applicationContext.getSharedPreferences(FILE, Context.MODE_PRIVATE)
@@ -86,6 +87,15 @@ object UpdateStore {
     }
 
     fun pendingInstall(context: Context): Long = prefs(context).getLong(KEY_PENDING_INSTALL, -1L)
+
+    // ---- 升级前备份去重：同一天对同一版本只备份一次 ----
+
+    fun lastBackupKey(context: Context): String? =
+        prefs(context).getString(KEY_LAST_BACKUP_KEY, null)
+
+    fun setLastBackupKey(context: Context, key: String) {
+        prefs(context).edit().putString(KEY_LAST_BACKUP_KEY, key).apply()
+    }
 
     /** 安装失败信息；[romBlocked] 表示拦截来自系统/厂商安装器，重试通常无效 */
     data class InstallError(val message: String, val romBlocked: Boolean)

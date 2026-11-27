@@ -36,9 +36,16 @@ class UpdateRepository(private val context: Context) {
         file
     }
 
-    /** 升级前自动备份到系统下载目录（MediaStore），卸载后仍可找回 */
+    /**
+     * 升级前自动备份到系统下载目录（MediaStore），卸载后仍可找回。
+     *
+     * 同一天对同一版本只备份一次：反复重试不该在「下载/小福日常」里堆一串副本。
+     */
     suspend fun backupBeforeInstall() {
-        runCatching { AppContainer.backup.exportToDownloads() }
+        val key = "${currentVersionCode()}@${java.time.LocalDate.now()}"
+        if (UpdateStore.lastBackupKey(context) == key) return
+        val saved = runCatching { AppContainer.backup.exportToDownloads() }.getOrNull()
+        if (saved != null) UpdateStore.setLastBackupKey(context, key)
     }
 
     fun currentVersionCode(): Long = runCatching {

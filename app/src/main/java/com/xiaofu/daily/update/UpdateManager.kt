@@ -3,12 +3,17 @@ package com.xiaofu.daily.update
 import android.content.Context
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+/** 安装回调到安装真正生效之间的最长等待时间 */
+private const val INSTALL_RESULT_TIMEOUT_MS = 15_000L
 
 /** 升级界面的全部状态；Idle 表示不展示任何弹窗 */
 sealed interface UpdateState {
@@ -62,6 +67,9 @@ object UpdateManager {
     /** 已下载并通过校验的安装包；授权返回后直接复用，避免重复下载 */
     private var lastApk: java.io.File? = null
 
+    /** 安装回调后的等待复检任务；用户关闭弹窗或再次发起时取消 */
+    private var awaitingResult: Job? = null
+
     fun init(context: Context) {
         appContext = context.applicationContext
         repository = UpdateRepository(appContext)
@@ -113,7 +121,10 @@ object UpdateManager {
     // ---- 下载与安装 ----
 
     fun install(manifest: UpdateManifest) {
-        if (_state.value is UpdateState.Working) return
+        // 等待安装结果的复检可以被"重试"打断
+        if (_state.value is UpdateState.Working && awaitingResult == null) return
+        awaitingResult?.cancel()
+        awaitingResult = null
         val repo = repository ?: return
         lastManifest = manifest
 
@@ -191,22 +202,45 @@ object UpdateManager {
         }
     }
 
-    /** 安装会话回调（跨进程）：失败时把界面从"正在打开安装器"解开 */
+    /**
+     * 安装会话回调（跨进程）：失败时把界面从"正在打开安装器"解开。
+     *
+     * 判成败不能只看回调，也不能只看"回调这一刻"的版本：实测 OPPO 上系统会先派发
+     * ABORTED，安装随后才完成，此刻读到的仍是旧版本。因此先进入等待态轮询版本，
+     * 超时仍没升级才算真失败。
+     */
     fun onInstallFailed(message: String, romBlocked: Boolean = false) {
         if (!::appContext.isInitialized) return
-        // 自我更新时系统可能在安装完成前后派发 ABORTED；版本已达标就不算失败
+        val repo = repository
         val pending = UpdateStore.pendingInstall(appContext)
-        val current = repository?.currentVersionCode() ?: 0L
-        if (pending > 0 && current >= pending) {
-            onInstallSucceeded()
-            return
-        }
         val manifest = when (val current = _state.value) {
             is UpdateState.Working -> current.manifest
             is UpdateState.NeedsPermission -> current.manifest
             else -> lastManifest
         }
-        _state.value = UpdateState.Failed(message, manifest, romBlocked)
+
+        // 快路径：已经装上了
+        if (pending > 0 && (repo?.currentVersionCode() ?: 0L) >= pending) {
+            onInstallSucceeded()
+            return
+        }
+
+        awaitingResult?.cancel()
+        if (manifest != null) {
+            _state.value = UpdateState.Working(manifest, 100, "正在等待安装结果")
+        }
+        awaitingResult = scope.launch {
+            val deadline = System.currentTimeMillis() + INSTALL_RESULT_TIMEOUT_MS
+            while (System.currentTimeMillis() < deadline) {
+                delay(800)
+                val current = repo?.currentVersionCode() ?: 0L
+                if (pending > 0 && current >= pending) {
+                    onInstallSucceeded()
+                    return@launch
+                }
+            }
+            _state.value = UpdateState.Failed(message, manifest, romBlocked)
+        }
     }
 
     /**
@@ -255,7 +289,13 @@ object UpdateManager {
     /** 安装成功且进程未被杀时的收尾 */
     fun onInstallSucceeded() {
         if (!::appContext.isInitialized) return
+        awaitingResult?.cancel()
+        awaitingResult = null
         lastApk = null
+        UpdateStore.clearPendingInstall(appContext)
+        UpdateStore.clearKnown(appContext)
+        UpdateStore.clearSkipped(appContext)
+        UpdateNotifier.cancel(appContext)
         _state.value = UpdateState.Idle
     }
 
@@ -270,6 +310,8 @@ object UpdateManager {
     }
 
     fun dismiss() {
+        awaitingResult?.cancel()
+        awaitingResult = null
         _state.value = UpdateState.Idle
     }
 

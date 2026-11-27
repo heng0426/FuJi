@@ -46,6 +46,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -82,6 +83,11 @@ import com.xiaofu.daily.ui.components.TextFieldBox
 import com.xiaofu.daily.ui.format.Fmt
 import com.xiaofu.daily.ui.theme.ThemeMode
 import com.xiaofu.daily.ui.theme.ThemePreference
+import com.xiaofu.daily.ui.update.AboutSheet
+import com.xiaofu.daily.update.UpdateManager
+import com.xiaofu.daily.update.UpdateScheduler
+import com.xiaofu.daily.update.UpdateState
+import com.xiaofu.daily.update.UpdateStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -106,6 +112,15 @@ fun ProfileScreen(
             context.packageManager.getPackageInfo(context.packageName, 0).versionName
         }.getOrNull().orEmpty()
     }
+    val versionCode = remember {
+        runCatching {
+            @Suppress("DEPRECATION")
+            context.packageManager.getPackageInfo(context.packageName, 0).longVersionCode
+        }.getOrDefault(0L)
+    }
+    val updateState by UpdateManager.state.collectAsState()
+    val knownUpdate by UpdateManager.known.collectAsState()
+    var updateNotifyEnabled by remember { mutableStateOf(UpdateStore.notifyEnabled(context)) }
     val profile by vm.profile.collectAsState()
     val settings by vm.settings.collectAsState()
 
@@ -121,6 +136,14 @@ fun ProfileScreen(
     val notifyDays = settings[SettingsKeys.NOTIFY_DAYS_AHEAD]?.toIntOrNull() ?: 3
     val notifyHour = settings[SettingsKeys.NOTIFY_HOUR]?.toIntOrNull() ?: 9
     val themeMode = ThemePreference.read(context)
+
+    // 发现新版本时收起关于弹层，避免和升级弹窗叠两层；
+    // 检查失败不收起，用户关掉提示后仍能在弹层里看到状态并重试
+    LaunchedEffect(updateState) {
+        if (showAbout && updateState is UpdateState.Available) {
+            showAbout = false
+        }
+    }
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -260,21 +283,23 @@ fun ProfileScreen(
     }
 
     if (showAbout) {
-        AlertDialog(
-            onDismissRequest = { showAbout = false },
-            containerColor = cs.surface,
-            shape = RoundedCornerShape(22.dp),
-            title = { Text("小福日常", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = cs.onSurface) },
-            text = {
-                Text(
-                    "版本 $versionName\n数据仅保存在本机，不上传云端。",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = cs.onSurfaceVariant,
-                )
+        AboutSheet(
+            versionName = versionName,
+            currentVersionCode = versionCode,
+            state = updateState,
+            known = knownUpdate,
+            notifyEnabled = updateNotifyEnabled,
+            onToggleNotify = { enabled ->
+                updateNotifyEnabled = enabled
+                UpdateStore.setNotifyEnabled(context, enabled)
+                UpdateScheduler.sync(context)
             },
-            confirmButton = {
-                TextButton(onClick = { showAbout = false }) { Text("知道了", color = cs.primary) }
+            onCheck = { UpdateManager.check() },
+            onInstall = { manifest ->
+                showAbout = false
+                UpdateManager.install(manifest)
             },
+            onDismiss = { showAbout = false },
         )
     }
 }

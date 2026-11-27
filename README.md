@@ -2,9 +2,11 @@
 
 单宠（橘猫「小福」）日常健康与生活记录 Android App。核心体验是「打开即可记、一眼看懂」：喝水、主粮/加餐、体重、驱虫、疫苗、异常、就医七类记录，配合同步汇总、日历回看、到期提醒、趋势图与异常照片墙。
 
-- **当前版本**：`1.3.0`（versionCode 13）
-- **交付形态**：`dist/小福日常-v1.3.0.apk`（自测签名，覆盖安装保留数据）
-- **状态**：1.3.0 已构建（自用）。新增悬浮液态玻璃底栏、喝水「水瓶 / 水碗」换算、近 7 天体重折线与按天滑动回看；沿用 1.2.0 的桌面小组件、柱状图、照片墙与兽医就诊记录（数据库 v2）。历史见 [`docs/任务清单-小福日常.md`](docs/任务清单-小福日常.md)
+- **当前版本**：`1.4.0`（versionCode 14）
+- **交付形态**：`dist/xiaofu.apk`（GitHub Release 固定资源名，正式发布签名，覆盖安装保留数据）
+- **状态**：1.4.0 已构建。新增应用内升级（手动检查 + 每日 10:00 提醒，可关）、下载后四重校验、
+  升级前自动备份与安装失败引导；签名由 debug 迁移到专用发布证书，**1.3.0 升级到本版需卸载重装一次**，
+  详见 [`docs/发布说明-1.4.0.md`](docs/发布说明-1.4.0.md)。历史见 [`docs/任务清单-小福日常.md`](docs/任务清单-小福日常.md)
 - **技术栈**：Kotlin · Jetpack Compose · Material 3 · Room · WorkManager
 - **平台**：Android 9+（minSdk 28），compileSdk / targetSdk 37
 
@@ -40,6 +42,10 @@
 - 宠物档案（头像、名字、生日、品种、性别）。
 - 驱虫周期、提醒时间、外观（跟随系统 / 浅色 / 深色）。
 - 体重趋势图、版本信息、首次使用引导。
+- **关于与更新**：底部弹层展示版本、手动检查更新、每日检查提醒开关（默认开，可关）。
+  发现新版本时展示更新说明，可「立即更新 / 稍后 / 跳过此版本」，不做强制更新。
+- **应用内升级**：从 GitHub Releases 下载并校验（大小、SHA-256、包名、签名证书），
+  升级前自动备份到「下载/小福日常」，安装失败按错误码给出可读提示。
 
 ### 基础能力
 - 本地 Room 持久化；删除单条支持 Snackbar 撤销，批量删除二次确认。
@@ -57,6 +63,16 @@
 
 ## 构建与安装
 
+首次构建前需准备签名文件（不入库）：把 `xiaofu-release.jks` 放到任意安全位置，
+并在仓库根目录创建 `keystore.properties`：
+
+```properties
+storeFile=D:/Develop/Android/keys/xiaofu-release.jks
+storePassword=<口令>
+keyAlias=xiaofu
+keyPassword=<口令>
+```
+
 ```powershell
 $env:JAVA_HOME='D:\Develop\Android\jdk-21'
 $env:ANDROID_HOME='D:\Develop\Android\Sdk'
@@ -66,11 +82,19 @@ $env:ANDROID_USER_HOME='D:\Develop\Android\android-home'
 $env:Path="$env:JAVA_HOME\bin;$env:ANDROID_HOME\platform-tools;$env:Path"
 
 .\gradlew.bat assembleDebug      # 调试包
-.\gradlew.bat assembleRelease    # 交付包
-adb install -r dist/小福日常-v1.3.0.apk
+.\gradlew.bat releaseArtifacts   # 发布包 + dist/xiaofu.apk + dist/update.json
+adb install -r dist/xiaofu.apk
 ```
 
-签名：当前为自测签名，不可上架应用商店；覆盖安装（`adb install -r`）不会清空数据。
+版本号、更新说明与仓库地址统一写在 `version.properties`，Gradle 读取后同时写入 APK 与
+`update.json`。发布流程见 [`docs/应用内升级设计.md`](docs/应用内升级设计.md)：
+
+```bash
+gh release create v1.4.0 dist/xiaofu.apk dist/update.json --notes-file docs/发布说明-1.4.0.md
+```
+
+签名：1.4.0 起使用专用发布证书（`CN=XiaoFu Daily`），可长期覆盖升级；证书丢失将无法升级，
+必须离线双备份。**从 1.3.0 升级到 1.4.0 因证书更换需卸载重装一次**，先导出备份。
 
 ## 目录
 
@@ -92,6 +116,8 @@ build/shots/         真机验收截图（本地，不随仓库分发）
 | [`docs/任务清单-小福日常.md`](docs/任务清单-小福日常.md) | **当前进度：已完成 / 待进行 / 验收记录** |
 | [`docs/验收报告-0.9.0.md`](docs/验收报告-0.9.0.md) | 深色编辑表单、升级/异常路径 P0 验收结果 |
 | [`docs/发布说明-1.3.0.md`](docs/发布说明-1.3.0.md) | 1.3.0 发布范围、验证与安装说明 |
+| [`docs/发布说明-1.4.0.md`](docs/发布说明-1.4.0.md) | 1.4.0 发布范围、签名迁移步骤与验证 |
+| [`docs/应用内升级设计.md`](docs/应用内升级设计.md) | 升级链路、清单契约、发布流程与回滚策略 |
 | [`docs/发布说明-1.2.0.md`](docs/发布说明-1.2.0.md) | 1.2.0 发布范围、验证与安装说明 |
 | [`docs/发布说明-1.1.0.md`](docs/发布说明-1.1.0.md) | 1.1.0 发布范围、验证与安装说明 |
 | [`docs/发布说明-1.0.0.md`](docs/发布说明-1.0.0.md) | 1.0.0 发布范围、验证与安装说明 |

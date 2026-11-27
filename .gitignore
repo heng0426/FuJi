@@ -27,6 +27,12 @@ render.experimental.xml
 # Keystore files
 *.jks
 *.keystore
+# 签名口令，绝不入库
+keystore.properties
+
+# 发布产物清单（由 releaseArtifacts 生成，随 GitHub Release 上传即可）
+dist/update.json
+dist/xiaofu.apk
 
 # Google Services (e.g. APIs or Firebase)
 google-services.json

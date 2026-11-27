@@ -45,6 +45,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -105,6 +106,10 @@ import com.xiaofu.daily.ui.records.RecordsViewModel
 import com.xiaofu.daily.ui.today.TodayScreen
 import com.xiaofu.daily.ui.theme.LocalAppDarkTheme
 import com.xiaofu.daily.ui.today.TodayViewModel
+import com.xiaofu.daily.ui.update.UpdateDialog
+import com.xiaofu.daily.update.ApkInstaller
+import com.xiaofu.daily.update.UpdateManager
+import com.xiaofu.daily.update.UpdateState
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.collectLatest
@@ -184,6 +189,15 @@ fun XiaoFuApp() {
         }
     }
     val onMessage: (String) -> Unit = { messages.tryEmit(it) }
+
+    // 升级：检查结果、安装失败/成功提示、通知点击进入
+    val updateState by UpdateManager.state.collectAsState()
+    val permissionLauncherForUpdate = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { UpdateManager.installAfterPermission() }
+    LaunchedEffect(Unit) {
+        UpdateManager.consumeStartupMessage()?.let(onMessage)
+    }
 
     if (showGuide && editor == null) {
         AlertDialog(
@@ -321,6 +335,25 @@ fun XiaoFuApp() {
             }
         }
         PhotoViewerHostOverlay()
+        val upgrade = updateState
+        if (upgrade is UpdateState.Available || upgrade is UpdateState.Working ||
+            upgrade is UpdateState.NeedsPermission || upgrade is UpdateState.Failed
+        ) {
+            UpdateDialog(
+                state = upgrade,
+                onInstall = { UpdateManager.install(it) },
+                onLater = { UpdateManager.dismiss() },
+                onSkip = { UpdateManager.skip() },
+                onRetry = {
+                    val manifest = (upgrade as? UpdateState.Failed)?.manifest
+                    if (manifest != null) UpdateManager.install(manifest) else UpdateManager.check()
+                },
+                onOpenPermission = {
+                    permissionLauncherForUpdate.launch(ApkInstaller.permissionIntent(context))
+                },
+                onClose = { UpdateManager.dismiss() },
+            )
+        }
         if (showNavTuning) {
             NavTuningPanel(
                 tuning = navTuning,

@@ -1,7 +1,11 @@
 package com.xiaofu.daily.data.backup
 
+import android.content.ContentValues
 import android.content.Context
 import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import androidx.room.withTransaction
 import com.xiaofu.daily.data.local.XiaoFuDatabase
 import com.xiaofu.daily.data.local.entity.AnomalyTagEntity
@@ -85,6 +89,42 @@ class BackupManager(
             }
         }
         ExportStats(records.size, present.size, missing)
+    }
+
+    /**
+     * 覆盖升级前的自动备份：写到系统「下载/小福日常」，卸载后仍可找回。
+     * 备份由升级前的旧版本生成（schema 不高于自身），回滚后可被旧版本导入。
+     *
+     * @return 成功返回文件 Uri；Android 9 及以下或写入失败返回 null（备份是尽力而为，不阻断升级）
+     */
+    suspend fun exportToDownloads(): Uri? = withContext(Dispatchers.IO) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return@withContext null
+
+        val stamp = SimpleDateFormat("yyyyMMdd-HHmm", Locale.CHINA).format(Date())
+        val values = ContentValues().apply {
+            put(MediaStore.Downloads.DISPLAY_NAME, "小福日常-升级前备份-$stamp.zip")
+            put(MediaStore.Downloads.MIME_TYPE, "application/zip")
+            put(MediaStore.Downloads.RELATIVE_PATH, "${Environment.DIRECTORY_DOWNLOADS}/小福日常")
+            put(MediaStore.Downloads.IS_PENDING, 1)
+        }
+        val resolver = context.contentResolver
+        val uri = runCatching {
+            resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+        }.getOrNull() ?: return@withContext null
+
+        try {
+            exportTo(uri)
+            resolver.update(
+                uri,
+                ContentValues().apply { put(MediaStore.Downloads.IS_PENDING, 0) },
+                null,
+                null,
+            )
+            uri
+        } catch (t: Throwable) {
+            runCatching { resolver.delete(uri, null, null) }
+            null
+        }
     }
 
     // ---------- 导入 ----------

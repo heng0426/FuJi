@@ -1,6 +1,7 @@
 package com.xiaofu.daily
 
 import android.content.Context
+import android.content.Intent
 import android.content.res.Configuration
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -15,6 +16,8 @@ import com.xiaofu.daily.ui.theme.ThemeMode
 import com.xiaofu.daily.ui.theme.ThemePreference
 import androidx.core.view.WindowCompat
 import com.xiaofu.daily.ui.theme.XiaoFuTheme
+import com.xiaofu.daily.update.UpdateManager
+import com.xiaofu.daily.update.UpdateNotifier
 import com.xiaofu.daily.widget.WidgetRefreshScheduler
 import com.xiaofu.daily.widget.WidgetUpdater
 
@@ -42,8 +45,15 @@ class MainActivity : ComponentActivity() {
         WidgetUpdater.refreshAllAsync(this)
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleUpdateIntent(intent)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        handleUpdateIntent(intent)
         enableEdgeToEdge()
         // 跨零点后准时刷新小组件；WorkManager 会在重启后保留任务
         WidgetRefreshScheduler.scheduleMidnightRefresh(this)
@@ -64,6 +74,14 @@ class MainActivity : ComponentActivity() {
             XiaoFuTheme(darkTheme = dark) {
                 XiaoFuApp()
             }
+        }
+    }
+
+    /** 通知点击进入时直接拉起更新弹窗；应用存活时 singleTop 复用实例也能生效 */
+    private fun handleUpdateIntent(intent: Intent?) {
+        if (intent?.getBooleanExtra(UpdateNotifier.EXTRA_OPEN_UPDATE, false) == true) {
+            intent.removeExtra(UpdateNotifier.EXTRA_OPEN_UPDATE)
+            UpdateManager.openFromNotification()
         }
     }
 }

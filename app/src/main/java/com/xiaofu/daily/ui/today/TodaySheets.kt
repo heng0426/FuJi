@@ -14,6 +14,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -59,10 +61,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.xiaofu.daily.AppContainer
 import com.xiaofu.daily.R
+import com.xiaofu.daily.data.SettingsKeys
 import com.xiaofu.daily.data.local.entity.RecordEntity
 import com.xiaofu.daily.data.local.model.MealKind
 import com.xiaofu.daily.data.local.model.RecordType
 import com.xiaofu.daily.ui.components.BigNumberField
+import com.xiaofu.daily.ui.components.CustomTagDialog
 import com.xiaofu.daily.ui.components.DateTimePickerDialog
 import com.xiaofu.daily.ui.components.FormLabel
 import com.xiaofu.daily.ui.components.LocalPhotoViewerHost
@@ -87,7 +91,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private val SnackTypes = listOf("冻干", "罐头", "零食", "自制", "其他")
+/** 加餐类型标签库：与药品名标签同一套机制，默认值见 DefaultNameTags，可增删并落库 */
+private suspend fun loadSnackTypeTags(): List<String> =
+    runCatching { AppContainer.repository.nameTags(SettingsKeys.SNACK_TYPE_TAGS) }.getOrDefault(emptyList())
 
 /** 喝水输入方式：喝水直接填喝掉的量；水瓶 / 水碗用上次剩余减本次剩余；记住上次选择 */
 private enum class WaterEntryMode {
@@ -317,7 +323,7 @@ fun WaterSheet(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun FoodSheet(
     initialKind: MealKind,
@@ -342,13 +348,21 @@ fun FoodSheet(
         mutableIntStateOf((editing?.servingCount?.roundToInt() ?: initialServings).coerceIn(1, 20))
     }
     var grams by remember { mutableIntStateOf((editing?.gramsPerServing ?: initialGrams).coerceIn(1, 200)) }
-    var snackType by remember { mutableStateOf(editing?.snackType ?: initialSnack ?: SnackTypes.first()) }
+    var snackType by remember { mutableStateOf(editing?.snackType ?: initialSnack.orEmpty()) }
     var presets by remember { mutableStateOf<List<com.xiaofu.daily.data.FoodPreset>>(emptyList()) }
     var showAddPreset by remember { mutableStateOf(false) }
     var pendingDeletePreset by remember { mutableStateOf<com.xiaofu.daily.data.FoodPreset?>(null) }
 
+    // 加餐类型：默认「冻干 / 罐头 / 猫条 / 其他」，与药品名标签同一套增删机制（落库、可长按删除）
+    var snackTypes by remember { mutableStateOf<List<String>>(emptyList()) }
+    var showAddSnackType by remember { mutableStateOf(false) }
+    var newSnackType by remember { mutableStateOf("") }
+    var pendingDeleteSnackType by remember { mutableStateOf<String?>(null) }
+
     LaunchedEffect(Unit) {
         presets = runCatching { AppContainer.repository.foodPresets() }.getOrDefault(emptyList())
+        snackTypes = loadSnackTypeTags()
+        if (snackType.isBlank()) snackType = snackTypes.firstOrNull().orEmpty()
     }
 
     val kind = editing?.mealKind ?: initialKind
@@ -455,13 +469,29 @@ fun FoodSheet(
                 )
             }
             if (kind == MealKind.SNACK) {
-                Row(
+                FlowRow(
                     modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    SnackTypes.forEach { type ->
-                        PillChip(text = type, selected = snackType == type, onClick = { snackType = type })
+                    // 编辑旧记录时，若原类型已从标签库删除，临时并入显示，避免看不到当前值
+                    val shownTypes =
+                        if (snackType.isBlank() || snackType in snackTypes) snackTypes
+                        else snackTypes + snackType
+                    shownTypes.forEach { type ->
+                        PillChip(
+                            text = type,
+                            selected = snackType == type,
+                            onClick = { snackType = type },
+                            onLongClick = { pendingDeleteSnackType = type },
+                        )
                     }
+                    PillChip(
+                        text = "自定义",
+                        selected = false,
+                        onClick = { showAddSnackType = true },
+                        leadingIconRes = R.drawable.ic_ms_add,
+                    )
                 }
             }
             Spacer(Modifier.height(12.dp))
@@ -511,6 +541,73 @@ fun FoodSheet(
                 scope.launch {
                     runCatching { AppContainer.repository.addFoodPreset(name, count) }
                     presets = runCatching { AppContainer.repository.foodPresets() }.getOrDefault(presets)
+                }
+            },
+        )
+    }
+
+    if (showAddSnackType) {
+        CustomTagDialog(
+            value = newSnackType,
+            onValueChange = { newSnackType = it },
+            onDismiss = {
+                showAddSnackType = false
+                newSnackType = ""
+            },
+            onConfirm = {
+                val name = newSnackType.trim()
+                if (name.isNotEmpty()) {
+                    scope.launch {
+                        runCatching {
+                            AppContainer.repository.addNameTag(SettingsKeys.SNACK_TYPE_TAGS, name)
+                        }
+                        snackTypes = loadSnackTypeTags()
+                        snackType = name
+                        showAddSnackType = false
+                        newSnackType = ""
+                    }
+                }
+            },
+            title = "自定义加餐类型",
+            placeholder = "例如：猫条",
+        )
+    }
+
+    pendingDeleteSnackType?.let { tag ->
+        AlertDialog(
+            onDismissRequest = { pendingDeleteSnackType = null },
+            containerColor = cs.surface,
+            shape = RoundedCornerShape(22.dp),
+            title = {
+                Text(
+                    "删除加餐类型",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = cs.onSurface,
+                )
+            },
+            text = {
+                Text(
+                    "删除「$tag」？已记录的历史不受影响。",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = cs.onSurfaceVariant,
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    pendingDeleteSnackType = null
+                    scope.launch {
+                        runCatching {
+                            AppContainer.repository.removeNameTag(SettingsKeys.SNACK_TYPE_TAGS, tag)
+                        }
+                        snackTypes = loadSnackTypeTags()
+                        if (snackType == tag) snackType = snackTypes.firstOrNull().orEmpty()
+                    }
+                }) { Text("删除", color = cs.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDeleteSnackType = null }) {
+                    Text("取消", color = cs.onSurfaceVariant)
                 }
             },
         )

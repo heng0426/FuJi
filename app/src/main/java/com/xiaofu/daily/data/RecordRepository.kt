@@ -97,12 +97,14 @@ object SettingsKeys {
     const val NOTIFY_LAST_DAY = "notify_last_day"
     const val DEWORM_MEDICINE_TAGS = "deworm_medicine_tags"
     const val VACCINE_NAME_TAGS = "vaccine_name_tags"
+    const val SNACK_TYPE_TAGS = "snack_type_tags"
 }
 
-/** 药品名/疫苗名称常用标签默认值；存 settings 表后可增删（含默认项），随备份导出/导入同步 */
+/** 药品名/疫苗名称/加餐类型 的常用标签默认值；存 settings 表后可增删（含默认项），随备份导出/导入同步 */
 private val DefaultNameTags = mapOf(
     SettingsKeys.DEWORM_MEDICINE_TAGS to listOf("海乐妙", "大宠爱", "福来恩", "爱沃克", "博来恩"),
     SettingsKeys.VACCINE_NAME_TAGS to listOf("猫三联", "狂犬疫苗", "妙三多"),
+    SettingsKeys.SNACK_TYPE_TAGS to listOf("冻干", "罐头", "猫条", "其他"),
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)

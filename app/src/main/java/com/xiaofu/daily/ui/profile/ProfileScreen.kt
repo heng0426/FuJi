@@ -121,6 +121,8 @@ fun ProfileScreen(
     val updateState by UpdateManager.state.collectAsState()
     val knownUpdate by UpdateManager.known.collectAsState()
     var updateNotifyEnabled by remember { mutableStateOf(UpdateStore.notifyEnabled(context)) }
+    // 状态变化（含检查完成）时重读，保证"上次检查"实时刷新
+    val lastCheckAt = remember(updateState) { UpdateStore.lastCheckAt(context) }
     val profile by vm.profile.collectAsState()
     val settings by vm.settings.collectAsState()
 
@@ -289,6 +291,7 @@ fun ProfileScreen(
             state = updateState,
             known = knownUpdate,
             notifyEnabled = updateNotifyEnabled,
+            lastCheckAt = lastCheckAt,
             onToggleNotify = { enabled ->
                 updateNotifyEnabled = enabled
                 UpdateStore.setNotifyEnabled(context, enabled)

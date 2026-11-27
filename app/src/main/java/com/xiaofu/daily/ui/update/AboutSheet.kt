@@ -45,6 +45,7 @@ fun AboutSheet(
     state: UpdateState,
     known: UpdateManifest?,
     notifyEnabled: Boolean,
+    lastCheckAt: Long,
     onToggleNotify: (Boolean) -> Unit,
     onCheck: () -> Unit,
     onInstall: (UpdateManifest) -> Unit,
@@ -54,6 +55,11 @@ fun AboutSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val checking = state is UpdateState.Checking
     val pending = known?.takeIf { it.versionCode > currentVersionCode }
+    val lastCheckLabel = if (lastCheckAt <= 0L) {
+        "尚未检查"
+    } else {
+        "上次检查 ${checkTime(lastCheckAt)}"
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -118,14 +124,23 @@ fun AboutSheet(
                     modifier = Modifier.size(18.dp),
                     tint = cs.onSurfaceVariant,
                 )
-                Text(
-                    "检查更新",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = cs.onSurface,
-                    modifier = Modifier
+                Column(
+                    Modifier
                         .weight(1f)
                         .padding(start = 12.dp),
-                )
+                ) {
+                    Text(
+                        "检查更新",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = cs.onSurface,
+                    )
+                    Text(
+                        lastCheckLabel,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = cs.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 2.dp),
+                    )
+                }
                 Text(
                     statusText(state, pending),
                     style = MaterialTheme.typography.labelSmall,
@@ -191,3 +206,6 @@ private fun statusText(state: UpdateState, pending: UpdateManifest?): String = w
     is UpdateState.Failed -> "失败，可重试"
     else -> pending?.let { "可更新 ${it.versionName}" } ?: " "
 }
+
+private fun checkTime(at: Long): String =
+    java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.CHINA).format(java.util.Date(at))

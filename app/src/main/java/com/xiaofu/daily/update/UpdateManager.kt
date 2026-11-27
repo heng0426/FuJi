@@ -119,7 +119,13 @@ object UpdateManager {
             try {
                 _state.value = UpdateState.Working(manifest, 0, "正在准备")
                 repo.backupBeforeInstall()
-                val apk = repo.downloadAndVerify(
+
+                // 复用手上已校验过的包：失败重试、授权返回都不必再下一次 20 MB
+                val cached = lastApk?.takeIf {
+                    lastManifest?.versionCode == manifest.versionCode &&
+                        it.isFile && it.length() == manifest.sizeBytes
+                }
+                val apk = cached ?: repo.downloadAndVerify(
                     manifest = manifest,
                     onProgress = { percent ->
                         _state.value = UpdateState.Working(manifest, percent, "正在下载")
@@ -169,6 +175,36 @@ object UpdateManager {
         } catch (t: Throwable) {
             _state.value = UpdateState.Failed(t.message ?: "无法启动安装器", manifest)
         }
+    }
+
+    /**
+     * 回到前台时补一次检查：部分 ROM 在授权页返回后不派发 ActivityResult，
+     * 这里根据当前状态兜底，避免用户卡在"待授权"。
+     */
+    fun onAppResumed() {
+        if (!::appContext.isInitialized) return
+        val state = _state.value
+        if (state is UpdateState.NeedsPermission && ApkInstaller.canInstall(appContext)) {
+            installAfterPermission()
+        }
+    }
+
+    /** 安装会话回调（跨进程）：失败时把界面从"正在打开安装器"解开 */
+    fun onInstallFailed(message: String) {
+        if (!::appContext.isInitialized) return
+        val manifest = when (val current = _state.value) {
+            is UpdateState.Working -> current.manifest
+            is UpdateState.NeedsPermission -> current.manifest
+            else -> lastManifest
+        }
+        _state.value = UpdateState.Failed(message, manifest)
+    }
+
+    /** 安装成功且进程未被杀时的收尾 */
+    fun onInstallSucceeded() {
+        if (!::appContext.isInitialized) return
+        lastApk = null
+        _state.value = UpdateState.Idle
     }
 
     fun skip() {

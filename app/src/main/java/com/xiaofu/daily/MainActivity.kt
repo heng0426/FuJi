@@ -43,6 +43,8 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         // App 内写入记录或改档案后，回到桌面时小组件与最新数据一致
         WidgetUpdater.refreshAllAsync(this)
+        // 授权页返回后兜底继续安装（部分 ROM 不派发 ActivityResult）
+        UpdateManager.onAppResumed()
     }
 
     override fun onNewIntent(intent: Intent) {

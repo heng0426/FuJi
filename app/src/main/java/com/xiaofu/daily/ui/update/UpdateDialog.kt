@@ -144,7 +144,7 @@ fun UpdateDialog(
                         color = cs.onSurface,
                     )
                     Text(
-                        "部分机型需关闭「纯净模式」，或在应用信息右上角放开「受限制的设置」。",
+                        "部分机型会先打开应用列表，请在其中找到「小福日常」；必要时关闭「纯净模式」，或在应用信息右上角放开「受限制的设置」。",
                         style = MaterialTheme.typography.labelSmall,
                         color = cs.onSurfaceVariant,
                     )

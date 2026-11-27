@@ -31,6 +31,7 @@ class InstallResultReceiver : BroadcastReceiver() {
                 UpdateStore.clearKnown(context)
                 UpdateStore.clearSkipped(context)
                 UpdateNotifier.cancel(context)
+                UpdateManager.onInstallSucceeded()
             }
 
             else -> {
@@ -38,6 +39,8 @@ class InstallResultReceiver : BroadcastReceiver() {
                 val text = describe(status, message)
                 UpdateStore.setInstallError(context, text)
                 UpdateNotifier.notifyInstallFailed(context, text)
+                // 进程仍在时把界面从"正在打开安装器"解开，避免弹窗卡死
+                UpdateManager.onInstallFailed(text)
             }
         }
     }

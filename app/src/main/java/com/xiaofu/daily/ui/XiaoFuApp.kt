@@ -197,6 +197,8 @@ fun XiaoFuApp() {
     ) { UpdateManager.installAfterPermission() }
     LaunchedEffect(Unit) {
         UpdateManager.consumeStartupMessage()?.let(onMessage)
+        // 安装未完成等非阻断信息走轻提示，不再弹模态框
+        UpdateManager.messages.collect { onMessage(it) }
     }
 
     if (showGuide && editor == null) {

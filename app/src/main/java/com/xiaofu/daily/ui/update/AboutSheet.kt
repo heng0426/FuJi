@@ -17,6 +17,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -45,9 +46,11 @@ fun AboutSheet(
     known: UpdateManifest?,
     notifyEnabled: Boolean,
     lastCheckAt: Long,
+    manualReady: Boolean,
     onToggleNotify: (Boolean) -> Unit,
     onCheck: () -> Unit,
     onInstall: (UpdateManifest) -> Unit,
+    onManualInstall: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val cs = MaterialTheme.colorScheme
@@ -175,6 +178,19 @@ fun AboutSheet(
                         text = "更新到 ${pending.versionName}",
                         onClick = { onInstall(pending) },
                     )
+                    // 安装包已在本地时给出不打扰的旁路：ROM 拦截应用内安装时可从这里手动装
+                    if (manualReady) {
+                        TextButton(
+                            onClick = onManualInstall,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(
+                                "手动安装（安装包已下载）",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = cs.onSurfaceVariant,
+                            )
+                        }
+                    }
                 }
             }
         }

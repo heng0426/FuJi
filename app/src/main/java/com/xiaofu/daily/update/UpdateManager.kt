@@ -6,8 +6,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -61,6 +64,14 @@ object UpdateManager {
     /** 最近一次发现的新版本；提醒关闭时「关于」页仍能显示可更新 */
     private val _known = MutableStateFlow<UpdateManifest?>(null)
     val known: StateFlow<UpdateManifest?> = _known.asStateFlow()
+
+    /** 轻提示（snackbar）通道：安装未完成等非阻断信息走这里，不弹窗 */
+    private val _messages = MutableSharedFlow<String>(extraBufferCapacity = 4)
+    val messages: SharedFlow<String> = _messages.asSharedFlow()
+
+    /** 已下载并通过校验的包是否就绪，「关于」页据此显示手动安装入口 */
+    private val _manualReady = MutableStateFlow(false)
+    val manualReady: StateFlow<Boolean> = _manualReady.asStateFlow()
 
     private var lastManifest: UpdateManifest? = null
 
@@ -148,6 +159,7 @@ object UpdateManager {
                     },
                 )
                 lastApk = apk
+                _manualReady.value = true
                 if (!ApkInstaller.canInstall(appContext)) {
                     _state.value = UpdateState.NeedsPermission(manifest)
                     return@launch
@@ -203,35 +215,34 @@ object UpdateManager {
     }
 
     /**
-     * 安装会话回调（跨进程）：失败时把界面从"正在打开安装器"解开。
+     * 安装会话回调（跨进程）。
      *
-     * 判成败不能只看回调，也不能只看"回调这一刻"的版本：实测 OPPO 上系统会先派发
-     * ABORTED，安装随后才完成，此刻读到的仍是旧版本。因此先进入等待态轮询版本，
-     * 超时仍没升级才算真失败。
+     * 两种不可靠都要兜住：
+     * 1. 回调状态不可信——OPPO 上系统先派发 ABORTED，安装随后才完成；
+     * 2. 判定时机不可信——回调到达时版本往往还没生效，因此后台静默复检一段时间。
+     *
+     * 失败一律不弹模态框，只发一条轻提示：升级失败不影响使用，不该打断用户。
      */
     fun onInstallFailed(message: String, romBlocked: Boolean = false) {
         if (!::appContext.isInitialized) return
         val repo = repository
         val pending = UpdateStore.pendingInstall(appContext)
-        val manifest = when (val current = _state.value) {
-            is UpdateState.Working -> current.manifest
-            is UpdateState.NeedsPermission -> current.manifest
-            else -> lastManifest
-        }
 
         // 快路径：已经装上了
         if (pending > 0 && (repo?.currentVersionCode() ?: 0L) >= pending) {
+            awaitingResult?.cancel()
+            awaitingResult = null
             onInstallSucceeded()
             return
         }
 
         awaitingResult?.cancel()
-        if (manifest != null) {
-            _state.value = UpdateState.Working(manifest, 100, "正在等待安装结果")
-        }
+        _state.value = UpdateState.Idle
+        _messages.tryEmit(
+            if (romBlocked) "安装未完成，可在「我的 → 关于」里手动安装" else "安装未完成：$message",
+        )
         awaitingResult = scope.launch {
-            val deadline = System.currentTimeMillis() + INSTALL_RESULT_TIMEOUT_MS
-            while (System.currentTimeMillis() < deadline) {
+            repeat((INSTALL_RESULT_TIMEOUT_MS / 800L).toInt()) {
                 delay(800)
                 val current = repo?.currentVersionCode() ?: 0L
                 if (pending > 0 && current >= pending) {
@@ -239,7 +250,6 @@ object UpdateManager {
                     return@launch
                 }
             }
-            _state.value = UpdateState.Failed(message, manifest, romBlocked)
         }
     }
 
@@ -289,9 +299,8 @@ object UpdateManager {
     /** 安装成功且进程未被杀时的收尾 */
     fun onInstallSucceeded() {
         if (!::appContext.isInitialized) return
-        awaitingResult?.cancel()
-        awaitingResult = null
         lastApk = null
+        _manualReady.value = false
         UpdateStore.clearPendingInstall(appContext)
         UpdateStore.clearKnown(appContext)
         UpdateStore.clearSkipped(appContext)
@@ -335,6 +344,7 @@ object UpdateManager {
             UpdateStore.clearKnown(appContext)
             UpdateStore.clearSkipped(appContext)
             repo.clearDownloadCache()
+            _manualReady.value = false
             return "已更新到 ${repo.currentVersionName()}"
         }
         if (error != null) {

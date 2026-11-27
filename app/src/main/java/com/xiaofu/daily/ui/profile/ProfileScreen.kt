@@ -120,6 +120,7 @@ fun ProfileScreen(
     }
     val updateState by UpdateManager.state.collectAsState()
     val knownUpdate by UpdateManager.known.collectAsState()
+    val updateManualReady by UpdateManager.manualReady.collectAsState()
     var updateNotifyEnabled by remember { mutableStateOf(UpdateStore.notifyEnabled(context)) }
     // 状态变化（含检查完成）时重读，保证"上次检查"实时刷新
     val lastCheckAt = remember(updateState) { UpdateStore.lastCheckAt(context) }
@@ -292,6 +293,7 @@ fun ProfileScreen(
             known = knownUpdate,
             notifyEnabled = updateNotifyEnabled,
             lastCheckAt = lastCheckAt,
+            manualReady = updateManualReady,
             onToggleNotify = { enabled ->
                 updateNotifyEnabled = enabled
                 UpdateStore.setNotifyEnabled(context, enabled)
@@ -301,6 +303,10 @@ fun ProfileScreen(
             onInstall = { manifest ->
                 showAbout = false
                 UpdateManager.install(manifest)
+            },
+            onManualInstall = {
+                showAbout = false
+                UpdateManager.installManually()
             },
             onDismiss = { showAbout = false },
         )

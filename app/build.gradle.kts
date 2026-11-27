@@ -47,7 +47,10 @@ android {
     defaultConfig {
         applicationId = "com.xiaofu.daily"
         minSdk = appMinSdk
-        targetSdk = 37
+        // MIUI/HyperOS 的安装器在"会话安装"（应用内更新）时会校验 targetSdk：
+        // targetSdk 高于设备系统版本会被静默拦截（日志：blocked session install because sdk version too low），
+        // 且该拦截与"安装未知应用"权限无关。个人自用且不上架，取 34 换取升级可用性。
+        targetSdk = 34
         versionCode = appVersionCode
         versionName = appVersionName
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

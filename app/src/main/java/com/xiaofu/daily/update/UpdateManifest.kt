@@ -32,10 +32,13 @@ data class UpdateManifest(
     val changelog: List<String>,
     val mirrors: List<String>,
     val publishedAt: String?,
+    /** 经 api.github.com 解析出的资产地址；为空表示走直连通道 */
+    val apiAssetUrl: String? = null,
 ) {
 
-    /** 下载候选地址：主源在前，备源在后 */
+    /** 下载候选地址：API 通道优先（说明直连已被阻断），其次主源与备源 */
     fun downloadUrls(): List<String> = buildList {
+        apiAssetUrl?.takeIf { it.isNotBlank() }?.let { add(it) }
         add(apkUrl)
         mirrors.forEach { if (it.isNotBlank() && it != apkUrl) add(it) }
     }

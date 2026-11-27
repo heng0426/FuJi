@@ -51,7 +51,7 @@ class ApkDownloader(private val context: Context) {
     ) {
         val connection = (URL(url).openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"
-            connectTimeout = 15_000
+            connectTimeout = 8_000
             readTimeout = 30_000
             instanceFollowRedirects = true
             setRequestProperty("Accept", "application/octet-stream")

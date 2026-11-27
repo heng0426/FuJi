@@ -19,6 +19,7 @@ object UpdateStore {
     private const val KEY_KNOWN_NAME = "known_version_name"
     private const val KEY_PENDING_INSTALL = "pending_install_version"
     private const val KEY_INSTALL_ERROR = "install_error"
+    private const val KEY_INSTALL_ERROR_ROM_BLOCKED = "install_error_rom_blocked"
 
     private fun prefs(context: Context) =
         context.applicationContext.getSharedPreferences(FILE, Context.MODE_PRIVATE)
@@ -86,14 +87,25 @@ object UpdateStore {
 
     fun pendingInstall(context: Context): Long = prefs(context).getLong(KEY_PENDING_INSTALL, -1L)
 
-    fun setInstallError(context: Context, message: String) {
-        prefs(context).edit().putString(KEY_INSTALL_ERROR, message).apply()
+    /** 安装失败信息；[romBlocked] 表示拦截来自系统/厂商安装器，重试通常无效 */
+    data class InstallError(val message: String, val romBlocked: Boolean)
+
+    fun setInstallError(context: Context, message: String, romBlocked: Boolean = false) {
+        prefs(context).edit()
+            .putString(KEY_INSTALL_ERROR, message)
+            .putBoolean(KEY_INSTALL_ERROR_ROM_BLOCKED, romBlocked)
+            .apply()
     }
 
     /** 取出并清空安装失败信息，保证只提示一次 */
-    fun consumeInstallError(context: Context): String? {
-        val message = prefs(context).getString(KEY_INSTALL_ERROR, null) ?: return null
-        prefs(context).edit().remove(KEY_INSTALL_ERROR).apply()
-        return message
+    fun consumeInstallError(context: Context): InstallError? {
+        val prefs = prefs(context)
+        val message = prefs.getString(KEY_INSTALL_ERROR, null) ?: return null
+        val romBlocked = prefs.getBoolean(KEY_INSTALL_ERROR_ROM_BLOCKED, false)
+        prefs.edit()
+            .remove(KEY_INSTALL_ERROR)
+            .remove(KEY_INSTALL_ERROR_ROM_BLOCKED)
+            .apply()
+        return InstallError(message, romBlocked)
     }
 }

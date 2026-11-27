@@ -348,6 +348,7 @@ fun XiaoFuApp() {
                     val manifest = (upgrade as? UpdateState.Failed)?.manifest
                     if (manifest != null) UpdateManager.install(manifest) else UpdateManager.check()
                 },
+                onManualInstall = { UpdateManager.installManually() },
                 onOpenPermission = {
                     permissionLauncherForUpdate.launch(ApkInstaller.permissionIntent(context))
                 },

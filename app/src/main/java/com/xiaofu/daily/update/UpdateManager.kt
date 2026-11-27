@@ -33,6 +33,8 @@ sealed interface UpdateState {
     data class Failed(
         val message: String,
         val manifest: UpdateManifest?,
+        /** 拦截来自系统/厂商安装器：重试基本无效，应引导手动安装 */
+        val romBlocked: Boolean = false,
     ) : UpdateState
 }
 
@@ -190,14 +192,64 @@ object UpdateManager {
     }
 
     /** 安装会话回调（跨进程）：失败时把界面从"正在打开安装器"解开 */
-    fun onInstallFailed(message: String) {
+    fun onInstallFailed(message: String, romBlocked: Boolean = false) {
         if (!::appContext.isInitialized) return
+        // 自我更新时系统可能在安装完成前后派发 ABORTED；版本已达标就不算失败
+        val pending = UpdateStore.pendingInstall(appContext)
+        val current = repository?.currentVersionCode() ?: 0L
+        if (pending > 0 && current >= pending) {
+            onInstallSucceeded()
+            return
+        }
         val manifest = when (val current = _state.value) {
             is UpdateState.Working -> current.manifest
             is UpdateState.NeedsPermission -> current.manifest
             else -> lastManifest
         }
-        _state.value = UpdateState.Failed(message, manifest)
+        _state.value = UpdateState.Failed(message, manifest, romBlocked)
+    }
+
+    /**
+     * 手动安装：把已校验的包保存到「下载/小福日常」，并尝试用系统安装器打开。
+     *
+     * 用于 ROM 拦截应用内安装的机型（会话安装与 ACTION_VIEW 都可能被拒）。
+     * 即使安装页没能弹出，安装包已在公共下载目录，用户可从文件管理器直接打开。
+     */
+    fun installManually() {
+        if (!::appContext.isInitialized) return
+        val manifest = lastManifest ?: _known.value
+        // 内存里的包优先；进程重启过则回退到下载缓存，只要大小与清单一致即可用
+        val apk = sequenceOf(
+            lastApk,
+            java.io.File(UpdateConfig.cacheDir(appContext), UpdateConfig.APK_FILE_NAME),
+        ).filterNotNull()
+            .firstOrNull { file ->
+                file.isFile && (manifest == null || file.length() == manifest.sizeBytes)
+            }
+
+        if (apk == null || manifest == null) {
+            check()
+            return
+        }
+
+        scope.launch {
+            _state.value = UpdateState.Working(manifest, 100, "正在保存安装包")
+            val saved = ApkExporter.exportToDownloads(appContext, apk, manifest.versionName)
+            val opened = runCatching {
+                withContext(Dispatchers.IO) { ApkInstaller.openWithSystemInstaller(appContext, apk) }
+            }.isSuccess
+
+            val fileName = "小福日常-v${manifest.versionName}.apk"
+            val hint = when {
+                saved == null ->
+                    "安装包未能保存到下载目录，请点「重试」重新下载后再试。"
+                opened ->
+                    "已保存到「下载/小福日常/$fileName」。若安装页没有出现，请从「文件管理 → 下载 → 小福日常」点开它完成安装。"
+                else ->
+                    "请从「文件管理 → 下载 → 小福日常/$fileName」点开安装包完成安装。"
+            }
+            _state.value = UpdateState.Failed(hint, manifest, romBlocked = true)
+        }
     }
 
     /** 安装成功且进程未被杀时的收尾 */
@@ -224,27 +276,35 @@ object UpdateManager {
     // ---- 与安装结果的交接 ----
 
     /**
-     * 启动时消费一次安装结果：
-     * - 失败信息（Receiver 落盘）优先提示
-     * - 成功则提示"已更新到 x.y.z"
+     * 启动时消费一次安装结果。
+     *
+     * 判定顺序很重要：**先看版本是否已经达到目标版本**。应用自我更新时系统常先派发
+     * ABORTED 再完成安装，若按"有错误就报错"处理，会把成功显示成"安装已取消"
+     * （vivo 机型实测）。
      */
     fun consumeStartupMessage(): String? {
+        val repo = repository ?: return null
+        val pending = UpdateStore.pendingInstall(appContext)
         val error = UpdateStore.consumeInstallError(appContext)
+        val current = repo.currentVersionCode()
+
+        if (pending > 0 && current >= pending) {
+            UpdateStore.clearPendingInstall(appContext)
+            UpdateStore.clearKnown(appContext)
+            UpdateStore.clearSkipped(appContext)
+            repo.clearDownloadCache()
+            return "已更新到 ${repo.currentVersionName()}"
+        }
         if (error != null) {
             UpdateStore.clearPendingInstall(appContext)
-            return error
+            return if (error.romBlocked) {
+                "${error.message}；可在「下载/小福日常」中找到安装包手动安装"
+            } else {
+                error.message
+            }
         }
-        val pending = UpdateStore.pendingInstall(appContext)
-        if (pending <= 0) return null
-
-        val repo = repository ?: return null
-        UpdateStore.clearPendingInstall(appContext)
-        return if (pending <= repo.currentVersionCode()) {
-            repo.clearDownloadCache()
-            "已更新到 ${repo.currentVersionName()}"
-        } else {
-            null
-        }
+        if (pending > 0) UpdateStore.clearPendingInstall(appContext)
+        return null
     }
 
     private fun currentVersionCode(): Long = repository?.currentVersionCode() ?: 0L

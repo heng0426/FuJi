@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- 已校验的安装包暂存位置：filesDir/update/，供系统安装器读取 -->
+    <files-path name="update" path="update/" />
+</paths>

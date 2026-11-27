@@ -6,10 +6,40 @@ import android.content.pm.PackageInstaller
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import androidx.core.content.FileProvider
 import java.io.File
 
 /** 通过 PackageInstaller 会话发起覆盖安装；系统安装器仍会向用户显示确认页 */
 object ApkInstaller {
+
+    private const val APK_MIME = "application/vnd.android.package-archive"
+
+    /** 暂存目录：FileProvider 只暴露这一层，避免把整个私有目录变成可读 */
+    private fun stageDir(context: Context): File =
+        File(context.filesDir, "update").apply { mkdirs() }
+
+    /**
+     * 把校验通过的包复制到暂存目录并返回 content:// 地址。
+     * 会话安装被 ROM 拦截时，用它把安装交给系统安装器，等效于用户从文件管理器点开 APK。
+     */
+    fun contentUri(context: Context, apk: File): Uri {
+        val dir = stageDir(context)
+        // 只保留当前这一份，历史包不堆积
+        val target = File(dir, "xiaofu-update.apk")
+        dir.listFiles()?.forEach { if (it.absolutePath != target.absolutePath) it.delete() }
+        apk.copyTo(target, overwrite = true)
+        return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", target)
+    }
+
+    /** 用系统安装器打开（ACTION_VIEW 路径，部分 ROM 对会话安装拦截、对这条路径放行） */
+    fun openWithSystemInstaller(context: Context, apk: File) {
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(contentUri(context, apk), APK_MIME)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(intent)
+    }
 
     /** 是否已获得"安装未知应用"授权（Android 8+ 按来源应用单独授权） */
     fun canInstall(context: Context): Boolean =

@@ -33,6 +33,7 @@ fun UpdateDialog(
     onLater: () -> Unit,
     onSkip: () -> Unit,
     onRetry: () -> Unit,
+    onManualInstall: () -> Unit,
     onOpenPermission: () -> Unit,
     onClose: () -> Unit,
 ) {
@@ -168,23 +169,38 @@ fun UpdateDialog(
             shape = shape,
             title = {
                 Text(
-                    "更新未完成",
+                    if (state.romBlocked) "这个机型需要手动安装" else "更新未完成",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = cs.onSurface,
                 )
             },
             text = {
-                Text(
-                    state.message,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = cs.onSurfaceVariant,
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        state.message,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = cs.onSurfaceVariant,
+                    )
+                    if (state.romBlocked) {
+                        Text(
+                            "系统安装器不接受应用内发起的安装，但安装包本身是完好的。保存到下载目录后用文件管理器打开即可正常安装，数据保留。",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = cs.onSurfaceVariant,
+                        )
+                    }
+                }
             },
             confirmButton = {
-                TextButton(onClick = onRetry) {
+                TextButton(
+                    onClick = if (state.romBlocked) onManualInstall else onRetry,
+                ) {
                     Text(
-                        if (state.manifest != null) "重试" else "重新检查",
+                        when {
+                            state.romBlocked -> "保存并打开"
+                            state.manifest != null -> "重试"
+                            else -> "重新检查"
+                        },
                         color = cs.primary,
                         fontWeight = FontWeight.SemiBold,
                     )
